@@ -1,0 +1,27 @@
+Man-in-the-Middle (MitM) Data Aggregator - Admin Frontend
+Copyright 2026 ZHENG Robert
+
+This product includes software developed by ZHENG Robert
+(robert@hase-zheng.net).
+
+This project relies on the following third-party open-source components:
+
+* Qt 6
+  Licensed under the GNU Lesser General Public License v3 (LGPLv3) / Commercial
+  https://www.qt.io/
+
+* nlohmann/json
+  Licensed under the MIT License
+  Copyright (c) 2013-2022 Niels Lohmann
+
+* spdlog
+  Licensed under the MIT License
+  Copyright (c) 2016 Gabi Melman
+
+* CMake
+  Licensed under the OSI-approved BSD 3-Clause License
+  Copyright 2000-2024 Kitware, Inc. and Contributors
+
+* Conan
+  Licensed under the MIT License
+  Copyright (c) JFrog Ltd.
