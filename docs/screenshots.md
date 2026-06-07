@@ -1,6 +1,6 @@
-# MitM Admin Frontend - Linux Screenshots
+# MitM Admin Frontend - Screenshots
 
-This document showcases the graphical user interface of the **MitM Data Aggregator Admin Frontend** when running on a Linux desktop environment.
+This document showcases the graphical user interface of the **MitM Data Aggregator Admin Frontend** when running on a Linux or Windows desktop environment.
 
 > [!NOTE]\
 > This page is work in progress, content will be updated.
@@ -8,17 +8,18 @@ This document showcases the graphical user interface of the **MitM Data Aggregat
 ### 1. Application Startup
 
 The initial prompt asking the user for the master password to decrypt the secure `config.enc` file via libsodium.
+
 ![Application Startup](screenshots/linux/01.png)
 
 ### 2. Dashboard View
 
 The main dashboard displaying real-time system metrics, scheduler health, and an overview of active jobs.
 
-**startup**
+**startup** (Windows screenshot)
 
-![Dashboard View - startup](screenshots/linux/02.png)
+![Dashboard View - startup](screenshots/win11/02.png)
 
-**running**
+**running** (Linux screenshot)
 
 ![Dashboard View - Running](screenshots/linux/05.png)
 
