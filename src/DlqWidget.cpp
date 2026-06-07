@@ -1,3 +1,20 @@
+/**
+ * SPDX-FileComment: DlqWidget
+ * SPDX-FileType: SOURCE
+ * SPDX-FileContributor: ZHENG Robert
+ * SPDX-FileCopyrightText: 2026 ZHENG Robert
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * @file DlqWidget.cpp
+ * @brief DlqWidget
+ * @version 0.2.0
+ * @date 2026-06-07
+ *
+ * @author ZHENG Robert (robert@hase-zheng.net)
+ * @copyright Copyright (c) 2026 ZHENG Robert
+ * @LICENSE Apache-2.0
+ */
+
 #include "DlqWidget.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>

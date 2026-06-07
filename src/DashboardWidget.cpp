@@ -1,3 +1,20 @@
+/**
+ * SPDX-FileComment: DashboardWidget
+ * SPDX-FileType: SOURCE
+ * SPDX-FileContributor: ZHENG Robert
+ * SPDX-FileCopyrightText: 2026 ZHENG Robert
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * @file DashboardWidget.cpp
+ * @brief DashboardWidget
+ * @version 0.2.0
+ * @date 2026-06-07
+ *
+ * @author ZHENG Robert (robert@hase-zheng.net)
+ * @copyright Copyright (c) 2026 ZHENG Robert
+ * @LICENSE Apache-2.0
+ */
+
 #include "DashboardWidget.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -9,6 +26,7 @@
 #include <QProcessEnvironment>
 #include <spdlog/spdlog.h>
 #include <nlohmann/json.hpp>
+#include "Config.h"
 
 using json = nlohmann::json;
 
@@ -49,29 +67,7 @@ DashboardWidget::DashboardWidget(QWidget *parent)
 }
 
 QString DashboardWidget::getAuthHeader() {
-    auto env = QProcessEnvironment::systemEnvironment();
-    QString osUser = env.value("USER", env.value("USERNAME", "unknown"));
-    QString token = "helo_linux"; // Fallback
-    
-    QFile configFile("../../../../data/config.json");
-    if (!configFile.exists()) configFile.setFileName("../../data/config.json");
-    
-    if (configFile.open(QIODevice::ReadOnly)) {
-        try {
-            json configJson = json::parse(configFile.readAll().toStdString());
-            if (configJson.contains("admins") && configJson["admins"].is_array()) {
-                for (const auto& admin : configJson["admins"]) {
-                    if (admin.value("username", "") == osUser.toStdString()) {
-                        token = QString::fromStdString(admin.value("token", ""));
-                        break;
-                    }
-                }
-            }
-        } catch (...) {}
-    }
-    
-    QString credentials = osUser + ":" + token;
-    return "Basic " + credentials.toLocal8Bit().toBase64();
+    return mitm::config::ConfigManager::GetInstance().GetAuthHeader();
 }
 
 void DashboardWidget::onRefreshClicked() {
@@ -86,7 +82,8 @@ void DashboardWidget::onRefreshClicked() {
 }
 
 void DashboardWidget::fetchHealth() {
-    QNetworkRequest request(QUrl("http://localhost:8080/health"));
+    QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
+    QNetworkRequest request(QUrl(host + "/health"));
     QNetworkReply* reply = m_networkManager->get(request);
     
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {
@@ -100,7 +97,8 @@ void DashboardWidget::fetchHealth() {
 }
 
 void DashboardWidget::fetchInfo() {
-    QNetworkRequest request(QUrl("http://localhost:8080/info"));
+    QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
+    QNetworkRequest request(QUrl(host + "/info"));
     QNetworkReply* reply = m_networkManager->get(request);
     
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {
@@ -122,7 +120,8 @@ void DashboardWidget::fetchInfo() {
 }
 
 void DashboardWidget::fetchJobs() {
-    QNetworkRequest request(QUrl("http://localhost:8080/admin/jobs"));
+    QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
+    QNetworkRequest request(QUrl(host + "/admin/jobs"));
     request.setRawHeader("Authorization", getAuthHeader().toLocal8Bit());
     QNetworkReply* reply = m_networkManager->get(request);
     

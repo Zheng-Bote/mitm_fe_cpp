@@ -1,3 +1,20 @@
+/**
+ * SPDX-FileComment: SettingsWidget
+ * SPDX-FileType: SOURCE
+ * SPDX-FileContributor: ZHENG Robert
+ * SPDX-FileCopyrightText: 2026 ZHENG Robert
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * @file SettingsWidget.cpp
+ * @brief SettingsWidget
+ * @version 0.2.0
+ * @date 2026-06-07
+ *
+ * @author ZHENG Robert (robert@hase-zheng.net)
+ * @copyright Copyright (c) 2026 ZHENG Robert
+ * @LICENSE Apache-2.0
+ */
+
 #include "SettingsWidget.h"
 #include <QVBoxLayout>
 #include <QFormLayout>

@@ -1,3 +1,20 @@
+/**
+ * SPDX-FileComment: SchedulerWidget
+ * SPDX-FileType: SOURCE
+ * SPDX-FileContributor: ZHENG Robert
+ * SPDX-FileCopyrightText: 2026 ZHENG Robert
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * @file SchedulerWidget.cpp
+ * @brief SchedulerWidget
+ * @version 0.2.0
+ * @date 2026-06-07
+ *
+ * @author ZHENG Robert (robert@hase-zheng.net)
+ * @copyright Copyright (c) 2026 ZHENG Robert
+ * @LICENSE Apache-2.0
+ */
+
 #include "SchedulerWidget.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -10,6 +27,7 @@
 #include <QMessageBox>
 #include <spdlog/spdlog.h>
 #include <nlohmann/json.hpp>
+#include "Config.h"
 #include "JobEditorDialog.h"
 
 using json = nlohmann::json;
@@ -53,37 +71,14 @@ SchedulerWidget::SchedulerWidget(QWidget *parent)
 }
 
 QString SchedulerWidget::getAuthHeader() {
-    auto env = QProcessEnvironment::systemEnvironment();
-    QString osUser = env.value("USER", env.value("USERNAME", "unknown"));
-    QString token = "helo_linux"; // Fallback
-    
-    QFile configFile("../../../../data/config.json");
-    if (!configFile.exists()) {
-        configFile.setFileName("../../data/config.json");
-    }
-    
-    if (configFile.open(QIODevice::ReadOnly)) {
-        try {
-            json configJson = json::parse(configFile.readAll().toStdString());
-            if (configJson.contains("admins") && configJson["admins"].is_array()) {
-                for (const auto& admin : configJson["admins"]) {
-                    if (admin.value("username", "") == osUser.toStdString()) {
-                        token = QString::fromStdString(admin.value("token", ""));
-                        break;
-                    }
-                }
-            }
-        } catch (...) {}
-    }
-    
-    QString credentials = osUser + ":" + token;
-    return "Basic " + credentials.toLocal8Bit().toBase64();
+    return mitm::config::ConfigManager::GetInstance().GetAuthHeader();
 }
 
 void SchedulerWidget::onRefreshClicked() {
     m_refreshButton->setEnabled(false);
     
-    QUrl url("http://localhost:8080/admin/jobs");
+    QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
+    QUrl url(host + "/admin/jobs");
     QNetworkRequest request(url);
     request.setRawHeader("Authorization", getAuthHeader().toLocal8Bit());
     
@@ -133,7 +128,8 @@ void SchedulerWidget::onAddJob() {
         json newJob = dlg.getJob();
         json payload = json::array({newJob});
         
-        QUrl url("http://localhost:8080/admin/update-jobs");
+        QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
+        QUrl url(host + "/admin/update-jobs");
         QNetworkRequest request(url);
         request.setRawHeader("Authorization", getAuthHeader().toLocal8Bit());
         request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
@@ -168,7 +164,8 @@ void SchedulerWidget::onEditJob() {
         json updatedJob = dlg.getJob();
         json payload = json::array({updatedJob});
         
-        QUrl url("http://localhost:8080/admin/update-jobs");
+        QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
+        QUrl url(host + "/admin/update-jobs");
         QNetworkRequest request(url);
         request.setRawHeader("Authorization", getAuthHeader().toLocal8Bit());
         request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
@@ -192,7 +189,8 @@ void SchedulerWidget::onDeleteJob() {
         return;
     }
     
-    QUrl url("http://localhost:8080/admin/delete-job?name=" + jobName);
+    QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
+    QUrl url(host + "/admin/delete-job?name=" + jobName);
     QNetworkRequest request(url);
     request.setRawHeader("Authorization", getAuthHeader().toLocal8Bit());
     

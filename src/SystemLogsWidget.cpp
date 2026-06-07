@@ -1,3 +1,20 @@
+/**
+ * SPDX-FileComment: SystemLogsWidget
+ * SPDX-FileType: SOURCE
+ * SPDX-FileContributor: ZHENG Robert
+ * SPDX-FileCopyrightText: 2026 ZHENG Robert
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * @file SystemLogsWidget.cpp
+ * @brief SystemLogsWidget
+ * @version 0.2.0
+ * @date 2026-06-07
+ *
+ * @author ZHENG Robert (robert@hase-zheng.net)
+ * @copyright Copyright (c) 2026 ZHENG Robert
+ * @LICENSE Apache-2.0
+ */
+
 #include "SystemLogsWidget.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -12,6 +29,7 @@
 #include <QMessageBox>
 #include <spdlog/spdlog.h>
 #include <nlohmann/json.hpp>
+#include "Config.h"
 
 using json = nlohmann::json;
 
@@ -46,35 +64,14 @@ SystemLogsWidget::SystemLogsWidget(QWidget *parent)
 }
 
 QString SystemLogsWidget::getAuthHeader() {
-    auto env = QProcessEnvironment::systemEnvironment();
-    QString osUser = env.value("USER", env.value("USERNAME", "unknown"));
-    QString token = "helo_linux"; 
-    
-    QFile configFile("../../../../data/config.json");
-    if (!configFile.exists()) configFile.setFileName("../../data/config.json");
-    
-    if (configFile.open(QIODevice::ReadOnly)) {
-        try {
-            json configJson = json::parse(configFile.readAll().toStdString());
-            if (configJson.contains("admins") && configJson["admins"].is_array()) {
-                for (const auto& admin : configJson["admins"]) {
-                    if (admin.value("username", "") == osUser.toStdString()) {
-                        token = QString::fromStdString(admin.value("token", ""));
-                        break;
-                    }
-                }
-            }
-        } catch (...) {}
-    }
-    
-    QString credentials = osUser + ":" + token;
-    return "Basic " + credentials.toLocal8Bit().toBase64();
+    return mitm::config::ConfigManager::GetInstance().GetAuthHeader();
 }
 
 void SystemLogsWidget::onRefresh() {
     m_refreshButton->setEnabled(false);
     
-    QUrl url("http://localhost:8080/admin/logs/system");
+    QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
+    QUrl url(host + "/admin/logs/system");
     QNetworkRequest request(url);
     request.setRawHeader("Authorization", getAuthHeader().toLocal8Bit());
     

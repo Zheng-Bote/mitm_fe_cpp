@@ -25,3 +25,15 @@ This project relies on the following third-party open-source components:
 * Conan
   Licensed under the MIT License
   Copyright (c) JFrog Ltd.
+
+* gh-update-checker
+  Licensed under the GNU Lesser General Public License v3 (LGPLv3)
+  Copyright (c) 2026 ZHENG Robert
+
+* cpp-httplib
+  Licensed under the MIT License
+  Copyright (c) 2024 yhirose
+
+* libsodium
+  Licensed under the ISC License
+  Copyright (c) 2013-2024 Frank Denis

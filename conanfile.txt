@@ -1,6 +1,12 @@
 [requires]
-nlohmann_json/3.11.3
-spdlog/1.14.1
+nlohmann_json/[>=3.12 <4]
+spdlog/[>=1.17 <2]
+libsodium/[>=1.0 <2]
+cpp-httplib/[>=0.14 <1]
+openssl/[>=3.0 <4]
+
+[options]
+cpp-httplib/*:with_openssl=True
 
 [generators]
 CMakeDeps
