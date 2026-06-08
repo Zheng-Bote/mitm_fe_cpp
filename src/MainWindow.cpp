@@ -20,9 +20,10 @@
 #include "Config.h"
 #include "DashboardWidget.h"
 #include "DlqWidget.h"
-#include "RulesWidget.h"
+#include "TransformationWidget.h"
 #include "SchedulerWidget.h"
 #include "SettingsWidget.h"
+#include "SourcesWidget.h"
 #include "SystemLogsWidget.h"
 #include "rz_config.hpp"
 #include <QMenuBar>
@@ -49,8 +50,9 @@ void MainWindow::setupUi() {
   m_tabWidget->addTab(new SchedulerWidget(this), "⏱️ Scheduler");
   m_tabWidget->addTab(new SystemLogsWidget(this), "📜 System Logs");
   m_tabWidget->addTab(new AuditLogsWidget(this), "🕵️ Audit Logs");
-  m_tabWidget->addTab(new RulesWidget(this), "🧩 Rules & Mapping");
+  m_tabWidget->addTab(new TransformationWidget(this), "🧩 Transformation Layer");
   m_tabWidget->addTab(new DlqWidget(this), "🚑 DLQ & Cursors");
+  m_tabWidget->addTab(new SourcesWidget(this), "🔌 Source Credentials");
   m_tabWidget->addTab(new SettingsWidget(this), "⚙️ Settings & Key Vault");
 
   this->setCentralWidget(m_tabWidget);

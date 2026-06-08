@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 project(mitm_fe_cpp
-VERSION 0.2.0
+VERSION 0.3.0
 DESCRIPTION "Admin frontend for the MitM project"
 HOMEPAGE_URL "https://github.com/Zheng-Bote/mitm_fe_cpp"
 LANGUAGES CXX)
@@ -67,8 +67,8 @@ set(SOURCES
     src/SchedulerWidget.cpp
     src/JobEditorDialog.h
     src/JobEditorDialog.cpp
-    src/RulesWidget.h
-    src/RulesWidget.cpp
+    src/TransformationWidget.h
+    src/TransformationWidget.cpp
     src/DlqWidget.h
     src/DlqWidget.cpp
     src/SettingsWidget.h
@@ -77,6 +77,8 @@ set(SOURCES
     src/SystemLogsWidget.cpp
     src/AuditLogsWidget.h
     src/AuditLogsWidget.cpp
+    src/SourcesWidget.h
+    src/SourcesWidget.cpp
 )
 
 # Create executable

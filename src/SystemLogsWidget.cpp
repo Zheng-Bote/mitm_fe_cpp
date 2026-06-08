@@ -51,7 +51,9 @@ SystemLogsWidget::SystemLogsWidget(QWidget *parent)
     m_model->setHorizontalHeaderLabels({"ID", "Timestamp", "Level", "Component", "Message"});
     
     m_tableView->setModel(m_model);
-    m_tableView->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+    m_tableView->horizontalHeader()->setSectionResizeMode(QHeaderView::Interactive);
+    m_tableView->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    m_tableView->setHorizontalScrollMode(QAbstractItemView::ScrollPerPixel);
     m_tableView->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
     m_tableView->setEditTriggers(QAbstractItemView::NoEditTriggers);
     m_tableView->setSelectionBehavior(QAbstractItemView::SelectRows);
@@ -103,6 +105,7 @@ void SystemLogsWidget::onRefresh() {
             m_model->setRowCount(0);
             m_model->appendRow({new QStandardItem("Error"), new QStandardItem(reply->errorString())});
         }
+        m_tableView->resizeColumnsToContents();
         reply->deleteLater();
     });
 }
