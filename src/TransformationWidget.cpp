@@ -14,6 +14,7 @@
 #include <spdlog/spdlog.h>
 #include <nlohmann/json.hpp>
 #include "Config.h"
+#include "RuleEditorDialog.h"
 #include <QMessageBox>
 #include <QDialog>
 #include <QFormLayout>
@@ -21,6 +22,7 @@
 #include <QTextEdit>
 #include <QCheckBox>
 #include <QDialogButtonBox>
+#include <QInputDialog>
 
 
 using json = nlohmann::json;
@@ -75,7 +77,9 @@ void TransformationWidget::postEntity(const QString& endpoint, const nlohmann::j
         if (reply->error() == QNetworkReply::NoError) {
             onSuccess();
         } else {
-            QMessageBox::critical(this, "Error", "Failed to save: " + reply->errorString());
+            QString errBody = reply->readAll();
+            if (errBody.isEmpty()) errBody = reply->errorString();
+            QMessageBox::critical(this, "Error", "Failed to save: " + errBody);
         }
         reply->deleteLater();
     });
@@ -92,7 +96,9 @@ void TransformationWidget::deleteEntity(const QString& endpoint, const QString& 
         if (reply->error() == QNetworkReply::NoError) {
             onSuccess();
         } else {
-            QMessageBox::critical(this, "Error", "Failed to delete: " + reply->errorString());
+            QString errBody = reply->readAll();
+            if (errBody.isEmpty()) errBody = reply->errorString();
+            QMessageBox::critical(this, "Error", "Failed to delete: " + errBody);
         }
         reply->deleteLater();
     });
@@ -162,10 +168,13 @@ void TransformationWidget::setupRulesTab(QWidget* tab) {
     m_addRuleBtn = new QPushButton("Add", this);
     m_editRuleBtn = new QPushButton("Edit", this);
     m_deleteRuleBtn = new QPushButton("Delete", this);
+    m_autoMapRulesBtn = new QPushButton("✨ Auto-Map (Smart Suggest)", this);
+    
     headerLayout->addWidget(m_refreshRulesBtn);
     headerLayout->addWidget(m_addRuleBtn);
     headerLayout->addWidget(m_editRuleBtn);
     headerLayout->addWidget(m_deleteRuleBtn);
+    headerLayout->addWidget(m_autoMapRulesBtn);
     headerLayout->addStretch();
     layout->addLayout(headerLayout);
 
@@ -181,6 +190,36 @@ void TransformationWidget::setupRulesTab(QWidget* tab) {
     connect(m_editRuleBtn, &QPushButton::clicked, this, &TransformationWidget::onEditRule);
     connect(m_deleteRuleBtn, &QPushButton::clicked, this, &TransformationWidget::onDeleteRule);
     connect(m_refreshRulesBtn, &QPushButton::clicked, this, &TransformationWidget::onRefreshRules);
+    
+    // Minimal stub for Auto-Map
+    connect(m_autoMapRulesBtn, &QPushButton::clicked, this, [this](){
+        auto items = m_sourcesTable->selectedItems();
+        if (items.isEmpty()) {
+            QMessageBox::warning(this, "Auto-Map", "Please select a Mapping Source from the Sources tab first.");
+            return;
+        }
+        QString sourceId = m_sourcesTable->item(items.first()->row(), 0)->text();
+
+        bool ok;
+        QString fieldsStr = QInputDialog::getText(this, "Auto-Map (Smart Suggest)",
+            "Enter source fields to map (comma separated):", QLineEdit::Normal,
+            "first_name, last_name, dob, email_address", &ok);
+            
+        if (!ok || fieldsStr.trimmed().isEmpty()) return;
+        
+        QStringList fieldsList = fieldsStr.split(",", Qt::SkipEmptyParts);
+        json j;
+        j["source_id"] = sourceId.toStdString();
+        j["source_fields"] = json::array();
+        for (const auto& f : fieldsList) {
+            j["source_fields"].push_back(f.trimmed().toStdString());
+        }
+
+        postEntity("/admin/transformation/auto-map", j, [this](){
+            QMessageBox::information(this, "Auto-Map", "Auto-Map completed successfully!");
+            onRefreshRules();
+        });
+    });
 }
 
 void TransformationWidget::setupTransformationsTab(QWidget* tab) {
@@ -538,28 +577,9 @@ void TransformationWidget::onEditRule() {
         vCh = m_rulesTable->item(r, 6)->text();
     }
     
-    QDialog dlg(this); dlg.setWindowTitle(id.isEmpty() ? "Add Rule" : "Edit Rule");
-    auto l = new QFormLayout(&dlg);
-    auto eSrc = new QLineEdit(srcId); l->addRow("Source ID:", eSrc);
-    auto eTgt = new QLineEdit(tgtId); l->addRow("Target Field ID:", eTgt);
-    auto eFld = new QLineEdit(srcFld); l->addRow("Source Field:", eFld);
-    auto ePri = new QLineEdit(prio); l->addRow("Priority:", ePri);
-    auto eTch = new QTextEdit(tCh); l->addRow("Transform Chain (JSON):", eTch);
-    auto eVch = new QTextEdit(vCh); l->addRow("Validation Chain (JSON):", eVch);
-    auto bb = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
-    l->addRow(bb);
-    connect(bb, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
-    connect(bb, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
-    
+    RuleEditorDialog dlg(m_sourcesTable, m_targetsTable, id, srcId, tgtId, srcFld, prio, tCh, vCh, this);
     if (dlg.exec() == QDialog::Accepted) {
-        json j; if(!id.isEmpty()) j["id"] = id.toStdString();
-        j["source_id"] = eSrc->text().toStdString();
-        j["target_field_id"] = eTgt->text().toStdString();
-        j["source_field"] = eFld->text().toStdString();
-        j["priority"] = ePri->text().toInt();
-        try { j["transformation_chain"] = json::parse(eTch->toPlainText().toStdString()); } catch(...) { j["transformation_chain"] = json::array(); }
-        try { j["validation_chain"] = json::parse(eVch->toPlainText().toStdString()); } catch(...) { j["validation_chain"] = json::array(); }
-        postEntity("/admin/transformation/rules", j, [this](){ onRefreshRules(); });
+        postEntity("/admin/transformation/rules", dlg.getRuleJson(), [this](){ onRefreshRules(); });
     }
 }
 void TransformationWidget::onDeleteRule() {

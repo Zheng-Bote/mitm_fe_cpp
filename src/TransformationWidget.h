@@ -64,6 +64,7 @@ private:
     QPushButton* m_addRuleBtn;
     QPushButton* m_editRuleBtn;
     QPushButton* m_deleteRuleBtn;
+    QPushButton* m_autoMapRulesBtn;
 
     QPushButton* m_refreshTransformBtn;
     QPushButton* m_addTransformBtn;

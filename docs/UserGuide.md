@@ -46,11 +46,13 @@ The **System Logs** tab provides a diagnostic view into the Scheduler's internal
 ### 🕵️ Audit Logs
 The **Audit Logs** tab focuses on security and execution traceability.
 - **Traceability:** It maps specific actions and events directly to a `Run ID` (the unique identifier for a single job execution).
+- **Admin Actions:** Records all UI-driven configuration changes (add/edit/delete in the Transformation layer), as well as the **frontend_startup** event, capturing the user, OS, and software version.
 - **Export CSV:** Similar to system logs, all audit logs can be exported to CSV.
 
-### 🧩 Rules & Mapping (Preview Concept)
-*Note: This tab is currently a conceptual preview. Backend APIs are in development.*
-- **Purpose:** Will allow administrators to define dynamic mapping rules between source column formats (e.g., legacy CSV headers) and target JSON keys without modifying code.
+### 🧩 Rules & Mapping
+The **Transformation Layer** tab allows you to configure source systems, target fields, and the mapping rules linking them.
+- **Purpose:** Allows administrators to define dynamic mapping rules between source column formats (e.g., legacy CSV headers) and target JSON keys without modifying code.
+- **✨ Auto-Map (Smart Suggest):** A powerful tool to automatically generate `MappingRules`. By selecting a source and providing a comma-separated list of your raw column headers, the system uses Levenshtein distance (fuzzy string matching) to automatically link them to the most appropriate Target Fields in the database, saving significant manual configuration time.
 
 ### 🚑 DLQ & Cursors (Preview Concept)
 *Note: This tab is currently a conceptual preview.*

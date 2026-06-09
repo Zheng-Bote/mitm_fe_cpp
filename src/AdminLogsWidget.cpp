@@ -47,8 +47,8 @@ AdminLogsWidget::AdminLogsWidget(QWidget *parent)
     mainLayout->addLayout(headerLayout);
 
     m_tableView = new QTableView(this);
-    m_model = new QStandardItemModel(0, 4, this);
-    m_model->setHorizontalHeaderLabels({"ID", "Timestamp", "Username", "Action"});
+    m_model = new QStandardItemModel(0, 5, this);
+    m_model->setHorizontalHeaderLabels({"ID", "Timestamp", "Username", "Action", "Details"});
     
     m_tableView->setModel(m_model);
     m_tableView->horizontalHeader()->setSectionResizeMode(QHeaderView::Interactive);
@@ -93,6 +93,17 @@ void AdminLogsWidget::onRefresh() {
                         rowItems << new QStandardItem(QString::fromStdString(log.value("ts", "")));
                         rowItems << new QStandardItem(QString::fromStdString(log.value("username", "")));
                         rowItems << new QStandardItem(QString::fromStdString(log.value("action", "")));
+                        
+                        QString detailsStr = "";
+                        if (log.contains("details") && !log["details"].is_null()) {
+                            if (log["details"].is_string()) {
+                                detailsStr = QString::fromStdString(log.value("details", ""));
+                            } else {
+                                detailsStr = QString::fromStdString(log["details"].dump());
+                            }
+                        }
+                        rowItems << new QStandardItem(detailsStr);
+                        
                         m_model->appendRow(rowItems);
                     }
                 }

@@ -33,7 +33,13 @@
 #include <QVBoxLayout>
 #include <check_gh-update.hpp>
 #include <spdlog/spdlog.h>
+#include <QSysInfo>
 #include <thread>
+#include <QNetworkAccessManager>
+#include <QNetworkRequest>
+#include <QNetworkReply>
+#include <nlohmann/json.hpp>
+#include <QLabel>
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
   spdlog::info("Initializing MainWindow...");
@@ -78,9 +84,39 @@ void MainWindow::setupUi() {
   QString versionStr = QString::fromStdString(std::string(rz::config::VERSION));
   auto env = QProcessEnvironment::systemEnvironment();
   QString osUser = env.value("USER", env.value("USERNAME", "unknown"));
+  QString compName = QSysInfo::machineHostName();
 
-  statusBar()->showMessage(
-      QString("Version: %1 | User: %2").arg(versionStr, osUser));
+  QString statusText = QString("Version: %1 | User: %2 | Computer: %3").arg(versionStr, osUser, compName);
+  QLabel *statusLabel = new QLabel(statusText, this);
+  statusBar()->addWidget(statusLabel);
+  spdlog::info("Application started. {}", statusText.toStdString());
+
+  // Log frontend startup to backend
+  {
+      auto manager = new QNetworkAccessManager(this);
+      QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
+      QUrl url(host + "/admin/action");
+      QNetworkRequest request(url);
+      request.setRawHeader("Authorization", mitm::config::ConfigManager::GetInstance().GetAuthHeader().toLocal8Bit());
+      request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+      
+      nlohmann::json j;
+      j["action"] = "frontend_startup";
+      j["details"] = {
+          {"version", versionStr.toStdString()},
+          {"user", osUser.toStdString()},
+          {"computer", compName.toStdString()}
+      };
+      
+      auto reply = manager->post(request, QString::fromStdString(j.dump()).toUtf8());
+      connect(reply, &QNetworkReply::finished, this, [reply, manager]() {
+          if (reply->error() != QNetworkReply::NoError) {
+              spdlog::warn("Failed to log frontend startup to backend: {}", reply->errorString().toStdString());
+          }
+          reply->deleteLater();
+          manager->deleteLater();
+      });
+  }
 
   // Check for updates asynchronously
   auto proxy = mitm::config::ConfigManager::GetInstance().GetProxyString();

@@ -69,6 +69,8 @@ set(SOURCES
     src/JobEditorDialog.cpp
     src/TransformationWidget.h
     src/TransformationWidget.cpp
+    src/RuleEditorDialog.h
+    src/RuleEditorDialog.cpp
     src/DlqWidget.h
     src/DlqWidget.cpp
     src/SettingsWidget.h
