@@ -25,6 +25,7 @@
 #include "SettingsWidget.h"
 #include "SourcesWidget.h"
 #include "SystemLogsWidget.h"
+#include "AdminLogsWidget.h"
 #include "rz_config.hpp"
 #include <QMenuBar>
 #include <QProcessEnvironment>
@@ -48,8 +49,11 @@ void MainWindow::setupUi() {
   m_dashboardWidget = new DashboardWidget(this);
   m_tabWidget->addTab(m_dashboardWidget, "📊 Dashboard");
   m_tabWidget->addTab(new SchedulerWidget(this), "⏱️ Scheduler");
-  m_tabWidget->addTab(new SystemLogsWidget(this), "📜 System Logs");
-  m_tabWidget->addTab(new AuditLogsWidget(this), "🕵️ Audit Logs");
+  auto logsTabWidget = new QTabWidget(this);
+  logsTabWidget->addTab(new AdminLogsWidget(this), "Admin-Logs");
+  logsTabWidget->addTab(new AuditLogsWidget(this), "Jobs-Logs");
+  logsTabWidget->addTab(new SystemLogsWidget(this), "System-Logs");
+  m_tabWidget->addTab(logsTabWidget, "📜 Logs");
   m_tabWidget->addTab(new TransformationWidget(this), "🧩 Transformation Layer");
   m_tabWidget->addTab(new DlqWidget(this), "🚑 DLQ & Cursors");
   m_tabWidget->addTab(new SourcesWidget(this), "🔌 Source Credentials");
