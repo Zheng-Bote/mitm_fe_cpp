@@ -119,8 +119,8 @@ void TransformationWidget::setupSourcesTab(QWidget* tab) {
     headerLayout->addStretch();
     layout->addLayout(headerLayout);
 
-    m_sourcesTable = new QTableWidget(0, 5, this);
-    m_sourcesTable->setHorizontalHeaderLabels({"ID", "Name", "Type", "Version", "Created At"});
+    m_sourcesTable = new QTableWidget(0, 6, this);
+    m_sourcesTable->setHorizontalHeaderLabels({"ID", "Name", "Type", "Topic", "Version", "Created At"});
     m_sourcesTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Interactive);
     m_sourcesTable->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     m_sourcesTable->setHorizontalScrollMode(QAbstractItemView::ScrollPerPixel);
@@ -178,8 +178,8 @@ void TransformationWidget::setupRulesTab(QWidget* tab) {
     headerLayout->addStretch();
     layout->addLayout(headerLayout);
 
-    m_rulesTable = new QTableWidget(0, 8, this);
-    m_rulesTable->setHorizontalHeaderLabels({"ID", "Source ID", "Target Field ID", "Source Field", "Priority", "Transform Chain", "Validation Chain", "Version"});
+    m_rulesTable = new QTableWidget(0, 9, this);
+    m_rulesTable->setHorizontalHeaderLabels({"ID", "Source ID", "Target Field ID", "Source Field", "Target Field", "Priority", "Transform Chain", "Validation Chain", "Version"});
     m_rulesTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Interactive);
     m_rulesTable->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     m_rulesTable->setHorizontalScrollMode(QAbstractItemView::ScrollPerPixel);
@@ -305,8 +305,9 @@ void TransformationWidget::onRefreshSources() {
                         m_sourcesTable->setItem(row, 0, new QTableWidgetItem(QString::fromStdString(item.value("id", ""))));
                         m_sourcesTable->setItem(row, 1, new QTableWidgetItem(QString::fromStdString(item.value("name", ""))));
                         m_sourcesTable->setItem(row, 2, new QTableWidgetItem(QString::fromStdString(item.value("type", ""))));
-                        m_sourcesTable->setItem(row, 3, new QTableWidgetItem(QString::number(item.value("version", 0))));
-                        m_sourcesTable->setItem(row, 4, new QTableWidgetItem(QString::fromStdString(item.value("created_at", ""))));
+                        m_sourcesTable->setItem(row, 3, new QTableWidgetItem(QString::fromStdString(item.value("topic", ""))));
+                        m_sourcesTable->setItem(row, 4, new QTableWidgetItem(QString::number(item.value("version", 0))));
+                        m_sourcesTable->setItem(row, 5, new QTableWidgetItem(QString::fromStdString(item.value("created_at", ""))));
                     }
                 }
             } catch (...) {
@@ -372,23 +373,36 @@ void TransformationWidget::onRefreshRules() {
                         m_rulesTable->insertRow(row);
                         m_rulesTable->setItem(row, 0, new QTableWidgetItem(QString::fromStdString(item.value("id", ""))));
                         m_rulesTable->setItem(row, 1, new QTableWidgetItem(QString::fromStdString(item.value("source_id", ""))));
-                        m_rulesTable->setItem(row, 2, new QTableWidgetItem(QString::fromStdString(item.value("target_field_id", ""))));
+                        QString tgtId = QString::fromStdString(item.value("target_field_id", ""));
+                        m_rulesTable->setItem(row, 2, new QTableWidgetItem(tgtId));
                         m_rulesTable->setItem(row, 3, new QTableWidgetItem(QString::fromStdString(item.value("source_field", ""))));
-                        m_rulesTable->setItem(row, 4, new QTableWidgetItem(QString::number(item.value("priority", 0))));
+                        
+                        QString targetFieldStr = tgtId;
+                        for (int i = 0; i < m_targetsTable->rowCount(); ++i) {
+                            if (m_targetsTable->item(i, 0) && m_targetsTable->item(i, 0)->text() == tgtId) {
+                                QString topic = m_targetsTable->item(i, 1) ? m_targetsTable->item(i, 1)->text() : "";
+                                QString fld = m_targetsTable->item(i, 2) ? m_targetsTable->item(i, 2)->text() : "";
+                                targetFieldStr = topic + "->" + fld;
+                                break;
+                            }
+                        }
+                        m_rulesTable->setItem(row, 4, new QTableWidgetItem(targetFieldStr));
+                        
+                        m_rulesTable->setItem(row, 5, new QTableWidgetItem(QString::number(item.value("priority", 0))));
                         
                         QString transformChain = "";
                         if (item.contains("transformation_chain") && !item["transformation_chain"].is_null()) {
                             transformChain = QString::fromStdString(item["transformation_chain"].dump());
                         }
-                        m_rulesTable->setItem(row, 5, new QTableWidgetItem(transformChain));
+                        m_rulesTable->setItem(row, 6, new QTableWidgetItem(transformChain));
                         
                         QString validationChain = "";
                         if (item.contains("validation_chain") && !item["validation_chain"].is_null()) {
                             validationChain = QString::fromStdString(item["validation_chain"].dump());
                         }
-                        m_rulesTable->setItem(row, 6, new QTableWidgetItem(validationChain));
+                        m_rulesTable->setItem(row, 7, new QTableWidgetItem(validationChain));
                         
-                        m_rulesTable->setItem(row, 7, new QTableWidgetItem(QString::number(item.value("version", 0))));
+                        m_rulesTable->setItem(row, 8, new QTableWidgetItem(QString::number(item.value("version", 0))));
                     }
                 }
             } catch (...) {
@@ -486,19 +500,21 @@ QString getSelectedId(QTableWidget* table) {
 void TransformationWidget::onAddSource() { onEditSource(); }
 void TransformationWidget::onEditSource() {
     QString id = "";
-    QString name = "", type = "";
+    QString name = "", type = "", topic = "";
     if (sender() == m_editSourceBtn) {
         id = getSelectedId(m_sourcesTable);
         if (id.isEmpty()) return;
         int r = m_sourcesTable->selectedItems().first()->row();
         name = m_sourcesTable->item(r, 1)->text();
         type = m_sourcesTable->item(r, 2)->text();
+        topic = m_sourcesTable->item(r, 3)->text();
     }
     
     QDialog dlg(this); dlg.setWindowTitle(id.isEmpty() ? "Add Source" : "Edit Source");
     auto l = new QFormLayout(&dlg);
     auto eName = new QLineEdit(name); l->addRow("Name:", eName);
     auto eType = new QLineEdit(type); l->addRow("Type (oracle/csv/api):", eType);
+    auto eTopic = new QLineEdit(topic); l->addRow("Topic:", eTopic);
     auto bb = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
     l->addRow(bb);
     connect(bb, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
@@ -508,6 +524,7 @@ void TransformationWidget::onEditSource() {
         json j; if(!id.isEmpty()) j["id"] = id.toStdString();
         j["name"] = eName->text().toStdString();
         j["type"] = eType->text().toStdString();
+        j["topic"] = eTopic->text().toStdString();
         postEntity("/admin/transformation/sources", j, [this](){ onRefreshSources(); });
     }
 }
@@ -572,9 +589,9 @@ void TransformationWidget::onEditRule() {
         srcId = m_rulesTable->item(r, 1)->text();
         tgtId = m_rulesTable->item(r, 2)->text();
         srcFld = m_rulesTable->item(r, 3)->text();
-        prio = m_rulesTable->item(r, 4)->text();
-        tCh = m_rulesTable->item(r, 5)->text();
-        vCh = m_rulesTable->item(r, 6)->text();
+        prio = m_rulesTable->item(r, 5)->text();
+        tCh = m_rulesTable->item(r, 6)->text();
+        vCh = m_rulesTable->item(r, 7)->text();
     }
     
     RuleEditorDialog dlg(m_sourcesTable, m_targetsTable, id, srcId, tgtId, srcFld, prio, tCh, vCh, this);

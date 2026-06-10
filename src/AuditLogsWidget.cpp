@@ -47,8 +47,8 @@ AuditLogsWidget::AuditLogsWidget(QWidget *parent)
     mainLayout->addLayout(headerLayout);
 
     m_tableView = new QTableView(this);
-    m_model = new QStandardItemModel(0, 4, this);
-    m_model->setHorizontalHeaderLabels({"ID", "Timestamp", "Run ID", "Message"});
+    m_model = new QStandardItemModel(0, 5, this);
+    m_model->setHorizontalHeaderLabels({"ID", "Timestamp", "Run ID", "Component", "Message"});
     
     m_tableView->setModel(m_model);
     m_tableView->horizontalHeader()->setSectionResizeMode(QHeaderView::Interactive);
@@ -92,6 +92,7 @@ void AuditLogsWidget::onRefresh() {
                         rowItems << new QStandardItem(QString::number(log.value("id", 0)));
                         rowItems << new QStandardItem(QString::fromStdString(log.value("ts", "")));
                         rowItems << new QStandardItem(QString::number(log.value("run_id", 0)));
+                        rowItems << new QStandardItem(QString::fromStdString(log.value("component", "")));
                         rowItems << new QStandardItem(QString::fromStdString(log.value("message", "")));
                         m_model->appendRow(rowItems);
                     }

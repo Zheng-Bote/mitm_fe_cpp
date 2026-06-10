@@ -24,6 +24,7 @@
 #include "SchedulerWidget.h"
 #include "SettingsWidget.h"
 #include "SourcesWidget.h"
+#include "TargetCredentialsWidget.h"
 #include "SystemLogsWidget.h"
 #include "AdminLogsWidget.h"
 #include "rz_config.hpp"
@@ -63,6 +64,7 @@ void MainWindow::setupUi() {
   m_tabWidget->addTab(new TransformationWidget(this), "🧩 Transformation Layer");
   m_tabWidget->addTab(new DlqWidget(this), "🚑 DLQ & Cursors");
   m_tabWidget->addTab(new SourcesWidget(this), "🔌 Source Credentials");
+  m_tabWidget->addTab(new TargetCredentialsWidget(this), "🎯 Target Credentials");
   m_tabWidget->addTab(new SettingsWidget(this), "⚙️ Settings & Key Vault");
 
   this->setCentralWidget(m_tabWidget);

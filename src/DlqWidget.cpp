@@ -20,7 +20,13 @@
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QLabel>
+#include <QJsonDocument>
+#include <QJsonArray>
+#include <QJsonObject>
+#include <QNetworkRequest>
+#include <QUrl>
 #include <spdlog/spdlog.h>
+#include "Config.h"
 
 DlqWidget::DlqWidget(QWidget *parent) : QWidget(parent) {
     auto mainLayout = new QVBoxLayout(this);
@@ -33,6 +39,8 @@ DlqWidget::DlqWidget(QWidget *parent) : QWidget(parent) {
     headerLayout->addWidget(m_refreshButton);
     headerLayout->addWidget(m_requeueButton);
     mainLayout->addLayout(headerLayout);
+
+    m_networkManager = new QNetworkAccessManager(this);
 
     m_dlqTable = new QTableWidget(0, 4, this);
     m_dlqTable->setHorizontalHeaderLabels({"Timestamp", "Component", "Error Message", "Payload Snippet"});
@@ -51,14 +59,41 @@ DlqWidget::DlqWidget(QWidget *parent) : QWidget(parent) {
 
 void DlqWidget::onRefresh() {
     m_dlqTable->setRowCount(0);
-    // Insert conceptual mock data
-    m_dlqTable->insertRow(0);
-    m_dlqTable->setItem(0, 0, new QTableWidgetItem("2026-06-06 14:02:11"));
-    m_dlqTable->setItem(0, 1, new QTableWidgetItem("Delivery Layer"));
-    m_dlqTable->setItem(0, 2, new QTableWidgetItem("HTTP 401 Unauthorized"));
-    m_dlqTable->setItem(0, 3, new QTableWidgetItem("{\"id\":1204,\"name\":\"..."));
-    m_dlqTable->resizeColumnsToContents();
-    spdlog::info("DLQ refreshed (Mock Data)");
+    
+    QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
+    QNetworkRequest request(QUrl(host + "/admin/dlq"));
+    QString authHeader = mitm::config::ConfigManager::GetInstance().GetAuthHeader();
+    request.setRawHeader("Authorization", authHeader.toLocal8Bit());
+
+    auto reply = m_networkManager->get(request);
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        reply->deleteLater();
+        if (reply->error() != QNetworkReply::NoError) {
+            spdlog::error("Failed to fetch DLQ: {}", reply->errorString().toStdString());
+            return;
+        }
+
+        QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
+        if (!doc.isArray()) return;
+
+        QJsonArray arr = doc.array();
+        m_dlqTable->setRowCount(arr.size());
+
+        for (int i = 0; i < arr.size(); ++i) {
+            QJsonObject obj = arr[i].toObject();
+            
+            // Format timestamp slightly
+            QString failedAt = obj["failed_at"].toString();
+            failedAt.replace("T", " ").replace("Z", "");
+
+            m_dlqTable->setItem(i, 0, new QTableWidgetItem(failedAt));
+            m_dlqTable->setItem(i, 1, new QTableWidgetItem(obj["error_code"].toString()));
+            m_dlqTable->setItem(i, 2, new QTableWidgetItem(obj["error_message"].toString()));
+            m_dlqTable->setItem(i, 3, new QTableWidgetItem(obj["payload"].toString()));
+        }
+        m_dlqTable->resizeColumnsToContents();
+        spdlog::info("DLQ refreshed with {} items", arr.size());
+    });
 }
 
 void DlqWidget::onRequeue() {

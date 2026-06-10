@@ -1,11 +1,11 @@
 /**
- * SPDX-FileComment: SourcesWidget
+ * SPDX-FileComment: TargetCredentialsWidget
  * SPDX-FileType: SOURCE
  * SPDX-FileContributor: ZHENG Robert
  * SPDX-FileCopyrightText: 2026 ZHENG Robert
  * SPDX-License-Identifier: Apache-2.0
  *
- * @file SourcesWidget.cpp
+ * @file TargetCredentialsWidget.cpp
  * @brief Widget to manage source_credentials.
  * @version 0.2.0
  * @date 2026-06-08
@@ -15,7 +15,7 @@
  * @LICENSE Apache-2.0
  */
 
-#include "SourcesWidget.h"
+#include "TargetCredentialsWidget.h"
 #include "Config.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -35,20 +35,20 @@
 
 using json = nlohmann::json;
 
-SourcesWidget::SourcesWidget(QWidget *parent)
+TargetCredentialsWidget::TargetCredentialsWidget(QWidget *parent)
     : QWidget(parent), m_networkManager(new QNetworkAccessManager(this))
 {
     setupUi();
     onRefresh();
 }
 
-void SourcesWidget::setupUi() {
+void TargetCredentialsWidget::setupUi() {
     auto mainLayout = new QVBoxLayout(this);
 
     auto toolbarLayout = new QHBoxLayout();
     m_refreshBtn = new QPushButton("Refresh", this);
-    m_addBtn = new QPushButton("Add Source", this);
-    m_editBtn = new QPushButton("Edit Source", this);
+    m_addBtn = new QPushButton("Add Target", this);
+    m_editBtn = new QPushButton("Edit Target", this);
     
     toolbarLayout->addWidget(m_refreshBtn);
     toolbarLayout->addWidget(m_addBtn);
@@ -58,7 +58,7 @@ void SourcesWidget::setupUi() {
     mainLayout->addLayout(toolbarLayout);
 
     m_table = new QTableWidget(0, 6, this);
-    m_table->setHorizontalHeaderLabels({"ID", "Source Name", "Connector Type", "Topic", "Config Payload", "Active"});
+    m_table->setHorizontalHeaderLabels({"ID", "Topic", "Adapter Type", "Endpoint URL", "Config Payload", "Active"});
     m_table->horizontalHeader()->setSectionResizeMode(QHeaderView::Interactive);
     m_table->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     m_table->setHorizontalScrollMode(QAbstractItemView::ScrollPerPixel);
@@ -67,23 +67,23 @@ void SourcesWidget::setupUi() {
     
     mainLayout->addWidget(m_table);
 
-    connect(m_refreshBtn, &QPushButton::clicked, this, &SourcesWidget::onRefresh);
-    connect(m_addBtn, &QPushButton::clicked, this, &SourcesWidget::onAddSource);
-    connect(m_editBtn, &QPushButton::clicked, this, &SourcesWidget::onEditSource);
+    connect(m_refreshBtn, &QPushButton::clicked, this, &TargetCredentialsWidget::onRefresh);
+    connect(m_addBtn, &QPushButton::clicked, this, &TargetCredentialsWidget::onAddTarget);
+    connect(m_editBtn, &QPushButton::clicked, this, &TargetCredentialsWidget::onEditTarget);
 }
 
-QString SourcesWidget::getAuthHeader() {
+QString TargetCredentialsWidget::getAuthHeader() {
     return mitm::config::ConfigManager::GetInstance().GetAuthHeader();
 }
 
-void SourcesWidget::onRefresh() {
+void TargetCredentialsWidget::onRefresh() {
     spdlog::info("Refreshing Sources...");
-    fetchSources();
+    fetchTargets();
 }
 
-void SourcesWidget::fetchSources() {
+void TargetCredentialsWidget::fetchTargets() {
     QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
-    QNetworkRequest request(QUrl(host + "/admin/credentials")); // Hypothetical endpoint
+    QNetworkRequest request(QUrl(host + "/admin/delivery_targets")); // Hypothetical endpoint
     request.setRawHeader("Authorization", getAuthHeader().toLocal8Bit());
     QNetworkReply* reply = m_networkManager->get(request);
     
@@ -98,9 +98,9 @@ void SourcesWidget::fetchSources() {
                         m_table->insertRow(row);
                         
                         QString id = QString::fromStdString(item.value("id", ""));
-                        QString name = QString::fromStdString(item.value("source_name", ""));
-                        QString type = QString::fromStdString(item.value("connector_type", ""));
                         QString topic = QString::fromStdString(item.value("topic", ""));
+                        QString type = QString::fromStdString(item.value("adapter_type", ""));
+                        QString url = QString::fromStdString(item.value("endpoint_url", ""));
                         QString config = QString::fromStdString(item.value("config_payload", ""));
                         bool isActive = item.value("is_active", false);
 
@@ -108,9 +108,9 @@ void SourcesWidget::fetchSources() {
                         idItem->setData(Qt::UserRole, config);
 
                         m_table->setItem(row, 0, idItem);
-                        m_table->setItem(row, 1, new QTableWidgetItem(name));
+                        m_table->setItem(row, 1, new QTableWidgetItem(topic));
                         m_table->setItem(row, 2, new QTableWidgetItem(type));
-                        m_table->setItem(row, 3, new QTableWidgetItem(topic));
+                        m_table->setItem(row, 3, new QTableWidgetItem(url));
                         m_table->setItem(row, 4, new QTableWidgetItem(config));
                         m_table->setItem(row, 5, new QTableWidgetItem(isActive ? "Yes" : "No"));
                     }
@@ -124,9 +124,9 @@ void SourcesWidget::fetchSources() {
             m_table->setRowCount(0);
             m_table->insertRow(0);
             m_table->setItem(0, 0, new QTableWidgetItem("uuid-1234"));
-            m_table->setItem(0, 1, new QTableWidgetItem("SAP_HR_PROD"));
-            m_table->setItem(0, 2, new QTableWidgetItem("POSTGRESQL"));
-            m_table->setItem(0, 3, new QTableWidgetItem("Employee"));
+            m_table->setItem(0, 1, new QTableWidgetItem("Employee"));
+            m_table->setItem(0, 2, new QTableWidgetItem("CORITY_SAAS"));
+            m_table->setItem(0, 3, new QTableWidgetItem("https://demo.cority.com"));
             m_table->setItem(0, 4, new QTableWidgetItem("{\"host\":\"localhost\"}"));
             m_table->setItem(0, 5, new QTableWidgetItem("Yes"));
         }
@@ -135,23 +135,23 @@ void SourcesWidget::fetchSources() {
     });
 }
 
-void SourcesWidget::onAddSource() {
+void TargetCredentialsWidget::onAddTarget() {
     QDialog dialog(this);
-    dialog.setWindowTitle("Add Source Credential");
+    dialog.setWindowTitle("Add Target Credential");
     auto layout = new QFormLayout(&dialog);
 
-    auto nameEdit = new QLineEdit(&dialog);
-    auto typeEdit = new QLineEdit("POSTGRESQL", &dialog);
     auto topicEdit = new QLineEdit("Employee", &dialog);
+    auto typeEdit = new QLineEdit("CORITY_SAAS", &dialog);
+    auto urlEdit = new QLineEdit("https://", &dialog);
     auto configEdit = new QTextEdit(&dialog);
-    configEdit->setPlaceholderText("{\n  \"host\": \"localhost\",\n  \"port\": 5432\n}");
+    configEdit->setPlaceholderText("{\n  \"login_user\": \"svc_cority_import\",\n  \"login_pass\": \"SuperSecret123!\"\n}");
     configEdit->setMinimumHeight(100);
     auto activeCheck = new QCheckBox("Is Active", &dialog);
     activeCheck->setChecked(true);
 
-    layout->addRow("Source Name:", nameEdit);
-    layout->addRow("Connector Type:", typeEdit);
     layout->addRow("Topic:", topicEdit);
+    layout->addRow("Adapter Type:", typeEdit);
+    layout->addRow("Endpoint URL:", urlEdit);
     layout->addRow("Config Payload:", configEdit);
     layout->addRow("", activeCheck);
 
@@ -162,14 +162,14 @@ void SourcesWidget::onAddSource() {
 
     if (dialog.exec() == QDialog::Accepted) {
         json j;
-        j["source_name"] = nameEdit->text().toStdString();
-        j["connector_type"] = typeEdit->text().toStdString();
         j["topic"] = topicEdit->text().toStdString();
+        j["adapter_type"] = typeEdit->text().toStdString();
+        j["endpoint_url"] = urlEdit->text().toStdString();
         j["config_payload"] = configEdit->toPlainText().toStdString();
         j["is_active"] = activeCheck->isChecked();
 
         QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
-        QNetworkRequest request(QUrl(host + "/admin/credentials"));
+        QNetworkRequest request(QUrl(host + "/admin/delivery_targets"));
         request.setRawHeader("Authorization", getAuthHeader().toLocal8Bit());
         request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
 
@@ -186,7 +186,7 @@ void SourcesWidget::onAddSource() {
     }
 }
 
-void SourcesWidget::onEditSource() {
+void TargetCredentialsWidget::onEditTarget() {
     int row = m_table->currentRow();
     if (row < 0) {
         QMessageBox::warning(this, "Select", "Please select a source to edit.");
@@ -194,28 +194,28 @@ void SourcesWidget::onEditSource() {
     }
 
     QString id = m_table->item(row, 0)->text();
-    QString configPayload = m_table->item(row, 4)->text();
-    QString name = m_table->item(row, 1)->text();
+    QString topic = m_table->item(row, 1)->text();
     QString type = m_table->item(row, 2)->text();
-    QString topic = m_table->item(row, 3)->text();
+    QString url = m_table->item(row, 3)->text();
+    QString configPayload = m_table->item(row, 4)->text();
     bool isActive = (m_table->item(row, 5)->text() == "Yes");
 
     QDialog dialog(this);
-    dialog.setWindowTitle("Edit Source Credential");
+    dialog.setWindowTitle("Edit Target Credential");
     auto layout = new QFormLayout(&dialog);
 
-    auto nameEdit = new QLineEdit(name, &dialog);
-    nameEdit->setReadOnly(true);
-    auto typeEdit = new QLineEdit(type, &dialog);
     auto topicEdit = new QLineEdit(topic, &dialog);
+    topicEdit->setReadOnly(true);
+    auto typeEdit = new QLineEdit(type, &dialog);
+    auto urlEdit = new QLineEdit(url, &dialog);
     auto configEdit = new QTextEdit(configPayload, &dialog);
     configEdit->setMinimumHeight(100);
     auto activeCheck = new QCheckBox("Is Active", &dialog);
     activeCheck->setChecked(isActive);
 
-    layout->addRow("Source Name:", nameEdit);
-    layout->addRow("Connector Type:", typeEdit);
     layout->addRow("Topic:", topicEdit);
+    layout->addRow("Adapter Type:", typeEdit);
+    layout->addRow("Endpoint URL:", urlEdit);
     layout->addRow("Config Payload:", configEdit);
     layout->addRow("", activeCheck);
 
@@ -227,14 +227,14 @@ void SourcesWidget::onEditSource() {
     if (dialog.exec() == QDialog::Accepted) {
         json j;
         j["id"] = id.toStdString();
-        j["source_name"] = nameEdit->text().toStdString();
-        j["connector_type"] = typeEdit->text().toStdString();
         j["topic"] = topicEdit->text().toStdString();
+        j["adapter_type"] = typeEdit->text().toStdString();
+        j["endpoint_url"] = urlEdit->text().toStdString();
         j["config_payload"] = configEdit->toPlainText().toStdString();
         j["is_active"] = activeCheck->isChecked();
 
         QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
-        QNetworkRequest request(QUrl(host + "/admin/credentials"));
+        QNetworkRequest request(QUrl(host + "/admin/delivery_targets"));
         request.setRawHeader("Authorization", getAuthHeader().toLocal8Bit());
         request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
 

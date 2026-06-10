@@ -20,6 +20,8 @@
 #include <QWidget>
 #include <QTableWidget>
 #include <QPushButton>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
 
 class DlqWidget : public QWidget {
     Q_OBJECT
@@ -36,4 +38,5 @@ private:
     QTableWidget* m_dlqTable;
     QPushButton* m_refreshButton;
     QPushButton* m_requeueButton;
+    QNetworkAccessManager* m_networkManager;
 };
