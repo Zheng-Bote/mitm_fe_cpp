@@ -28,6 +28,7 @@
 #include "SystemLogsWidget.h"
 #include "AdminLogsWidget.h"
 #include "RbacWidget.h"
+#include "UploadWidget.h"
 #include "rz_config.hpp"
 #include <QMenuBar>
 #include <QProcessEnvironment>
@@ -56,6 +57,7 @@ void MainWindow::setupUi() {
 
   bool isAdmin = mitm::config::ConfigManager::GetInstance().HasRole("ADMIN");
   bool isViewer = mitm::config::ConfigManager::GetInstance().HasRole("VIEWER") || isAdmin;
+  bool isUploader = mitm::config::ConfigManager::GetInstance().HasRole("UPLOADER") || isAdmin;
 
   m_dashboardWidget = new DashboardWidget(this);
   m_tabWidget->addTab(m_dashboardWidget, "📊 Dashboard");
@@ -76,14 +78,19 @@ void MainWindow::setupUi() {
       m_tabWidget->addTab(new RbacWidget(this), "👥 RBAC");
       m_tabWidget->addTab(new SettingsWidget(this), "⚙️ Settings & Key Vault");
   }
+  if (isUploader) {
+      m_tabWidget->addTab(new UploadWidget(this), "📤 Manual Upload");
+  }
 
   this->setCentralWidget(m_tabWidget);
 
   if (!isAdmin) {
-      // Viewer or Unknown user -> Disable all buttons except "Refresh"
+      // Viewer or Unknown user -> Disable all buttons except "Refresh", "Upload", and "Browse"
       QList<QPushButton*> buttons = m_tabWidget->findChildren<QPushButton*>();
       for (auto* btn : buttons) {
-          if (!btn->text().contains("Refresh", Qt::CaseInsensitive)) {
+          if (!btn->text().contains("Refresh", Qt::CaseInsensitive) &&
+              !btn->text().contains("Upload", Qt::CaseInsensitive) &&
+              !btn->text().contains("Browse", Qt::CaseInsensitive)) {
               btn->setEnabled(false);
           }
       }

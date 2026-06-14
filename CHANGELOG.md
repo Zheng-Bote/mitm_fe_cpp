@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.7.0] - 2026-06-14
+
+### Added
+- **Manual Upload Widget**: New tab allowing users with the `UPLOADER` or `ADMIN` role to upload `.csv` and `.xlsx` files manually. The files are securely transmitted to the `/admin/upload/source_file` API and automatically trigger the standalone `mitm_collector_csv-xls` worker for immediate processing.
+
 ## [v0.6.0] - 2026-06-14
 
 ### Added
