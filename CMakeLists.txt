@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 project(mitm_fe_cpp
-VERSION 0.5.0
+VERSION 0.6.0
 DESCRIPTION "Admin frontend for the MitM project"
 HOMEPAGE_URL "https://github.com/Zheng-Bote/mitm_fe_cpp"
 LANGUAGES CXX)
@@ -86,6 +86,8 @@ set(SOURCES
     src/AuditLogsWidget.cpp
     src/SourcesWidget.h
     src/SourcesWidget.cpp
+    src/RbacWidget.h
+    src/RbacWidget.cpp
 )
 
 # Create executable

@@ -23,6 +23,13 @@
 #include <QDir>
 #include "MainWindow.h"
 #include "Config.h"
+#include <QNetworkAccessManager>
+#include <QNetworkRequest>
+#include <QNetworkReply>
+#include <QEventLoop>
+#include <QJsonDocument>
+#include <QJsonArray>
+#include <QProcessEnvironment>
 
 int main(int argc, char *argv[]) {
     // Setup spdlog (default before config loads)
@@ -85,6 +92,32 @@ int main(int argc, char *argv[]) {
 
     // Optional: Set a dark style if supported by OS, or force fusion
     app.setStyle("Fusion");
+
+    // Fetch user roles from Backend
+    {
+        QString osUser = QProcessEnvironment::systemEnvironment().value("USER", QProcessEnvironment::systemEnvironment().value("USERNAME", "unknown"));
+        QNetworkAccessManager manager;
+        QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
+        QString auth = mitm::config::ConfigManager::GetInstance().GetAuthHeader();
+
+        QNetworkRequest req(QUrl(host + "/admin/rbac/os_user_roles?os_user=" + osUser));
+        req.setRawHeader("Authorization", auth.toLocal8Bit());
+
+        QNetworkReply* reply = manager.get(req);
+        QEventLoop loop;
+        QObject::connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+        loop.exec();
+
+        std::vector<std::string> userRoles;
+        if (reply->error() == QNetworkReply::NoError) {
+            auto doc = QJsonDocument::fromJson(reply->readAll());
+            for (const auto& v : doc.array()) {
+                userRoles.push_back(v.toString().toStdString());
+            }
+        }
+        reply->deleteLater();
+        mitm::config::ConfigManager::GetInstance().SetCurrentUserRoles(userRoles);
+    }
 
     MainWindow window;
     window.show();

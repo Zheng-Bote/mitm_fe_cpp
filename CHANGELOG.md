@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.6.0] - 2026-06-14
+
+### Added
+- **RBAC Management UI**: Fully functional RBAC widget replacing the previous placeholder. Includes dynamic "Add User", "Remove User", and role assignment capabilities communicating with the Go backend API.
+- **Dynamic Authorization**: Frontend now verifies OS user permissions on startup via `/admin/rbac/os_user_roles`. 
+- **Read-Only / Viewer Mode**: UI dynamically adapts to user roles. Non-admin users with the `VIEWER` role can view tables but have all editing buttons disabled (save, add, delete, etc.). Unknown users have their access completely restricted to the dashboard, scheduler status, and logs.
+
 ## [v0.5.0] - 2026-06-10
 
 ### Added

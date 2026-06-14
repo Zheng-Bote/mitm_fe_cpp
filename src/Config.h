@@ -62,6 +62,11 @@ public:
     QString GetAuthHeader() const;
     QString GetHostUrl() const;
     
+    void SetCurrentUserRoles(const std::vector<std::string>& roles) { m_userRoles = roles; }
+    bool HasRole(const std::string& role) const {
+        return std::find(m_userRoles.begin(), m_userRoles.end(), role) != m_userRoles.end();
+    }
+    
     std::optional<std::string> GetProxyString() const;
 
 private:
@@ -74,6 +79,7 @@ private:
     ConfigData m_config;
     std::string m_password;
     std::string m_globalConfigPath;
+    std::vector<std::string> m_userRoles;
 };
 
 } // namespace mitm::config
