@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 project(mitm_fe_cpp
-VERSION 0.7.0
+VERSION 0.8.0
 DESCRIPTION "Admin frontend for the MitM project"
 HOMEPAGE_URL "https://github.com/Zheng-Bote/mitm_fe_cpp"
 LANGUAGES CXX)
