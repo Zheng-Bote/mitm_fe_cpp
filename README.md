@@ -12,26 +12,22 @@
 
 ---
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
+
 <details>
 <summary>Table of Contents</summary>
+
 - [Features](#features)
   - [Status](#status)
-- [Project Structure](#project-structure)
-- [Setup & Build](#setup-build)
-  - [1. Prerequisites](#1-prerequisites)
-  - [2. Build](#2-build)
-  - [3. Database Setup](#3-database-setup)
-  - [4. Configuration](#4-configuration)
-- [Running the Scheduler](#running-the-scheduler)
-- [Administrative Tools](#administrative-tools)
-  - [1. GUI Admin Tool (Fyne)](#1-gui-admin-tool-fyne)
-  - [2. Remote REST API](#2-remote-rest-api)
-    - [Update or Create Jobs:](#update-or-create-jobs)
-    - [Download Database Logs with Date Filtering:](#download-database-logs-with-date-filtering)
-- [Injected Environment Variables](#injected-environment-variables)
-- [IPC & Job Communication](#ipc-job-communication)
-- [Docker](#docker)
+- [Requirements](#requirements)
+- [Building the Project](#building-the-project)
+  - [1. Install Conan Dependencies & Generate Presets](#1-install-conan-dependencies-generate-presets)
+  - [2. Configure with CMake](#2-configure-with-cmake)
+  - [3. Build](#3-build)
+  - [4. Configuration Setup](#4-configuration-setup)
+  - [5. Run](#5-run)
+
 </details>
+
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 ---
 
