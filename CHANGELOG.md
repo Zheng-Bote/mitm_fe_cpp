@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.9.0] - 2026-06-16
+
+### Added
+- **Transformation Errors**: Added a new "Transformation errors" tab under the Logs section, integrating with the `/admin/transformation/errors` API and supporting CSV export.
+- **Dashboard Stats**: Expanded the Dashboard with summary cards for Admin Audit Logs, System Logs, Job Audit Logs, and Transformation Errors. Cards now show total counts and format the oldest entry timestamp in a readable `YYYY-MM-DD HH:mm:ss` format.
+- **Windows Hello**: Implemented seamless biometric authentication via WinRT (`UserConsentVerifier` and `IUserConsentVerifierInterop`) inside a dedicated MTA `std::thread` to safely unlock the application without freezing the Qt STA main thread.
+- **Sortable Transformation Tables**: Enabled column sorting for all tables across the Transformation Layer (Sources, Target Fields, Rules, Transformations, Validations).
+
+### Fixed
+- **Qt Table Sorting Bug**: Fixed data corruption bugs in `RbacWidget` and `TransformationWidget` where row items were randomly displaced because Qt aggressively sorted rows during the insertion process.
+- **Config Initialization**: Corrected JSON keys (`scheduler_host`/`scheduler_port`) in the `config.json` initialization logic.
+- **DLQ Lazy Loading**: Disabled unconditional API fetching in the `DlqWidget` constructor, ensuring data is only requested when the user manually clicks "Refresh".
+
 ## [v0.8.0] - 2026-06-15
 
 ### Changed

@@ -29,6 +29,7 @@
 #include "AdminLogsWidget.h"
 #include "RbacWidget.h"
 #include "UploadWidget.h"
+#include "TransformationErrorsWidget.h"
 #include "rz_config.hpp"
 #include <QMenuBar>
 #include <QProcessEnvironment>
@@ -66,6 +67,7 @@ void MainWindow::setupUi() {
   logsTabWidget->addTab(new AdminLogsWidget(this), "Admin-Logs");
   logsTabWidget->addTab(new AuditLogsWidget(this), "Jobs-Logs");
   logsTabWidget->addTab(new SystemLogsWidget(this), "System-Logs");
+  logsTabWidget->addTab(new TransformationErrorsWidget(this), "Transformation Errors");
   m_tabWidget->addTab(logsTabWidget, "📜 Logs");
 
   if (isViewer) {

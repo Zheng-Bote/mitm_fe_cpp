@@ -36,11 +36,19 @@ private:
     void fetchInfo();
     void fetchHealth();
     void fetchJobs();
+    void fetchAdminLogsStats();
+    void fetchSystemLogsStats();
+    void fetchJobLogsStats();
+    void fetchTransformErrorsStats();
     QString getAuthHeader();
 
     QLabel* m_healthLabel;
     QLabel* m_engineLabel;
     QLabel* m_jobsLabel;
+    QLabel* m_adminLogsLabel;
+    QLabel* m_systemLogsLabel;
+    QLabel* m_jobLogsLabel;
+    QLabel* m_transformErrorsLabel;
     QPushButton* m_refreshButton;
     QNetworkAccessManager* m_networkManager;
 };

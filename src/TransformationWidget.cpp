@@ -125,6 +125,7 @@ void TransformationWidget::setupSourcesTab(QWidget* tab) {
     m_sourcesTable->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     m_sourcesTable->setHorizontalScrollMode(QAbstractItemView::ScrollPerPixel);
     m_sourcesTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+    m_sourcesTable->setSortingEnabled(true);
     layout->addWidget(m_sourcesTable);
 
     connect(m_addSourceBtn, &QPushButton::clicked, this, &TransformationWidget::onAddSource);
@@ -153,6 +154,7 @@ void TransformationWidget::setupTargetsTab(QWidget* tab) {
     m_targetsTable->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     m_targetsTable->setHorizontalScrollMode(QAbstractItemView::ScrollPerPixel);
     m_targetsTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+    m_targetsTable->setSortingEnabled(true);
     layout->addWidget(m_targetsTable);
 
     connect(m_addTargetBtn, &QPushButton::clicked, this, &TransformationWidget::onAddTarget);
@@ -184,6 +186,7 @@ void TransformationWidget::setupRulesTab(QWidget* tab) {
     m_rulesTable->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     m_rulesTable->setHorizontalScrollMode(QAbstractItemView::ScrollPerPixel);
     m_rulesTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+    m_rulesTable->setSortingEnabled(true);
     layout->addWidget(m_rulesTable);
 
     connect(m_addRuleBtn, &QPushButton::clicked, this, &TransformationWidget::onAddRule);
@@ -243,6 +246,7 @@ void TransformationWidget::setupTransformationsTab(QWidget* tab) {
     m_transformTable->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     m_transformTable->setHorizontalScrollMode(QAbstractItemView::ScrollPerPixel);
     m_transformTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+    m_transformTable->setSortingEnabled(true);
     layout->addWidget(m_transformTable);
 
 
@@ -273,6 +277,7 @@ void TransformationWidget::setupValidationsTab(QWidget* tab) {
     m_validTable->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     m_validTable->setHorizontalScrollMode(QAbstractItemView::ScrollPerPixel);
     m_validTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+    m_validTable->setSortingEnabled(true);
     layout->addWidget(m_validTable);
 
 
@@ -295,6 +300,7 @@ void TransformationWidget::onRefreshSources() {
     auto reply = m_networkManager->get(request);
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {
         if (reply->error() == QNetworkReply::NoError) {
+            m_sourcesTable->setSortingEnabled(false);
             m_sourcesTable->setRowCount(0);
             try {
                 json data = json::parse(reply->readAll().toStdString());
@@ -313,6 +319,7 @@ void TransformationWidget::onRefreshSources() {
             } catch (...) {
                 spdlog::error("JSON parse error on sources");
             }
+            m_sourcesTable->setSortingEnabled(true);
         } else {
             spdlog::error("Error fetching sources: {}", reply->errorString().toStdString());
         }
@@ -330,6 +337,7 @@ void TransformationWidget::onRefreshTargets() {
     auto reply = m_networkManager->get(request);
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {
         if (reply->error() == QNetworkReply::NoError) {
+            m_targetsTable->setSortingEnabled(false);
             m_targetsTable->setRowCount(0);
             try {
                 json data = json::parse(reply->readAll().toStdString());
@@ -349,6 +357,7 @@ void TransformationWidget::onRefreshTargets() {
             } catch (...) {
                 spdlog::error("JSON parse error on targets");
             }
+            m_targetsTable->setSortingEnabled(true);
         }
         m_targetsTable->resizeColumnsToContents();
         reply->deleteLater();
@@ -364,6 +373,7 @@ void TransformationWidget::onRefreshRules() {
     auto reply = m_networkManager->get(request);
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {
         if (reply->error() == QNetworkReply::NoError) {
+            m_rulesTable->setSortingEnabled(false);
             m_rulesTable->setRowCount(0);
             try {
                 json data = json::parse(reply->readAll().toStdString());
@@ -408,6 +418,7 @@ void TransformationWidget::onRefreshRules() {
             } catch (...) {
                 spdlog::error("JSON parse error on rules");
             }
+            m_rulesTable->setSortingEnabled(true);
         }
         m_rulesTable->resizeColumnsToContents();
         reply->deleteLater();
@@ -423,6 +434,7 @@ void TransformationWidget::onRefreshTransformations() {
     auto reply = m_networkManager->get(request);
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {
         if (reply->error() == QNetworkReply::NoError) {
+            m_transformTable->setSortingEnabled(false);
             m_transformTable->setRowCount(0);
             try {
                 json data = json::parse(reply->readAll().toStdString());
@@ -445,6 +457,7 @@ void TransformationWidget::onRefreshTransformations() {
             } catch (...) {
                 spdlog::error("JSON parse error on transformations");
             }
+            m_transformTable->setSortingEnabled(true);
         }
         m_transformTable->resizeColumnsToContents();
         reply->deleteLater();
@@ -460,6 +473,7 @@ void TransformationWidget::onRefreshValidations() {
     auto reply = m_networkManager->get(request);
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {
         if (reply->error() == QNetworkReply::NoError) {
+            m_validTable->setSortingEnabled(false);
             m_validTable->setRowCount(0);
             try {
                 json data = json::parse(reply->readAll().toStdString());
@@ -482,6 +496,7 @@ void TransformationWidget::onRefreshValidations() {
             } catch (...) {
                 spdlog::error("JSON parse error on validations");
             }
+            m_validTable->setSortingEnabled(true);
         }
         m_validTable->resizeColumnsToContents();
         reply->deleteLater();
@@ -513,7 +528,7 @@ void TransformationWidget::onEditSource() {
     QDialog dlg(this); dlg.setWindowTitle(id.isEmpty() ? "Add Source" : "Edit Source");
     auto l = new QFormLayout(&dlg);
     auto eName = new QLineEdit(name); l->addRow("Name:", eName);
-    auto eType = new QLineEdit(type); l->addRow("Type (oracle/csv/api):", eType);
+    auto eType = new QLineEdit(type); l->addRow("Type (oracle/csv/api...):", eType);
     auto eTopic = new QLineEdit(topic); l->addRow("Topic:", eTopic);
     auto bb = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
     l->addRow(bb);

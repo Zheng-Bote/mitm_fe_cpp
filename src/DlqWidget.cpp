@@ -53,8 +53,7 @@ DlqWidget::DlqWidget(QWidget *parent) : QWidget(parent) {
     connect(m_refreshButton, &QPushButton::clicked, this, &DlqWidget::onRefresh);
     connect(m_requeueButton, &QPushButton::clicked, this, &DlqWidget::onRequeue);
 
-    // Fill initial mock data
-    onRefresh();
+    // Data will only be loaded when the user clicks 'Refresh DLQ'
 }
 
 void DlqWidget::onRefresh() {

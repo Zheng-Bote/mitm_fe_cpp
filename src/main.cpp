@@ -17,6 +17,15 @@
 
 #include <QApplication>
 #include <spdlog/spdlog.h>
+
+#ifdef _WIN32
+#include <windows.h>
+#include <winrt/Windows.Security.Credentials.UI.h>
+#include <winrt/Windows.Foundation.h>
+#include <UserConsentVerifierInterop.h>
+#pragma comment(lib, "windowsapp.lib")
+#endif
+#include <thread>
 #include <QCommandLineParser>
 #include <QInputDialog>
 #include <QMessageBox>
@@ -89,6 +98,72 @@ int main(int argc, char *argv[]) {
                               QString("Failed to decrypt or parse configuration:\n%1").arg(e.what()));
         return 1;
     }
+
+#ifdef _WIN32
+    {
+        spdlog::info("Requesting Windows Hello authentication via WinRT...");
+        bool authSuccess = false;
+        bool authError = false;
+        std::string errorMsg;
+
+        std::thread([&]() {
+            try {
+                winrt::init_apartment(winrt::apartment_type::multi_threaded);
+                
+                auto availability = winrt::Windows::Security::Credentials::UI::UserConsentVerifier::CheckAvailabilityAsync().get();
+                if (availability == winrt::Windows::Security::Credentials::UI::UserConsentVerifierAvailability::Available) {
+                    
+                    auto factory = winrt::get_activation_factory<winrt::Windows::Security::Credentials::UI::UserConsentVerifier>();
+                    auto interop = factory.as<IUserConsentVerifierInterop>();
+                    
+                    winrt::Windows::Foundation::IAsyncOperation<winrt::Windows::Security::Credentials::UI::UserConsentVerificationResult> asyncOp{ nullptr };
+                    winrt::hstring message = L"Bitte authentifizieren Sie sich (Windows Hello), um auf das MitM Admin Frontend zuzugreifen.";
+                    
+                    HWND hwnd = GetActiveWindow();
+                    if (!hwnd) hwnd = GetForegroundWindow();
+                    if (!hwnd) hwnd = GetDesktopWindow();
+
+                    winrt::check_hresult(interop->RequestVerificationForWindowAsync(
+                        hwnd, 
+                        (HSTRING)winrt::get_abi(message), 
+                        winrt::guid_of<winrt::Windows::Foundation::IAsyncOperation<winrt::Windows::Security::Credentials::UI::UserConsentVerificationResult>>(), 
+                        winrt::put_abi(asyncOp)
+                    ));
+
+                    auto result = asyncOp.get();
+
+                    if (result == winrt::Windows::Security::Credentials::UI::UserConsentVerificationResult::Verified) {
+                        authSuccess = true;
+                    }
+                } else {
+                    authSuccess = true; 
+                    spdlog::warn("Windows Hello is not available. Bypassing...");
+                }
+            } catch (const winrt::hresult_error& e) {
+                authError = true;
+                errorMsg = winrt::to_string(e.message());
+            } catch (const std::exception& e) {
+                authError = true;
+                errorMsg = e.what();
+            }
+        }).join();
+
+        if (authError) {
+            spdlog::error("Windows Hello Error: {}", errorMsg);
+            QMessageBox::critical(nullptr, "Hello-Fehler", 
+                                  QString::fromStdString("Die Windows Hello Authentifizierung konnte nicht gestartet werden:\n" + errorMsg));
+            return 1;
+        }
+
+        if (!authSuccess) {
+            spdlog::warn("Windows Hello authentication failed or cancelled.");
+            QMessageBox::critical(nullptr, "Authentifizierung fehlgeschlagen", 
+                                  "Die Windows Hello Authentifizierung wurde abgebrochen, eine falsche PIN eingegeben oder ist anderweitig fehlgeschlagen.");
+            return 1;
+        }
+        spdlog::info("Windows Hello authentication successful.");
+    }
+#endif
 
     // Optional: Set a dark style if supported by OS, or force fusion
     app.setStyle("Fusion");

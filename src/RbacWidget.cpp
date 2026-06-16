@@ -47,6 +47,7 @@ void RbacWidget::setupUi() {
     usersTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
     usersTable->setSelectionBehavior(QAbstractItemView::SelectRows);
     usersTable->setSelectionMode(QAbstractItemView::SingleSelection);
+    usersTable->setSortingEnabled(true);
     usersLayout->addWidget(usersTable);
     
     // Roles List
@@ -102,6 +103,7 @@ void RbacWidget::fetchUsersAndRoles() {
     auto usersReply = manager->get(usersReq);
     connect(usersReply, &QNetworkReply::finished, this, [this, usersReply]() {
         if (usersReply->error() == QNetworkReply::NoError) {
+            usersTable->setSortingEnabled(false);
             usersTable->setRowCount(0);
             auto doc = QJsonDocument::fromJson(usersReply->readAll());
             auto arr = doc.array();
@@ -118,6 +120,7 @@ void RbacWidget::fetchUsersAndRoles() {
                 auto* activeItem = new QTableWidgetItem(obj["is_active"].toBool() ? "Yes" : "No");
                 usersTable->setItem(i, 2, activeItem);
             }
+            usersTable->setSortingEnabled(true);
         }
         usersReply->deleteLater();
     });
