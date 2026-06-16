@@ -1,6 +1,39 @@
-# MitM Admin Frontend (C++23 & Qt6)
+<div id="top" align="center">
+<h1>MitM Admin Frontend</h1>h1>
 
-This directory contains the C++23 / Qt6 Admin Frontend for the MitM Data Aggregator project. It connects securely to the Go-based Scheduler via REST APIs to manage jobs, mapping rules, and view system and audit logs.
+<p>Admin Frontend for the MitM Data Aggregator project. It connects securely to the Go-based Scheduler via REST APIs to manage jobs, mapping rules, and view system and audit logs.</p>
+
+![License](https://img.shields.io/badge/license-Apache_2.0-green)
+![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows-lightgrey.svg)
+[![GitHub release (latest by date)](https://img.shields.io/github/v/release/Zheng-Bote/mitm_fe_cpp?logo=GitHub)](https://github.com/Zheng-Bote/mitm_fe_cpp/releases)
+<br/>
+[Report Issue](https://github.com/Zheng-Bote/mitm_fe_cpp/issues) · [Request Feature](https://github.com/Zheng-Bote/mitm_fe_cpp/pulls)
+</div>
+
+---
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<details>
+<summary>Table of Contents</summary>
+- [Features](#features)
+  - [Status](#status)
+- [Project Structure](#project-structure)
+- [Setup & Build](#setup-build)
+  - [1. Prerequisites](#1-prerequisites)
+  - [2. Build](#2-build)
+  - [3. Database Setup](#3-database-setup)
+  - [4. Configuration](#4-configuration)
+- [Running the Scheduler](#running-the-scheduler)
+- [Administrative Tools](#administrative-tools)
+  - [1. GUI Admin Tool (Fyne)](#1-gui-admin-tool-fyne)
+  - [2. Remote REST API](#2-remote-rest-api)
+    - [Update or Create Jobs:](#update-or-create-jobs)
+    - [Download Database Logs with Date Filtering:](#download-database-logs-with-date-filtering)
+- [Injected Environment Variables](#injected-environment-variables)
+- [IPC & Job Communication](#ipc-job-communication)
+- [Docker](#docker)
+</details>
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+---
 
 ## Features
 * **Encrypted Configuration**: Master configuration (`config.enc`) and user-specific configurations (`<username>_config.enc`) are protected via AES-256-GCM and Argon2id (libsodium). At startup, the application prompts for a master password.
@@ -12,6 +45,13 @@ This directory contains the C++23 / Qt6 Admin Frontend for the MitM Data Aggrega
 * **Advanced Logging & Dashboard**: Interactive dashboard with real-time stats and comprehensive data grids for Admin, System, Job, and Transformation logs.
 * **Dynamic API & Auth**: Derives the Scheduler host and authentication header directly from the decrypted config.
 * **Modern C++23 Stack**: Built with Qt6, nlohmann_json, spdlog, libsodium, and cpp-httplib.
+
+### Status
+![GitHub Created At](https://img.shields.io/github/created-at/Zheng-Bote/mitm_fe_cpp?logo=GitHub)
+![GitHub Release Date](https://img.shields.io/github/release-date/Zheng-Bote/mitm_fe_cpp?logo=GitHub)
+[![GitHub release (latest by date)](https://img.shields.io/github/v/release/Zheng-Bote/mitm_fe_cpp?logo=GitHub)](https://github.com/Zheng-Bote/mitm_fe_cpp/releases)
+![GitHub repo size](https://img.shields.io/github/repo-size/zheng-bote/mitm_fe_cpp)
+![Status](https://img.shields.io/badge/Status-stable-green)
 
 ## Requirements
 *   **Compiler**: C++23 compatible (GCC 13+, Clang 16+, MSVC 19.38+)
