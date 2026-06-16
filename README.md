@@ -23,6 +23,16 @@ This directory contains the C++23 / Qt6 Admin Frontend for the MitM Data Aggrega
 We use Conan to fetch most C++ libraries (`spdlog`, `nlohmann_json`, `libsodium`, `cpp-httplib`, `openssl`) and CMake to build the Qt6 application. `gh-update-checker` is pulled automatically via CMake's `FetchContent`.
 
 ### 1. Install Conan Dependencies & Generate Presets
+
+**Windows**
+
+Run this from the `admin-frontend/mitm_fe_cpp` directory:
+```bash
+conan install . --build=missing -s build_type=Release
+```
+
+**Linux**
+
 Run this from the `admin-frontend/mitm_fe_cpp` directory:
 ```bash
 conan install . --build=missing -pr:b default
@@ -30,6 +40,15 @@ conan install . --build=missing -pr:b default
 
 ### 2. Configure with CMake
 Conan generates modern CMake presets. Use them directly from the project root:
+
+**Windows**
+
+```bash
+cmake --preset conan-default -DCMAKE_VS_GLOBALS=VcpkgEnabled=false
+```
+
+**Linux**
+
 ```bash
 cmake --preset conan-release
 ```
@@ -37,7 +56,7 @@ cmake --preset conan-release
 
 ### 3. Build
 ```bash
-cmake --build --preset conan-release
+cmake --build --preset conan-release -j
 ```
 
 ### 4. Configuration Setup
