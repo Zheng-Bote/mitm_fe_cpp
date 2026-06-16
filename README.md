@@ -1,5 +1,5 @@
 <div id="top" align="center">
-<h1>MitM Admin Frontend</h1>h1>
+<h1>MitM Admin Frontend</h1>
 
 <p>Admin Frontend for the MitM Data Aggregator project. It connects securely to the Go-based Scheduler via REST APIs to manage jobs, mapping rules, and view system and audit logs.</p>
 
