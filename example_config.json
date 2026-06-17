@@ -1,6 +1,7 @@
 {
   "scheduler_host": "localhost",
   "scheduler_port": 8080,
+  "scheduler_use_https": false,
   "log_level": "info",
   "admin_users": [
     {

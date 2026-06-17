@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.10.0] - 2026-06-17
+
+### Added
+- **HTTPS Support**: Added `scheduler_use_https` property to the configuration file, allowing the frontend to communicate with the scheduler via HTTPS FQDNs.
+
+### Changed
+- **RBAC Visibility**: "Source Credentials" and "Target Credentials" tabs are now strictly hidden from users with the `VIEWER` role and require `ADMIN` privileges.
+
 ## [v0.9.0] - 2026-06-16
 
 ### Added

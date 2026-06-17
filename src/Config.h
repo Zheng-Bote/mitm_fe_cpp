@@ -40,6 +40,7 @@ struct ProxyConfig {
 struct ConfigData {
     std::string scheduler_host;
     int scheduler_port{8080};
+    bool scheduler_use_https{false};
     std::string log_level{"info"};
     std::vector<AdminUser> admin_users;
     ProxyConfig proxy;

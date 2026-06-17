@@ -73,10 +73,10 @@ void MainWindow::setupUi() {
   if (isViewer) {
       m_tabWidget->addTab(new TransformationWidget(this), "🧩 Transformation Layer");
       m_tabWidget->addTab(new DlqWidget(this), "🚑 DLQ & Cursors");
-      m_tabWidget->addTab(new SourcesWidget(this), "🔌 Source Credentials");
-      m_tabWidget->addTab(new TargetCredentialsWidget(this), "🎯 Target Credentials");
   }
   if (isAdmin) {
+      m_tabWidget->addTab(new SourcesWidget(this), "🔌 Source Credentials");
+      m_tabWidget->addTab(new TargetCredentialsWidget(this), "🎯 Target Credentials");
       m_tabWidget->addTab(new RbacWidget(this), "👥 RBAC");
       m_tabWidget->addTab(new SettingsWidget(this), "⚙️ Settings & Key Vault");
   }

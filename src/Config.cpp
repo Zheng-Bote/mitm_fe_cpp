@@ -49,6 +49,7 @@ void ConfigManager::LoadEncryptedConfig(const std::string& filepath, const std::
 
     m_config.scheduler_host = j.value("scheduler_host", "localhost");
     m_config.scheduler_port = j.value("scheduler_port", 8080);
+    m_config.scheduler_use_https = j.value("scheduler_use_https", false);
     m_config.log_level = j.value("log_level", "info");
 
     if (j.contains("networking") && j["networking"].contains("proxy")) {
@@ -100,7 +101,16 @@ QString ConfigManager::GetAuthHeader() const {
 }
 
 QString ConfigManager::GetHostUrl() const {
-    return QString::fromStdString("http://" + m_config.scheduler_host + ":" + std::to_string(m_config.scheduler_port));
+    QString protocol = m_config.scheduler_use_https ? "https://" : "http://";
+    QString host = QString::fromStdString(m_config.scheduler_host);
+    QString portPart = "";
+    
+    if ((m_config.scheduler_use_https && m_config.scheduler_port != 443) ||
+        (!m_config.scheduler_use_https && m_config.scheduler_port != 80)) {
+        portPart = ":" + QString::number(m_config.scheduler_port);
+    }
+    
+    return protocol + host + portPart;
 }
 
 void ConfigManager::LoadUserConfig() {

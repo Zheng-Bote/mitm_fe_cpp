@@ -40,6 +40,7 @@
 * **Network Proxy Settings**: Configurable per-user network proxy settings that override defaults and support authenticated HTTP/HTTPS proxies.
 * **Advanced Logging & Dashboard**: Interactive dashboard with real-time stats and comprehensive data grids for Admin, System, Job, and Transformation logs.
 * **Dynamic API & Auth**: Derives the Scheduler host and authentication header directly from the decrypted config.
+* **HTTPS Support**: Configurable HTTPS connectivity (`scheduler_use_https`) to securely interface with FQDNs.
 * **Modern C++23 Stack**: Built with Qt6, nlohmann_json, spdlog, libsodium, and cpp-httplib.
 
 ### Status
@@ -103,4 +104,9 @@ Before running the application for the first time, you need a valid encrypted `c
 ### 5. Run
 ```bash
 ./build/Release/bin/mitm_fe_cpp [path/to/config.enc]
+```
+
+**Windows**
+```bash
+<your_Qt_path>\windeployqt6.exe --release -force-openssl mitm_fe_cpp.exe
 ```
