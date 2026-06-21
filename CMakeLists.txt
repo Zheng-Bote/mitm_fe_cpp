@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 project(mitm_fe_cpp
-VERSION 0.10.0
+VERSION 0.11.0
 DESCRIPTION "Admin frontend for the MitM project"
 HOMEPAGE_URL "https://github.com/Zheng-Bote/mitm_fe_cpp"
 LANGUAGES CXX)
@@ -69,6 +69,8 @@ set(SOURCES
     src/JobEditorDialog.cpp
     src/TransformationWidget.h
     src/TransformationWidget.cpp
+    src/TopicDependenciesWidget.h
+    src/TopicDependenciesWidget.cpp
     src/RuleEditorDialog.h
     src/RuleEditorDialog.cpp
     src/DlqWidget.h

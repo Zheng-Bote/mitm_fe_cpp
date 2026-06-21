@@ -39,7 +39,7 @@ TransformationErrorsWidget::TransformationErrorsWidget(QWidget *parent)
 
     m_tableView = new QTableView(this);
     m_model = new QStandardItemModel(0, 7, this);
-    m_model->setHorizontalHeaderLabels({"ID", "Raw Ingestion ID", "Topic", "Failed Field", "Rule Name", "Error Message", "Created At"});
+    m_model->setHorizontalHeaderLabels({"ID", "Correlation ID", "Topic", "Failed Field", "Rule Name", "Error Message", "Created At"});
     
     m_tableView->setModel(m_model);
     m_tableView->horizontalHeader()->setSectionResizeMode(QHeaderView::Interactive);
@@ -84,7 +84,7 @@ void TransformationErrorsWidget::onRefresh() {
                     for (const auto& log : data) {
                         QList<QStandardItem*> rowItems;
                         rowItems << new QStandardItem(QString::fromStdString(log.value("id", "")));
-                        rowItems << new QStandardItem(QString::fromStdString(log.value("raw_ingestion_id", "")));
+                        rowItems << new QStandardItem(QString::fromStdString(log.value("correlation_id", "")));
                         rowItems << new QStandardItem(QString::fromStdString(log.value("topic", "")));
                         rowItems << new QStandardItem(QString::fromStdString(log.value("failed_field", "")));
                         rowItems << new QStandardItem(QString::fromStdString(log.value("rule_name", "")));

@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.11.0] - 2026-06-21
+
+### Added
+- **Topic Dependencies UI**: Added a new "Topic Dependencies" tab within the Transformation Layer widget to manage Stateful Aggregation requirements via the backend API.
+
+### Changed
+- **Transformation Errors (DLQ)**: Updated the Transformation Errors table header and JSON parsing to display `correlation_id` instead of the deprecated `raw_ingestion_id`, accommodating the new Stateful Aggregation architecture.
+
 ## [v0.10.0] - 2026-06-17
 
 ### Added

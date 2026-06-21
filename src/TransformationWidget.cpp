@@ -15,6 +15,7 @@
 #include <nlohmann/json.hpp>
 #include "Config.h"
 #include "RuleEditorDialog.h"
+#include "TopicDependenciesWidget.h"
 #include <QMessageBox>
 #include <QDialog>
 #include <QFormLayout>
@@ -41,6 +42,8 @@ TransformationWidget::TransformationWidget(QWidget *parent)
     auto targetsTab = new QWidget();
     setupTargetsTab(targetsTab);
     m_tabWidget->addTab(targetsTab, "Target Fields");
+
+    m_tabWidget->addTab(new TopicDependenciesWidget(this), "Topic Dependencies");
 
     auto rulesTab = new QWidget();
     setupRulesTab(rulesTab);
