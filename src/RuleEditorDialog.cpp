@@ -93,15 +93,32 @@ RuleEditorDialog::RuleEditorDialog(QTableWidget* sourcesTable, QTableWidget* tar
 void RuleEditorDialog::onBuildTransformChain() {
     // Simple UI to add common transformations instead of raw JSON
     QStringList items;
-    items << "uppercase" << "lowercase" << "trim" << "parse_date";
+    items << "trim_whitespace" << "to_upper" << "to_lower" << "default_value" << "regex_replace" << "parse_date" << "string_split" << "cast_type";
     bool ok;
     QString item = QInputDialog::getItem(this, "Add Transformation", "Select type:", items, 0, false, &ok);
     if (ok && !item.isEmpty()) {
         try {
             json j = json::parse(m_transformEdit->toPlainText().toStdString());
             if (!j.is_array()) j = json::array();
-            json step = {{"type", item.toStdString()}};
-            if (item == "parse_date") step["format"] = "YYYY-MM-DD"; // dummy param
+            json step = {
+                {"name", item.toStdString()},
+                {"parameters", json::object()}
+            };
+            if (item == "default_value") step["parameters"]["value"] = "";
+            else if (item == "regex_replace") {
+                step["parameters"]["pattern"] = "";
+                step["parameters"]["replace"] = "";
+            }
+            else if (item == "parse_date") {
+                step["parameters"]["input_format"] = "2006-01-02";
+                step["parameters"]["output_format"] = "2006-01-02T15:04:05Z";
+            }
+            else if (item == "string_split") {
+                step["parameters"]["separator"] = ",";
+                step["parameters"]["index"] = 0;
+            }
+            else if (item == "cast_type") step["parameters"]["target_type"] = "string";
+
             j.push_back(step);
             m_transformEdit->setPlainText(QString::fromStdString(j.dump(2)));
         } catch (...) {
@@ -112,15 +129,25 @@ void RuleEditorDialog::onBuildTransformChain() {
 
 void RuleEditorDialog::onBuildValidationChain() {
     QStringList items;
-    items << "not_empty" << "is_email" << "min_length";
+    items << "not_null" << "regex_match" << "range_check" << "email" << "in_list" << "min_length" << "max_length";
     bool ok;
     QString item = QInputDialog::getItem(this, "Add Validation", "Select type:", items, 0, false, &ok);
     if (ok && !item.isEmpty()) {
         try {
             json j = json::parse(m_validationEdit->toPlainText().toStdString());
             if (!j.is_array()) j = json::array();
-            json step = {{"type", item.toStdString()}};
-            if (item == "min_length") step["length"] = 5;
+            json step = {
+                {"name", item.toStdString()},
+                {"parameters", json::object()}
+            };
+            if (item == "regex_match") step["parameters"]["pattern"] = "";
+            else if (item == "range_check") {
+                step["parameters"]["min"] = 0;
+                step["parameters"]["max"] = 100;
+            }
+            else if (item == "in_list") step["parameters"]["allowed"] = json::array();
+            else if (item == "min_length" || item == "max_length") step["parameters"]["length"] = 1;
+
             j.push_back(step);
             m_validationEdit->setPlainText(QString::fromStdString(j.dump(2)));
         } catch (...) {
@@ -139,10 +166,11 @@ void RuleEditorDialog::onTestRule() {
     try {
         json tChain = json::parse(m_transformEdit->toPlainText().toStdString());
         for (const auto& step : tChain) {
-            std::string type = step.value("type", "");
-            if (type == "uppercase") current = current.toUpper();
-            else if (type == "lowercase") current = current.toLower();
-            else if (type == "trim") current = current.trimmed();
+            std::string name = step.value("name", "");
+            if (name == "to_upper") current = current.toUpper();
+            else if (name == "to_lower") current = current.toLower();
+            else if (name == "trim_whitespace") current = current.trimmed();
+            // Note: complex transformations like parse_date or regex are skipped in this simple preview
         }
         
         QMessageBox::information(this, "Test Result", 
