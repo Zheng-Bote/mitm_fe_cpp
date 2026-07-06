@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.14.0] - 2026-07-06
+
+### Added
+- **Local Timezone Support**: Enhanced Timestamp and "Created At" columns in Admin-Logs, Jobs-Logs, System-Logs, and Transformation Sources to automatically convert and display raw backend UTC timestamps in the system's local time (including the timezone ID in the header).
+- **Transformation Rule Live Preview**: Implemented local execution simulation for `parse_date` and `regex_replace` directly within the Rule Editor's "Test Rule" preview feature using Qt's `QDateTime` and `QRegularExpression`.
+
+### Changed
+- **Parse Date Configuration**: Updated the `parse_date` rule builder template to omit the now-optional `input_format` parameter by default, correctly leveraging the backend's new auto-detection capabilities.
+
+## [v0.13.0] - 2026-06-30
+
+### Changed
+- **Version Bump**: Bumped version to v0.13.0 to align with backend enhancements and system stability patches.
+
 ## [v0.12.0] - 2026-06-22
 
 ### Changed

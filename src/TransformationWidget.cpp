@@ -24,7 +24,8 @@
 #include <QCheckBox>
 #include <QDialogButtonBox>
 #include <QInputDialog>
-
+#include <QTimeZone>
+#include <QDateTime>
 
 using json = nlohmann::json;
 
@@ -123,7 +124,9 @@ void TransformationWidget::setupSourcesTab(QWidget* tab) {
     layout->addLayout(headerLayout);
 
     m_sourcesTable = new QTableWidget(0, 6, this);
-    m_sourcesTable->setHorizontalHeaderLabels({"ID", "Name", "Type", "Topic", "Version", "Created At"});
+    QTimeZone tz = QTimeZone::systemTimeZone();
+    QString tsHeader = QString("Created At (%1)").arg(QString(tz.id()));
+    m_sourcesTable->setHorizontalHeaderLabels({"ID", "Name", "Type", "Topic", "Version", tsHeader});
     m_sourcesTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Interactive);
     m_sourcesTable->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     m_sourcesTable->setHorizontalScrollMode(QAbstractItemView::ScrollPerPixel);
@@ -316,7 +319,11 @@ void TransformationWidget::onRefreshSources() {
                         m_sourcesTable->setItem(row, 2, new QTableWidgetItem(QString::fromStdString(item.value("type", ""))));
                         m_sourcesTable->setItem(row, 3, new QTableWidgetItem(QString::fromStdString(item.value("topic", ""))));
                         m_sourcesTable->setItem(row, 4, new QTableWidgetItem(QString::number(item.value("version", 0))));
-                        m_sourcesTable->setItem(row, 5, new QTableWidgetItem(QString::fromStdString(item.value("created_at", ""))));
+                        
+                        QString rawTs = QString::fromStdString(item.value("created_at", ""));
+                        QDateTime dt = QDateTime::fromString(rawTs, Qt::ISODate);
+                        QString tsStr = dt.isValid() ? dt.toLocalTime().toString("yyyy-MM-dd HH:mm:ss") : rawTs;
+                        m_sourcesTable->setItem(row, 5, new QTableWidgetItem(tsStr));
                     }
                 }
             } catch (...) {

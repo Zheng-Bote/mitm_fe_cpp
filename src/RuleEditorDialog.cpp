@@ -13,6 +13,8 @@
 #include <QDialogButtonBox>
 #include <QMessageBox>
 #include <QInputDialog>
+#include <QDateTime>
+#include <QRegularExpression>
 
 using json = nlohmann::json;
 
@@ -110,7 +112,6 @@ void RuleEditorDialog::onBuildTransformChain() {
                 step["parameters"]["replace"] = "";
             }
             else if (item == "parse_date") {
-                step["parameters"]["input_format"] = "2006-01-02";
                 step["parameters"]["output_format"] = "2006-01-02T15:04:05Z";
             }
             else if (item == "string_split") {
@@ -170,7 +171,45 @@ void RuleEditorDialog::onTestRule() {
             if (name == "to_upper") current = current.toUpper();
             else if (name == "to_lower") current = current.toLower();
             else if (name == "trim_whitespace") current = current.trimmed();
-            // Note: complex transformations like parse_date or regex are skipped in this simple preview
+            else if (name == "parse_date") {
+                auto params = step.value("parameters", json::object());
+                std::string inFmt = params.value("input_format", "");
+                std::string outFmt = params.value("output_format", "2006-01-02");
+                
+                auto qtFmt = [](QString f) {
+                    f.replace("2006", "yyyy").replace("06", "yy").replace("01", "MM").replace("02", "dd")
+                     .replace("15", "HH").replace("04", "mm").replace("05", "ss")
+                     .replace("T", "'T'").replace("Z", "'Z'");
+                    return f;
+                };
+
+                QDateTime dt;
+                if (!inFmt.empty()) {
+                    dt = QDateTime::fromString(current, qtFmt(QString::fromStdString(inFmt)));
+                } else {
+                    QStringList formats = {"MM/dd/yyyy", "dd/MM/yyyy", "dd-MM-yyyy", "MM-dd-yyyy", "yyyy/MM/dd", "yyyy-MM-dd", "dd.MM.yyyy", "dd.MM.yy"};
+                    for (const auto& f : formats) {
+                        dt = QDateTime::fromString(current, f);
+                        if (dt.isValid()) break;
+                    }
+                }
+
+                if (dt.isValid()) {
+                    current = dt.toString(qtFmt(QString::fromStdString(outFmt)));
+                } else {
+                    current = "Error: Invalid date format";
+                }
+            }
+            else if (name == "regex_replace") {
+                auto params = step.value("parameters", json::object());
+                std::string pattern = params.value("pattern", "");
+                std::string replace = params.value("replace", "");
+                if (!pattern.empty()) {
+                    QRegularExpression re(QString::fromStdString(pattern));
+                    current.replace(re, QString::fromStdString(replace));
+                }
+            }
+            // Note: complex transformations like cast_type are skipped in this simple preview
         }
         
         QMessageBox::information(this, "Test Result", 

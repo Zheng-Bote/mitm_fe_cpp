@@ -41,6 +41,8 @@
 * **Advanced Logging & Dashboard**: Interactive dashboard with real-time stats and comprehensive data grids for Admin, System, Job, and Transformation logs.
 * **Dynamic API & Auth**: Derives the Scheduler host and authentication header directly from the decrypted config.
 * **HTTPS Support**: Configurable HTTPS connectivity (`scheduler_use_https`) to securely interface with FQDNs.
+* **Local Timezone Formatting**: Seamlessly translates UTC timestamps to the user's local timezone directly within data grids.
+* **Rule Sandbox**: Real-time "Test Preview" sandbox to safely simulate complex data transformations (e.g., Dates and Regex) before saving them to the backend.
 * **Modern C++23 Stack**: Built with Qt6, nlohmann_json, spdlog, libsodium, and cpp-httplib.
 
 ### Status

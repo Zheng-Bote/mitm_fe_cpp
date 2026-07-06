@@ -23,6 +23,8 @@
 #include <QNetworkReply>
 #include <QUrl>
 #include <QFile>
+#include <QDateTime>
+#include <QTimeZone>
 #include <QProcessEnvironment>
 #include <QFileDialog>
 #include <QTextStream>
@@ -48,7 +50,9 @@ AuditLogsWidget::AuditLogsWidget(QWidget *parent)
 
     m_tableView = new QTableView(this);
     m_model = new QStandardItemModel(0, 5, this);
-    m_model->setHorizontalHeaderLabels({"ID", "Timestamp", "Run ID", "Component", "Message"});
+    QTimeZone tz = QTimeZone::systemTimeZone();
+    QString tsHeader = QString("Timestamp (%1)").arg(QString(tz.id()));
+    m_model->setHorizontalHeaderLabels({"ID", tsHeader, "Run ID", "Component", "Message"});
     
     m_tableView->setModel(m_model);
     m_tableView->horizontalHeader()->setSectionResizeMode(QHeaderView::Interactive);
@@ -90,7 +94,12 @@ void AuditLogsWidget::onRefresh() {
                     for (const auto& log : data) {
                         QList<QStandardItem*> rowItems;
                         rowItems << new QStandardItem(QString::number(log.value("id", 0)));
-                        rowItems << new QStandardItem(QString::fromStdString(log.value("ts", "")));
+                        
+                        QString rawTs = QString::fromStdString(log.value("ts", ""));
+                        QDateTime dt = QDateTime::fromString(rawTs, Qt::ISODate);
+                        QString tsStr = dt.isValid() ? dt.toLocalTime().toString("yyyy-MM-dd HH:mm:ss") : rawTs;
+                        rowItems << new QStandardItem(tsStr);
+                        
                         rowItems << new QStandardItem(QString::number(log.value("run_id", 0)));
                         rowItems << new QStandardItem(QString::fromStdString(log.value("component", "")));
                         rowItems << new QStandardItem(QString::fromStdString(log.value("message", "")));
