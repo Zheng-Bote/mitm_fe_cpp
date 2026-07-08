@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.15.0] - 2026-07-08
+
+### Added
+- **Scheduler Next Run**: Added a "Next Run" column to the Scheduler tab that dynamically displays the upcoming execution time of enabled jobs in the user's local timezone.
+
+### Fixed
+- **Transformation Errors (DLQ) Crash**: Fixed a critical 500 error on the backend (`/admin/transformation/errors`) caused by a leftover `raw_ingestion_id` reference in the SQL query after the Stateful Aggregation schema migration. The Dashboard "Transformation Errors" indicator is now fully functional again.
+
 ## [v0.14.0] - 2026-07-06
 
 ### Added

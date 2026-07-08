@@ -27,6 +27,8 @@
 #include <QMessageBox>
 #include <spdlog/spdlog.h>
 #include <nlohmann/json.hpp>
+#include <QTimeZone>
+#include <QDateTime>
 #include "Config.h"
 #include "JobEditorDialog.h"
 
@@ -51,8 +53,9 @@ SchedulerWidget::SchedulerWidget(QWidget *parent)
     mainLayout->addLayout(headerLayout);
 
     m_tableView = new QTableView(this);
-    m_model = new QStandardItemModel(0, 5, this);
-    m_model->setHorizontalHeaderLabels({"ID", "Name", "Command", "Cron Expr", "Status"});
+    m_model = new QStandardItemModel(0, 6, this);
+    QString tzName = QTimeZone::systemTimeZoneId();
+    m_model->setHorizontalHeaderLabels({"ID", "Name", "Command", "Cron Expr", "Status", QString("Next Run (%1)").arg(tzName)});
     
     m_tableView->setModel(m_model);
     m_tableView->horizontalHeader()->setSectionResizeMode(QHeaderView::Interactive);
@@ -108,6 +111,18 @@ void SchedulerWidget::onApiResponse(QNetworkReply* reply) {
                     bool enabled = job.value("enabled", false);
                     auto statusItem = new QStandardItem(enabled ? "Enabled 🟢" : "Disabled 🔴");
                     rowItems << statusItem;
+
+                    QString nextRunStr = "-";
+                    if (enabled) {
+                        std::string nr = job.value("next_run", "");
+                        if (!nr.empty()) {
+                            QDateTime dt = QDateTime::fromString(QString::fromStdString(nr), Qt::ISODate);
+                            if (dt.isValid()) {
+                                nextRunStr = dt.toLocalTime().toString("yyyy-MM-dd HH:mm:ss");
+                            }
+                        }
+                    }
+                    rowItems << new QStandardItem(nextRunStr);
 
                     m_model->appendRow(rowItems);
                 }
