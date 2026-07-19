@@ -23,6 +23,8 @@
 #include <algorithm>
 #include <QProcessEnvironment>
 #include <QByteArray>
+#include <QCoreApplication>
+#include <QDir>
 
 namespace mitm::config {
 
@@ -51,6 +53,7 @@ void ConfigManager::LoadEncryptedConfig(const std::string& filepath, const std::
     m_config.scheduler_port = j.value("scheduler_port", 8080);
     m_config.scheduler_use_https = j.value("scheduler_use_https", false);
     m_config.log_level = j.value("log_level", "info");
+    m_config.name = j.value("name", "Default Config");
 
     if (j.contains("networking") && j["networking"].contains("proxy")) {
         auto p = j["networking"]["proxy"];
@@ -117,10 +120,8 @@ void ConfigManager::LoadUserConfig() {
     auto env = QProcessEnvironment::systemEnvironment();
     QString osUser = env.value("USER", env.value("USERNAME", "unknown"));
     
-    // Path should be alongside the global config or in same dir
-    QString basePath = QString::fromStdString(m_globalConfigPath);
-    int lastSlash = basePath.lastIndexOf('/');
-    QString dir = lastSlash >= 0 ? basePath.left(lastSlash + 1) : "";
+    // Path should be in <Programm-Ordner>/configs/
+    QString dir = QCoreApplication::applicationDirPath() + "/configs/";
     QString userConfigPath = dir + osUser + "_config.enc";
 
     std::ifstream file(userConfigPath.toStdString(), std::ios::binary);
@@ -158,9 +159,8 @@ void ConfigManager::SaveUserConfig(const ProxyConfig& proxyCfg) {
     auto env = QProcessEnvironment::systemEnvironment();
     QString osUser = env.value("USER", env.value("USERNAME", "unknown"));
     
-    QString basePath = QString::fromStdString(m_globalConfigPath);
-    int lastSlash = basePath.lastIndexOf('/');
-    QString dir = lastSlash >= 0 ? basePath.left(lastSlash + 1) : "";
+    QString dir = QCoreApplication::applicationDirPath() + "/configs/";
+    QDir().mkpath(dir); // Ensure the configs directory exists
     QString userConfigPath = dir + osUser + "_config.enc";
 
     nlohmann::json j;

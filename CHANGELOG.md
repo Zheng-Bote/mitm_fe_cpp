@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.16.0] - 2026-07-19
+
+### Added
+- **Configuration Profiles**: Added a "Select Configuration..." option in the Settings menu to switch between different encrypted environment configurations (`*.enc`). The selection is persisted via `QSettings` and loaded automatically on the next startup.
+- **Active Configuration Display**: The application status bar now displays the name of the currently active configuration, parsed from a new `name` field within the encrypted JSON config.
+
+### Changed
+- **User Config Location**: User-specific proxy configurations (`<username>_config.enc`) are now saved cleanly inside a dedicated `<Programm-Ordner>/configs/` directory instead of the binary root folder.
+
 ## [v0.15.0] - 2026-07-08
 
 ### Added

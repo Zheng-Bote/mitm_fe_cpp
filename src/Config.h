@@ -44,6 +44,7 @@ struct ConfigData {
     std::string log_level{"info"};
     std::vector<AdminUser> admin_users;
     ProxyConfig proxy;
+    std::string name;
 };
 
 class ConfigManager {

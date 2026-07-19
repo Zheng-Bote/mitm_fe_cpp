@@ -28,9 +28,9 @@ constexpr std::string_view PROJECT_DESCRIPTION = "Admin frontend for the MitM pr
 
 constexpr std::string_view EXECUTABLE_NAME = "mitm_fe_cpp";
 
-constexpr std::string_view VERSION = "0.15.0";
+constexpr std::string_view VERSION = "0.16.0";
 constexpr std::int32_t PROJECT_VERSION_MAJOR { 0 };
-constexpr std::int32_t PROJECT_VERSION_MINOR { 15 };
+constexpr std::int32_t PROJECT_VERSION_MINOR { 16 };
 constexpr std::int32_t PROJECT_VERSION_PATCH { 0 };
 
 constexpr std::string_view PROJECT_HOMEPAGE_URL = "https://github.com/Zheng-Bote/mitm_fe_cpp";

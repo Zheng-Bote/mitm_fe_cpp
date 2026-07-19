@@ -44,6 +44,11 @@
 #include <QNetworkReply>
 #include <nlohmann/json.hpp>
 #include <QLabel>
+#include <QFileDialog>
+#include <QSettings>
+#include <QProcess>
+#include <QCoreApplication>
+#include <QMessageBox>
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
   spdlog::info("Initializing MainWindow...");
@@ -107,6 +112,9 @@ void MainWindow::setupUi() {
   auto settingsMenu = menuBar()->addMenu("&Settings");
   auto proxyAction = settingsMenu->addAction("Network-Proxy");
   connect(proxyAction, &QAction::triggered, this, &MainWindow::showProxyDialog);
+  
+  auto configAction = settingsMenu->addAction("Select Configuration...");
+  connect(configAction, &QAction::triggered, this, &MainWindow::showConfigDialog);
 
   auto infoMenu = menuBar()->addMenu("&Info");
   auto aboutAction = infoMenu->addAction("&About");
@@ -116,8 +124,9 @@ void MainWindow::setupUi() {
   auto env = QProcessEnvironment::systemEnvironment();
   QString osUser = env.value("USER", env.value("USERNAME", "unknown"));
   QString compName = QSysInfo::machineHostName();
+  QString configName = QString::fromStdString(mitm::config::ConfigManager::GetInstance().GetConfig().name);
 
-  QString statusText = QString("Version: %1 | User: %2 | Computer: %3").arg(versionStr, osUser, compName);
+  QString statusText = QString("Version: %1 | User: %2 | Computer: %3 | Config: %4").arg(versionStr, osUser, compName, configName);
   QLabel *statusLabel = new QLabel(statusText, this);
   statusBar()->addWidget(statusLabel);
   spdlog::info("Application started. {}", statusText.toStdString());
@@ -306,4 +315,18 @@ void MainWindow::showProxyDialog() {
 
     mitm::config::ConfigManager::GetInstance().SaveUserConfig(newConfig);
   }
+}
+
+void MainWindow::showConfigDialog() {
+    QString dataDir = QCoreApplication::applicationDirPath() + "/data";
+    QString fileName = QFileDialog::getOpenFileName(this, "Select Configuration", dataDir, "Encrypted Configs (*.enc)");
+    if (!fileName.isEmpty()) {
+        QSettings settings;
+        settings.setValue("LastConfigPath", fileName);
+        
+        QMessageBox::information(this, "Restart Required", "The application will now restart to apply the new configuration.");
+        
+        qApp->quit();
+        QProcess::startDetached(qApp->arguments()[0], QStringList());
+    }
 }

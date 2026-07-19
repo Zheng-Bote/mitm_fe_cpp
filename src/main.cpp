@@ -32,6 +32,7 @@
 #include <QDir>
 #include "MainWindow.h"
 #include "Config.h"
+#include <QSettings>
 #include <QNetworkAccessManager>
 #include <QNetworkRequest>
 #include <QNetworkReply>
@@ -47,6 +48,8 @@ int main(int argc, char *argv[]) {
 
     // Setup Qt Application
     QApplication app(argc, argv);
+    app.setOrganizationName("ZHENG Robert");
+    app.setOrganizationDomain("net.hase-zheng");
     app.setApplicationName("MitM Admin");
     app.setApplicationVersion("0.1.0");
     app.setWindowIcon(QIcon("img/logo.ico"));
@@ -64,8 +67,14 @@ int main(int argc, char *argv[]) {
     parser.process(app);
 
     QString configPath = parser.value(configOption);
+    QSettings settings;
     if (configPath.isEmpty()) {
-        configPath = QCoreApplication::applicationDirPath() + QDir::separator() + "config.enc";
+        configPath = settings.value("LastConfigPath", "").toString();
+        if (configPath.isEmpty()) {
+            configPath = QCoreApplication::applicationDirPath() + QDir::separator() + "config.enc";
+        }
+    } else {
+        settings.setValue("LastConfigPath", configPath);
     }
 
     // Prompt for password

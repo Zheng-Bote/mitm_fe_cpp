@@ -32,6 +32,7 @@ public:
 private slots:
     void showAboutDialog();
     void showProxyDialog();
+    void showConfigDialog();
 
 private:
     void setupUi();
