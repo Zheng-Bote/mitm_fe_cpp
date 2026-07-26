@@ -28,6 +28,10 @@
 #include <spdlog/spdlog.h>
 #include <nlohmann/json.hpp>
 #include "Config.h"
+#include "schematas/admin_audit_logs_generated.h"
+#include "schematas/system_logs_generated.h"
+#include "schematas/job_audit_logs_generated.h"
+#include "schematas/transformation_errors_generated.h"
 
 using json = nlohmann::json;
 
@@ -176,28 +180,37 @@ void DashboardWidget::fetchJobs() {
 
 void DashboardWidget::fetchAdminLogsStats() {
     QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
-    QNetworkRequest request(QUrl(host + "/admin/logs/admin-audit"));
+    QNetworkRequest request(QUrl(host + "/admin/logs/admin-audit_bin"));
     request.setRawHeader("Authorization", getAuthHeader().toLocal8Bit());
     QNetworkReply* reply = m_networkManager->get(request);
     
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {
         if (reply->error() == QNetworkReply::NoError) {
             try {
-                json data = json::parse(reply->readAll().toStdString());
-                if (data.is_array()) {
-                    std::string oldestTs = "";
-                    for (const auto& log : data) {
-                        std::string ts = log.value("ts", "");
-                        if (oldestTs.empty() || ts < oldestTs) oldestTs = ts;
-                    }
-                    QString displayTs = "N/A";
-                    if (!oldestTs.empty()) {
-                        QDateTime dt = QDateTime::fromString(QString::fromStdString(oldestTs), Qt::ISODate);
-                        displayTs = dt.isValid() ? dt.toString("yyyy-MM-dd HH:mm:ss") : QString::fromStdString(oldestTs);
-                    }
-                    m_adminLogsLabel->setText(QString("Admin Audit Logs: %1 \U0001F4CB (Oldest: %2)").arg(data.size()).arg(displayTs));
+                QByteArray data = reply->readAll();
+                flatbuffers::Verifier verifier(reinterpret_cast<const uint8_t*>(data.constData()), data.size());
+                if (!schematas::VerifyAdminAuditLogListBuffer(verifier)) {
+                    m_adminLogsLabel->setText("Admin Audit Logs: Parse Error");
                 } else {
-                    m_adminLogsLabel->setText("Admin Audit Logs: 0");
+                    auto list = schematas::GetAdminAuditLogList(data.constData());
+                    if (list && list->logs()) {
+                        auto arr = list->logs();
+                        std::string oldestTs = "";
+                        for (int i = 0; i < arr->size(); ++i) {
+                            auto log = arr->Get(i);
+                            if (!log || !log->ts()) continue;
+                            std::string ts = log->ts()->c_str();
+                            if (oldestTs.empty() || ts < oldestTs) oldestTs = ts;
+                        }
+                        QString displayTs = "N/A";
+                        if (!oldestTs.empty()) {
+                            QDateTime dt = QDateTime::fromString(QString::fromStdString(oldestTs), Qt::ISODate);
+                            displayTs = dt.isValid() ? dt.toString("yyyy-MM-dd HH:mm:ss") : QString::fromStdString(oldestTs);
+                        }
+                        m_adminLogsLabel->setText(QString("Admin Audit Logs: %1 \U0001F4CB (Oldest: %2)").arg(arr->size()).arg(displayTs));
+                    } else {
+                        m_adminLogsLabel->setText("Admin Audit Logs: 0");
+                    }
                 }
             } catch (...) {
                 m_adminLogsLabel->setText("Admin Audit Logs: Parse Error");
@@ -211,28 +224,37 @@ void DashboardWidget::fetchAdminLogsStats() {
 
 void DashboardWidget::fetchSystemLogsStats() {
     QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
-    QNetworkRequest request(QUrl(host + "/admin/logs/system"));
+    QNetworkRequest request(QUrl(host + "/admin/logs/system_bin"));
     request.setRawHeader("Authorization", getAuthHeader().toLocal8Bit());
     QNetworkReply* reply = m_networkManager->get(request);
     
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {
         if (reply->error() == QNetworkReply::NoError) {
             try {
-                json data = json::parse(reply->readAll().toStdString());
-                if (data.is_array()) {
-                    std::string oldestTs = "";
-                    for (const auto& log : data) {
-                        std::string ts = log.value("ts", "");
-                        if (oldestTs.empty() || ts < oldestTs) oldestTs = ts;
-                    }
-                    QString displayTs = "N/A";
-                    if (!oldestTs.empty()) {
-                        QDateTime dt = QDateTime::fromString(QString::fromStdString(oldestTs), Qt::ISODate);
-                        displayTs = dt.isValid() ? dt.toString("yyyy-MM-dd HH:mm:ss") : QString::fromStdString(oldestTs);
-                    }
-                    m_systemLogsLabel->setText(QString("System Logs: %1 \U0001F4CB (Oldest: %2)").arg(data.size()).arg(displayTs));
+                QByteArray data = reply->readAll();
+                flatbuffers::Verifier verifier(reinterpret_cast<const uint8_t*>(data.constData()), data.size());
+                if (!schematas::VerifySystemLogListBuffer(verifier)) {
+                    m_systemLogsLabel->setText("System Logs: Parse Error");
                 } else {
-                    m_systemLogsLabel->setText("System Logs: 0");
+                    auto list = schematas::GetSystemLogList(data.constData());
+                    if (list && list->logs()) {
+                        auto arr = list->logs();
+                        std::string oldestTs = "";
+                        for (int i = 0; i < arr->size(); ++i) {
+                            auto log = arr->Get(i);
+                            if (!log || !log->ts()) continue;
+                            std::string ts = log->ts()->c_str();
+                            if (oldestTs.empty() || ts < oldestTs) oldestTs = ts;
+                        }
+                        QString displayTs = "N/A";
+                        if (!oldestTs.empty()) {
+                            QDateTime dt = QDateTime::fromString(QString::fromStdString(oldestTs), Qt::ISODate);
+                            displayTs = dt.isValid() ? dt.toString("yyyy-MM-dd HH:mm:ss") : QString::fromStdString(oldestTs);
+                        }
+                        m_systemLogsLabel->setText(QString("System Logs: %1 \U0001F4CB (Oldest: %2)").arg(arr->size()).arg(displayTs));
+                    } else {
+                        m_systemLogsLabel->setText("System Logs: 0");
+                    }
                 }
             } catch (...) {
                 m_systemLogsLabel->setText("System Logs: Parse Error");
@@ -246,28 +268,37 @@ void DashboardWidget::fetchSystemLogsStats() {
 
 void DashboardWidget::fetchJobLogsStats() {
     QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
-    QNetworkRequest request(QUrl(host + "/admin/logs/job-audit"));
+    QNetworkRequest request(QUrl(host + "/admin/logs/job-audit_bin"));
     request.setRawHeader("Authorization", getAuthHeader().toLocal8Bit());
     QNetworkReply* reply = m_networkManager->get(request);
     
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {
         if (reply->error() == QNetworkReply::NoError) {
             try {
-                json data = json::parse(reply->readAll().toStdString());
-                if (data.is_array()) {
-                    std::string oldestTs = "";
-                    for (const auto& log : data) {
-                        std::string ts = log.value("ts", "");
-                        if (oldestTs.empty() || ts < oldestTs) oldestTs = ts;
-                    }
-                    QString displayTs = "N/A";
-                    if (!oldestTs.empty()) {
-                        QDateTime dt = QDateTime::fromString(QString::fromStdString(oldestTs), Qt::ISODate);
-                        displayTs = dt.isValid() ? dt.toString("yyyy-MM-dd HH:mm:ss") : QString::fromStdString(oldestTs);
-                    }
-                    m_jobLogsLabel->setText(QString("Job Audit Logs: %1 \U0001F4CB (Oldest: %2)").arg(data.size()).arg(displayTs));
+                QByteArray data = reply->readAll();
+                flatbuffers::Verifier verifier(reinterpret_cast<const uint8_t*>(data.constData()), data.size());
+                if (!schematas::VerifyJobAuditLogListBuffer(verifier)) {
+                    m_jobLogsLabel->setText("Job Audit Logs: Parse Error");
                 } else {
-                    m_jobLogsLabel->setText("Job Audit Logs: 0");
+                    auto list = schematas::GetJobAuditLogList(data.constData());
+                    if (list && list->logs()) {
+                        auto arr = list->logs();
+                        std::string oldestTs = "";
+                        for (int i = 0; i < arr->size(); ++i) {
+                            auto log = arr->Get(i);
+                            if (!log || !log->ts()) continue;
+                            std::string ts = log->ts()->c_str();
+                            if (oldestTs.empty() || ts < oldestTs) oldestTs = ts;
+                        }
+                        QString displayTs = "N/A";
+                        if (!oldestTs.empty()) {
+                            QDateTime dt = QDateTime::fromString(QString::fromStdString(oldestTs), Qt::ISODate);
+                            displayTs = dt.isValid() ? dt.toString("yyyy-MM-dd HH:mm:ss") : QString::fromStdString(oldestTs);
+                        }
+                        m_jobLogsLabel->setText(QString("Job Audit Logs: %1 \U0001F4CB (Oldest: %2)").arg(arr->size()).arg(displayTs));
+                    } else {
+                        m_jobLogsLabel->setText("Job Audit Logs: 0");
+                    }
                 }
             } catch (...) {
                 m_jobLogsLabel->setText("Job Audit Logs: Parse Error");
@@ -281,28 +312,37 @@ void DashboardWidget::fetchJobLogsStats() {
 
 void DashboardWidget::fetchTransformErrorsStats() {
     QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
-    QNetworkRequest request(QUrl(host + "/admin/transformation/errors"));
+    QNetworkRequest request(QUrl(host + "/admin/transformation/errors_bin"));
     request.setRawHeader("Authorization", getAuthHeader().toLocal8Bit());
     QNetworkReply* reply = m_networkManager->get(request);
     
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {
         if (reply->error() == QNetworkReply::NoError) {
             try {
-                json data = json::parse(reply->readAll().toStdString());
-                if (data.is_array()) {
-                    std::string oldestTs = "";
-                    for (const auto& log : data) {
-                        std::string ts = log.value("created_at", "");
-                        if (oldestTs.empty() || ts < oldestTs) oldestTs = ts;
-                    }
-                    QString displayTs = "N/A";
-                    if (!oldestTs.empty()) {
-                        QDateTime dt = QDateTime::fromString(QString::fromStdString(oldestTs), Qt::ISODate);
-                        displayTs = dt.isValid() ? dt.toString("yyyy-MM-dd HH:mm:ss") : QString::fromStdString(oldestTs);
-                    }
-                    m_transformErrorsLabel->setText(QString("Transformation Errors: %1 \U0001F4CB (Oldest: %2)").arg(data.size()).arg(displayTs));
+                QByteArray data = reply->readAll();
+                flatbuffers::Verifier verifier(reinterpret_cast<const uint8_t*>(data.constData()), data.size());
+                if (!schematas::VerifyTransformationErrorListBuffer(verifier)) {
+                    m_transformErrorsLabel->setText("Transformation Errors: Parse Error");
                 } else {
-                    m_transformErrorsLabel->setText("Transformation Errors: 0");
+                    auto list = schematas::GetTransformationErrorList(data.constData());
+                    if (list && list->errors()) {
+                        auto arr = list->errors();
+                        std::string oldestTs = "";
+                        for (int i = 0; i < arr->size(); ++i) {
+                            auto log = arr->Get(i);
+                            if (!log || !log->created_at()) continue;
+                            std::string ts = log->created_at()->c_str();
+                            if (oldestTs.empty() || ts < oldestTs) oldestTs = ts;
+                        }
+                        QString displayTs = "N/A";
+                        if (!oldestTs.empty()) {
+                            QDateTime dt = QDateTime::fromString(QString::fromStdString(oldestTs), Qt::ISODate);
+                            displayTs = dt.isValid() ? dt.toString("yyyy-MM-dd HH:mm:ss") : QString::fromStdString(oldestTs);
+                        }
+                        m_transformErrorsLabel->setText(QString("Transformation Errors: %1 \U0001F4CB (Oldest: %2)").arg(arr->size()).arg(displayTs));
+                    } else {
+                        m_transformErrorsLabel->setText("Transformation Errors: 0");
+                    }
                 }
             } catch (...) {
                 m_transformErrorsLabel->setText("Transformation Errors: Parse Error");

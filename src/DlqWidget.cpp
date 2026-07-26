@@ -20,13 +20,11 @@
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QLabel>
-#include <QJsonDocument>
-#include <QJsonArray>
-#include <QJsonObject>
 #include <QNetworkRequest>
 #include <QUrl>
 #include <spdlog/spdlog.h>
 #include "Config.h"
+#include "schematas/dlq_generated.h"
 
 DlqWidget::DlqWidget(QWidget *parent) : QWidget(parent) {
     auto mainLayout = new QVBoxLayout(this);
@@ -60,7 +58,7 @@ void DlqWidget::onRefresh() {
     m_dlqTable->setRowCount(0);
     
     QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
-    QNetworkRequest request(QUrl(host + "/admin/dlq"));
+    QNetworkRequest request(QUrl(host + "/admin/dlq_bin"));
     QString authHeader = mitm::config::ConfigManager::GetInstance().GetAuthHeader();
     request.setRawHeader("Authorization", authHeader.toLocal8Bit());
 
@@ -72,26 +70,38 @@ void DlqWidget::onRefresh() {
             return;
         }
 
-        QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
-        if (!doc.isArray()) return;
+        QByteArray data = reply->readAll();
+        flatbuffers::Verifier verifier(reinterpret_cast<const uint8_t*>(data.constData()), data.size());
+        if (!schematas::VerifyDLQEntryListBuffer(verifier)) {
+            spdlog::error("Invalid DLQ FlatBuffer data received");
+            return;
+        }
 
-        QJsonArray arr = doc.array();
-        m_dlqTable->setRowCount(arr.size());
+        auto list = schematas::GetDLQEntryList(data.constData());
+        if (!list || !list->entries()) return;
 
-        for (int i = 0; i < arr.size(); ++i) {
-            QJsonObject obj = arr[i].toObject();
+        auto arr = list->entries();
+        m_dlqTable->setRowCount(arr->size());
+
+        for (int i = 0; i < arr->size(); ++i) {
+            auto obj = arr->Get(i);
+            if (!obj) continue;
             
             // Format timestamp slightly
-            QString failedAt = obj["failed_at"].toString();
+            QString failedAt = obj->failed_at() ? QString::fromUtf8(obj->failed_at()->c_str()) : "";
             failedAt.replace("T", " ").replace("Z", "");
 
+            QString errorCode = obj->error_code() ? QString::fromUtf8(obj->error_code()->c_str()) : "";
+            QString errorMessage = obj->error_message() ? QString::fromUtf8(obj->error_message()->c_str()) : "";
+            QString payload = obj->payload() ? QString::fromUtf8(obj->payload()->c_str()) : "";
+
             m_dlqTable->setItem(i, 0, new QTableWidgetItem(failedAt));
-            m_dlqTable->setItem(i, 1, new QTableWidgetItem(obj["error_code"].toString()));
-            m_dlqTable->setItem(i, 2, new QTableWidgetItem(obj["error_message"].toString()));
-            m_dlqTable->setItem(i, 3, new QTableWidgetItem(obj["payload"].toString()));
+            m_dlqTable->setItem(i, 1, new QTableWidgetItem(errorCode));
+            m_dlqTable->setItem(i, 2, new QTableWidgetItem(errorMessage));
+            m_dlqTable->setItem(i, 3, new QTableWidgetItem(payload));
         }
         m_dlqTable->resizeColumnsToContents();
-        spdlog::info("DLQ refreshed with {} items", arr.size());
+        spdlog::info("DLQ refreshed with {} items", arr->size());
     });
 }
 

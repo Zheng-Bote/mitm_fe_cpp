@@ -1,7 +1,7 @@
 <div id="top" align="center">
 <h1>MitM Admin Frontend</h1>
 
-<p>Admin Frontend for the MitM Data Aggregator project. It connects securely to the Go-based Scheduler via REST APIs to manage jobs, mapping rules, and view system and audit logs.</p>
+<p>Admin Frontend for the MitM Data Aggregator project. It connects securely to the Go-based Scheduler via REST APIs and high-performance FlatBuffers binary endpoints to manage jobs, mapping rules, and view system and audit logs.</p>
 
 ![License](https://img.shields.io/badge/license-Apache_2.0-green)
 ![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows-lightgrey.svg)
@@ -45,7 +45,7 @@
 * **Local Timezone Formatting**: Seamlessly translates UTC timestamps to the user's local timezone directly within data grids.
 * **Scheduler Next Run**: Dynamically calculates and displays upcoming job execution times in the user's local timezone directly in the jobs grid.
 * **Rule Sandbox**: Real-time "Test Preview" sandbox to safely simulate complex data transformations (e.g., Dates and Regex) before saving them to the backend.
-* **Modern C++23 Stack**: Built with Qt6, nlohmann_json, spdlog, libsodium, and cpp-httplib.
+* **Modern C++23 Stack**: Built with Qt6, FlatBuffers, nlohmann_json, spdlog, libsodium, and cpp-httplib.
 
 ### Status
 ![GitHub Created At](https://img.shields.io/github/created-at/Zheng-Bote/mitm_fe_cpp?logo=GitHub)
@@ -63,7 +63,7 @@
 
 ## Building the Project
 
-We use Conan to fetch most C++ libraries (`spdlog`, `nlohmann_json`, `libsodium`, `cpp-httplib`, `openssl`) and CMake to build the Qt6 application. `gh-update-checker` is pulled automatically via CMake's `FetchContent`.
+We use Conan to fetch most C++ libraries (`flatbuffers`, `spdlog`, `nlohmann_json`, `libsodium`, `cpp-httplib`, `openssl`) and CMake to build the Qt6 application. `gh-update-checker` is pulled automatically via CMake's `FetchContent`.
 
 ### 1. Install Conan Dependencies & Generate Presets
 

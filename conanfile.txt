@@ -4,6 +4,7 @@ spdlog/[>=1.17 <2]
 libsodium/[>=1.0 <2]
 cpp-httplib/[>=0.14 <1]
 openssl/[>=3.0 <4]
+flatbuffers/23.5.26
 
 [options]
 cpp-httplib/*:with_openssl=True
