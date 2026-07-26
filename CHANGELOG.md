@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.17.0] - 2026-07-26
+
+### Added
+- **FlatBuffers Support**: Added `flatbuffers` (v23.5.26) dependency via Conan and integrated generated schema headers in `include/schematas/`.
+
+### Changed
+- **Binary Log APIs**: Updated all log and audit monitoring widgets (`DlqWidget`, `SystemLogsWidget`, `AuditLogsWidget`, `AdminLogsWidget`, `TransformationErrorsWidget`, and `DashboardWidget`) to consume FlatBuffers-serialized binary endpoints (`/admin/dlq_bin`, `/admin/logs/system_bin`, `/admin/logs/job-audit_bin`, `/admin/logs/admin-audit_bin`, `/admin/transformation/errors_bin`) instead of JSON for improved deserialization performance and reduced network payload sizes.
+
 ## [v0.16.0] - 2026-07-19
 
 ### Added

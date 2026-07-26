@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 project(mitm_fe_cpp
-VERSION 0.16.0
+VERSION 0.17.0
 DESCRIPTION "Admin frontend for the MitM project"
 HOMEPAGE_URL "https://github.com/Zheng-Bote/mitm_fe_cpp"
 LANGUAGES CXX)
@@ -38,6 +38,7 @@ find_package(spdlog CONFIG REQUIRED)
 find_package(libsodium CONFIG REQUIRED)
 find_package(httplib CONFIG REQUIRED)
 find_package(OpenSSL CONFIG REQUIRED)
+find_package(flatbuffers CONFIG REQUIRED)
 
 # --- Configure (für rz_config.hpp) ---
 set(EXECUTABLE_NAME "${PROJECT_NAME}")
@@ -110,6 +111,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     libsodium::libsodium
     httplib::httplib
     openssl::openssl
+    flatbuffers::flatbuffers
     gh_update_checker::gh_update_checker
 )
 

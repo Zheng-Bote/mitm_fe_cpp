@@ -30,10 +30,8 @@
 #include <QTextStream>
 #include <QMessageBox>
 #include <spdlog/spdlog.h>
-#include <nlohmann/json.hpp>
 #include "Config.h"
-
-using json = nlohmann::json;
+#include "schematas/admin_audit_logs_generated.h"
 
 AdminLogsWidget::AdminLogsWidget(QWidget *parent)
     : QWidget(parent), m_networkManager(new QNetworkAccessManager(this))
@@ -77,7 +75,7 @@ void AdminLogsWidget::onRefresh() {
     m_refreshButton->setEnabled(false);
     
     QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
-    QUrl url(host + "/admin/logs/admin-audit");
+    QUrl url(host + "/admin/logs/admin-audit_bin");
     QNetworkRequest request(url);
     request.setRawHeader("Authorization", getAuthHeader().toLocal8Bit());
     
@@ -89,35 +87,39 @@ void AdminLogsWidget::onRefresh() {
         if (reply->error() == QNetworkReply::NoError) {
             m_model->setRowCount(0);
             try {
-                json data = json::parse(reply->readAll().toStdString());
-                if (data.is_array()) {
-                    for (const auto& log : data) {
-                        QList<QStandardItem*> rowItems;
-                        rowItems << new QStandardItem(QString::number(log.value("id", 0)));
-                        
-                        QString rawTs = QString::fromStdString(log.value("ts", ""));
-                        QDateTime dt = QDateTime::fromString(rawTs, Qt::ISODate);
-                        QString tsStr = dt.isValid() ? dt.toLocalTime().toString("yyyy-MM-dd HH:mm:ss") : rawTs;
-                        rowItems << new QStandardItem(tsStr);
-                        
-                        rowItems << new QStandardItem(QString::fromStdString(log.value("username", "")));
-                        rowItems << new QStandardItem(QString::fromStdString(log.value("action", "")));
-                        
-                        QString detailsStr = "";
-                        if (log.contains("details") && !log["details"].is_null()) {
-                            if (log["details"].is_string()) {
-                                detailsStr = QString::fromStdString(log.value("details", ""));
-                            } else {
-                                detailsStr = QString::fromStdString(log["details"].dump());
-                            }
+                QByteArray data = reply->readAll();
+                flatbuffers::Verifier verifier(reinterpret_cast<const uint8_t*>(data.constData()), data.size());
+                if (!schematas::VerifyAdminAuditLogListBuffer(verifier)) {
+                    spdlog::error("Invalid AdminAuditLogs FlatBuffer data received");
+                } else {
+                    auto list = schematas::GetAdminAuditLogList(data.constData());
+                    if (list && list->logs()) {
+                        auto arr = list->logs();
+                        for (int i = 0; i < arr->size(); ++i) {
+                            auto log = arr->Get(i);
+                            if (!log) continue;
+                            QList<QStandardItem*> rowItems;
+                            rowItems << new QStandardItem(QString::number(log->id()));
+                            
+                            QString rawTs = log->ts() ? QString::fromUtf8(log->ts()->c_str()) : "";
+                            QDateTime dt = QDateTime::fromString(rawTs, Qt::ISODate);
+                            QString tsStr = dt.isValid() ? dt.toLocalTime().toString("yyyy-MM-dd HH:mm:ss") : rawTs;
+                            rowItems << new QStandardItem(tsStr);
+                            
+                            QString username = log->username() ? QString::fromUtf8(log->username()->c_str()) : "";
+                            QString action = log->action() ? QString::fromUtf8(log->action()->c_str()) : "";
+                            QString details = log->details() ? QString::fromUtf8(log->details()->c_str()) : "";
+
+                            rowItems << new QStandardItem(username);
+                            rowItems << new QStandardItem(action);
+                            rowItems << new QStandardItem(details);
+                            
+                            m_model->appendRow(rowItems);
                         }
-                        rowItems << new QStandardItem(detailsStr);
-                        
-                        m_model->appendRow(rowItems);
                     }
                 }
             } catch (const std::exception& e) {
-                spdlog::error("JSON parsing error in AdminLogs: {}", e.what());
+                spdlog::error("FlatBuffers parsing error in AdminLogs: {}", e.what());
             }
         } else {
             spdlog::error("AdminLogs API failed: {}", reply->errorString().toStdString());

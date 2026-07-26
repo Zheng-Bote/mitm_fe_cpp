@@ -19,10 +19,8 @@
 #include <QMessageBox>
 #include <QDateTime>
 #include <spdlog/spdlog.h>
-#include <nlohmann/json.hpp>
 #include "Config.h"
-
-using json = nlohmann::json;
+#include "schematas/transformation_errors_generated.h"
 
 TransformationErrorsWidget::TransformationErrorsWidget(QWidget *parent)
     : QWidget(parent), m_networkManager(new QNetworkAccessManager(this))
@@ -66,7 +64,7 @@ void TransformationErrorsWidget::onRefresh() {
     m_refreshButton->setEnabled(false);
     
     QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
-    QUrl url(host + "/admin/transformation/errors");
+    QUrl url(host + "/admin/transformation/errors_bin");
     QNetworkRequest request(url);
     request.setRawHeader("Authorization", getAuthHeader().toLocal8Bit());
     
@@ -79,29 +77,38 @@ void TransformationErrorsWidget::onRefresh() {
             m_tableView->setSortingEnabled(false);
             m_model->setRowCount(0);
             try {
-                json data = json::parse(reply->readAll().toStdString());
-                if (data.is_array()) {
-                    for (const auto& log : data) {
-                        QList<QStandardItem*> rowItems;
-                        rowItems << new QStandardItem(QString::fromStdString(log.value("id", "")));
-                        rowItems << new QStandardItem(QString::fromStdString(log.value("correlation_id", "")));
-                        rowItems << new QStandardItem(QString::fromStdString(log.value("topic", "")));
-                        rowItems << new QStandardItem(QString::fromStdString(log.value("failed_field", "")));
-                        rowItems << new QStandardItem(QString::fromStdString(log.value("rule_name", "")));
-                        rowItems << new QStandardItem(QString::fromStdString(log.value("error_message", "")));
-                        
-                        QString ts = QString::fromStdString(log.value("created_at", ""));
-                        QDateTime dt = QDateTime::fromString(ts, Qt::ISODate);
-                        if (dt.isValid()) {
-                            ts = dt.toString("yyyy-MM-dd HH:mm:ss");
+                QByteArray data = reply->readAll();
+                flatbuffers::Verifier verifier(reinterpret_cast<const uint8_t*>(data.constData()), data.size());
+                if (!schematas::VerifyTransformationErrorListBuffer(verifier)) {
+                    spdlog::error("Invalid TransformationErrors FlatBuffer data received");
+                } else {
+                    auto list = schematas::GetTransformationErrorList(data.constData());
+                    if (list && list->errors()) {
+                        auto arr = list->errors();
+                        for (int i = 0; i < arr->size(); ++i) {
+                            auto log = arr->Get(i);
+                            if (!log) continue;
+                            QList<QStandardItem*> rowItems;
+                            rowItems << new QStandardItem(log->id() ? QString::fromUtf8(log->id()->c_str()) : "");
+                            rowItems << new QStandardItem(log->correlation_id() ? QString::fromUtf8(log->correlation_id()->c_str()) : "");
+                            rowItems << new QStandardItem(log->topic() ? QString::fromUtf8(log->topic()->c_str()) : "");
+                            rowItems << new QStandardItem(log->failed_field() ? QString::fromUtf8(log->failed_field()->c_str()) : "");
+                            rowItems << new QStandardItem(log->rule_name() ? QString::fromUtf8(log->rule_name()->c_str()) : "");
+                            rowItems << new QStandardItem(log->error_message() ? QString::fromUtf8(log->error_message()->c_str()) : "");
+                            
+                            QString ts = log->created_at() ? QString::fromUtf8(log->created_at()->c_str()) : "";
+                            QDateTime dt = QDateTime::fromString(ts, Qt::ISODate);
+                            if (dt.isValid()) {
+                                ts = dt.toString("yyyy-MM-dd HH:mm:ss");
+                            }
+                            rowItems << new QStandardItem(ts);
+                            
+                            m_model->appendRow(rowItems);
                         }
-                        rowItems << new QStandardItem(ts);
-                        
-                        m_model->appendRow(rowItems);
                     }
                 }
             } catch (const std::exception& e) {
-                spdlog::error("JSON parsing error in TransformationErrors: {}", e.what());
+                spdlog::error("FlatBuffers parsing error in TransformationErrors: {}", e.what());
             }
             m_tableView->setSortingEnabled(true);
         } else {

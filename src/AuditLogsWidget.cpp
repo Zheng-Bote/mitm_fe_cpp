@@ -30,10 +30,8 @@
 #include <QTextStream>
 #include <QMessageBox>
 #include <spdlog/spdlog.h>
-#include <nlohmann/json.hpp>
 #include "Config.h"
-
-using json = nlohmann::json;
+#include "schematas/job_audit_logs_generated.h"
 
 AuditLogsWidget::AuditLogsWidget(QWidget *parent)
     : QWidget(parent), m_networkManager(new QNetworkAccessManager(this))
@@ -77,7 +75,7 @@ void AuditLogsWidget::onRefresh() {
     m_refreshButton->setEnabled(false);
     
     QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
-    QUrl url(host + "/admin/logs/job-audit");
+    QUrl url(host + "/admin/logs/job-audit_bin");
     QNetworkRequest request(url);
     request.setRawHeader("Authorization", getAuthHeader().toLocal8Bit());
     
@@ -89,25 +87,38 @@ void AuditLogsWidget::onRefresh() {
         if (reply->error() == QNetworkReply::NoError) {
             m_model->setRowCount(0);
             try {
-                json data = json::parse(reply->readAll().toStdString());
-                if (data.is_array()) {
-                    for (const auto& log : data) {
-                        QList<QStandardItem*> rowItems;
-                        rowItems << new QStandardItem(QString::number(log.value("id", 0)));
-                        
-                        QString rawTs = QString::fromStdString(log.value("ts", ""));
-                        QDateTime dt = QDateTime::fromString(rawTs, Qt::ISODate);
-                        QString tsStr = dt.isValid() ? dt.toLocalTime().toString("yyyy-MM-dd HH:mm:ss") : rawTs;
-                        rowItems << new QStandardItem(tsStr);
-                        
-                        rowItems << new QStandardItem(QString::number(log.value("run_id", 0)));
-                        rowItems << new QStandardItem(QString::fromStdString(log.value("component", "")));
-                        rowItems << new QStandardItem(QString::fromStdString(log.value("message", "")));
-                        m_model->appendRow(rowItems);
+                QByteArray data = reply->readAll();
+                flatbuffers::Verifier verifier(reinterpret_cast<const uint8_t*>(data.constData()), data.size());
+                if (!schematas::VerifyJobAuditLogListBuffer(verifier)) {
+                    spdlog::error("Invalid JobAuditLogs FlatBuffer data received");
+                } else {
+                    auto list = schematas::GetJobAuditLogList(data.constData());
+                    if (list && list->logs()) {
+                        auto arr = list->logs();
+                        for (int i = 0; i < arr->size(); ++i) {
+                            auto log = arr->Get(i);
+                            if (!log) continue;
+                            QList<QStandardItem*> rowItems;
+                            rowItems << new QStandardItem(QString::number(log->id()));
+                            
+                            QString rawTs = log->ts() ? QString::fromUtf8(log->ts()->c_str()) : "";
+                            QDateTime dt = QDateTime::fromString(rawTs, Qt::ISODate);
+                            QString tsStr = dt.isValid() ? dt.toLocalTime().toString("yyyy-MM-dd HH:mm:ss") : rawTs;
+                            rowItems << new QStandardItem(tsStr);
+                            
+                            rowItems << new QStandardItem(QString::number(log->run_id()));
+                            
+                            QString component = log->component() ? QString::fromUtf8(log->component()->c_str()) : "";
+                            QString message = log->message() ? QString::fromUtf8(log->message()->c_str()) : "";
+
+                            rowItems << new QStandardItem(component);
+                            rowItems << new QStandardItem(message);
+                            m_model->appendRow(rowItems);
+                        }
                     }
                 }
             } catch (const std::exception& e) {
-                spdlog::error("JSON parsing error in AuditLogs: {}", e.what());
+                spdlog::error("FlatBuffers parsing error in AuditLogs: {}", e.what());
             }
         } else {
             spdlog::error("AuditLogs API failed: {}", reply->errorString().toStdString());
