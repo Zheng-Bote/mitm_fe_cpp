@@ -1,5 +1,6 @@
 {
-  "scheduler_host": "localhost",
+  "name": "example config",
+  "scheduler_host": "192.168.178.1",
   "scheduler_port": 8080,
   "scheduler_use_https": false,
   "log_level": "info",
