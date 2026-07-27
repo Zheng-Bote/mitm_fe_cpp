@@ -44,18 +44,20 @@ SchedulerWidget::SchedulerWidget(QWidget *parent)
     m_addButton = new QPushButton("+ Add Job", this);
     m_editButton = new QPushButton("Edit Selected", this);
     m_deleteButton = new QPushButton("Delete Selected", this);
+    m_stopButton = new QPushButton("⏹ Stop Selected", this);
     
     headerLayout->addWidget(m_refreshButton);
     headerLayout->addWidget(m_addButton);
     headerLayout->addWidget(m_editButton);
     headerLayout->addWidget(m_deleteButton);
+    headerLayout->addWidget(m_stopButton);
     headerLayout->addStretch();
     mainLayout->addLayout(headerLayout);
 
     m_tableView = new QTableView(this);
-    m_model = new QStandardItemModel(0, 6, this);
+    m_model = new QStandardItemModel(0, 7, this);
     QString tzName = QTimeZone::systemTimeZoneId();
-    m_model->setHorizontalHeaderLabels({"ID", "Name", "Command", "Cron Expr", "Status", QString("Next Run (%1)").arg(tzName)});
+    m_model->setHorizontalHeaderLabels({"ID", "Name", "Command", "Cron Expr", "Status", QString("Next Run (%1)").arg(tzName), "Active State"});
     
     m_tableView->setModel(m_model);
     m_tableView->horizontalHeader()->setSectionResizeMode(QHeaderView::Interactive);
@@ -72,6 +74,7 @@ SchedulerWidget::SchedulerWidget(QWidget *parent)
     connect(m_addButton, &QPushButton::clicked, this, &SchedulerWidget::onAddJob);
     connect(m_editButton, &QPushButton::clicked, this, &SchedulerWidget::onEditJob);
     connect(m_deleteButton, &QPushButton::clicked, this, &SchedulerWidget::onDeleteJob);
+    connect(m_stopButton, &QPushButton::clicked, this, &SchedulerWidget::onStopJob);
     connect(m_networkManager, &QNetworkAccessManager::finished, this, &SchedulerWidget::onApiResponse);
 }
 
@@ -123,6 +126,18 @@ void SchedulerWidget::onApiResponse(QNetworkReply* reply) {
                         }
                     }
                     rowItems << new QStandardItem(nextRunStr);
+
+                    bool isRunning = job.value("is_running", false);
+                    int activePid = job.value("active_pid", 0);
+                    QString activeStr = "Idle";
+                    if (isRunning) {
+                        if (activePid > 0) {
+                            activeStr = QString("Running ⚙️ (PID %1)").arg(activePid);
+                        } else {
+                            activeStr = "Running ⚙️";
+                        }
+                    }
+                    rowItems << new QStandardItem(activeStr);
 
                     m_model->appendRow(rowItems);
                 }
@@ -216,6 +231,38 @@ void SchedulerWidget::onDeleteJob() {
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {
         if (reply->error() == QNetworkReply::NoError) onRefreshClicked();
         else QMessageBox::critical(this, "Error", "Failed to delete job:\n" + reply->errorString());
+        reply->deleteLater();
+    });
+}
+
+void SchedulerWidget::onStopJob() {
+    if (!mitm::config::ConfigManager::GetInstance().HasRole("ADMIN")) {
+        QMessageBox::warning(this, "Permission Denied", "Only users with the 'ADMIN' role are allowed to stop jobs.");
+        return;
+    }
+
+    auto selection = m_tableView->selectionModel()->selectedRows();
+    if (selection.isEmpty()) return;
+    int row = selection.first().row();
+    QString jobName = m_model->item(row, 1)->text();
+    
+    if (QMessageBox::question(this, "Stop Job", "Are you sure you want to stop running job '" + jobName + "'?") != QMessageBox::Yes) {
+        return;
+    }
+    
+    QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
+    QUrl url(host + "/admin/stop-job?name=" + jobName);
+    QNetworkRequest request(url);
+    request.setRawHeader("Authorization", getAuthHeader().toLocal8Bit());
+    
+    auto reply = m_networkManager->post(request, QByteArray());
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        if (reply->error() == QNetworkReply::NoError) {
+            QMessageBox::information(this, "Success", "Stop signal sent to job.");
+            onRefreshClicked();
+        } else {
+            QMessageBox::critical(this, "Error", "Failed to stop job:\n" + reply->errorString() + "\n" + QString::fromUtf8(reply->readAll()));
+        }
         reply->deleteLater();
     });
 }

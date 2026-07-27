@@ -44,6 +44,7 @@
 * **HTTPS Support**: Configurable HTTPS connectivity (`scheduler_use_https`) to securely interface with FQDNs.
 * **Local Timezone Formatting**: Seamlessly translates UTC timestamps to the user's local timezone directly within data grids.
 * **Scheduler Next Run**: Dynamically calculates and displays upcoming job execution times in the user's local timezone directly in the jobs grid.
+* **Scheduler Active State & Control**: Displays real-time process execution status (Running PID / Idle) and allows users with the `ADMIN` role to terminate active jobs directly from the UI (`⏹ Stop Selected`).
 * **Rule Sandbox**: Real-time "Test Preview" sandbox to safely simulate complex data transformations (e.g., Dates and Regex) before saving them to the backend.
 * **Modern C++23 Stack**: Built with Qt6, FlatBuffers, nlohmann_json, spdlog, libsodium, and cpp-httplib.
 

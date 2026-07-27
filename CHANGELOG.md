@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.18.0] - 2026-07-27
+
+### Added
+- **Job Cancellation / Stopping**: Added a `"⏹ Stop Selected"` button to the Scheduler tab allowing administrators to terminate running jobs via the `/admin/stop-job` API endpoint.
+- **Active State Column**: Added an `"Active State"` column to the Scheduler jobs table displaying real-time execution status (e.g., `"Running ⚙️ (PID <pid>)"` or `"Idle"`).
+- **RBAC Enforcement**: Restricted job stopping functionality strictly to users with the `ADMIN` role. The stop button is automatically disabled for non-admin users, and an active confirmation check prevents unauthorized execution attempts.
+
 ## [v0.17.0] - 2026-07-26
 
 ### Added

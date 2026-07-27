@@ -28,9 +28,9 @@ constexpr std::string_view PROJECT_DESCRIPTION = "Admin frontend for the MitM pr
 
 constexpr std::string_view EXECUTABLE_NAME = "mitm_fe_cpp";
 
-constexpr std::string_view VERSION = "0.17.0";
+constexpr std::string_view VERSION = "0.18.0";
 constexpr std::int32_t PROJECT_VERSION_MAJOR { 0 };
-constexpr std::int32_t PROJECT_VERSION_MINOR { 17 };
+constexpr std::int32_t PROJECT_VERSION_MINOR { 18 };
 constexpr std::int32_t PROJECT_VERSION_PATCH { 0 };
 
 constexpr std::string_view PROJECT_HOMEPAGE_URL = "https://github.com/Zheng-Bote/mitm_fe_cpp";
@@ -45,7 +45,7 @@ constexpr std::string_view PROJECT_DOMAIN = "net.hase-zheng";
 
 constexpr std::string_view CMAKE_CXX_STANDARD = "c++23";
 constexpr std::string_view CMAKE_CXX_COMPILER =
-    "MSVC 19.44.35228.0";
-constexpr std::string_view QT_VERSION_BUILD = "6.10.1";
+    "GNU 15.2.0";
+constexpr std::string_view QT_VERSION_BUILD = "6.10.2";
 } // namespace config
 } // namespace rz

@@ -40,6 +40,7 @@ private slots:
     void onAddJob();
     void onEditJob();
     void onDeleteJob();
+    void onStopJob();
 
 private:
     QString getAuthHeader();
@@ -51,5 +52,6 @@ private:
     QPushButton* m_addButton;
     QPushButton* m_editButton;
     QPushButton* m_deleteButton;
+    QPushButton* m_stopButton;
     QNetworkAccessManager* m_networkManager;
 };
