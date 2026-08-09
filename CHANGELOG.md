@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.19.0] - 2026-08-09
+
+### Added
+- **Backup & Restore**: Added a new "Backup/Restore" tab to seamlessly export and import the complete system configuration (jobs, sources, targets, rules) as JSON via the backend API.
+- **RBAC**: The new tab is restricted to users with the `BACKUP-RESTORE` or `ADMIN` role.
+- **Local Backup Storage**: Downloaded configurations are automatically saved to `<Binary-Folder>/data/backup/<yyyy-mm-dd_HHmmss>_backup-<name>_<user>.json`.
+
+## [MVP-2.7.0-1-g772c928] - 2026-07-29
+
+### Added
+- **Delivery Layer**: Implemented configurable `slowdown` and `timeout` parameters for the `CORITY_SAAS` delivery adapter.
+
+### Changed
+- **Database**: Synced PostgreSQL database schema IST-Zustand across all layer `.sql` migrations (`setup.sql`, `transformation-layer`, `delivery-layer`, `scheduler`).
+- **Components Logging**: Refactored component version logging mechanism across all layers (Collectors, Transformation, Delivery, Scheduler) to consistently output a clean `Major.Minor.Patch` version format.
+
+### Fixed
+- **Scheduler**: Resolved an HTTP 500 error on the `/admin/transformation/errors_bin` API endpoint by updating the query to correctly reference the `raw_ingestion_id` column and gracefully handle null values.
+
 ## [v0.18.0] - 2026-07-27
 
 ### Added

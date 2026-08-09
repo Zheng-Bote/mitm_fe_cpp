@@ -30,6 +30,7 @@
 #include "RbacWidget.h"
 #include "UploadWidget.h"
 #include "TransformationErrorsWidget.h"
+#include "BackupRestoreWidget.h"
 #include "rz_config.hpp"
 #include <QMenuBar>
 #include <QProcessEnvironment>
@@ -64,6 +65,7 @@ void MainWindow::setupUi() {
   bool isAdmin = mitm::config::ConfigManager::GetInstance().HasRole("ADMIN");
   bool isViewer = mitm::config::ConfigManager::GetInstance().HasRole("VIEWER") || isAdmin;
   bool isUploader = mitm::config::ConfigManager::GetInstance().HasRole("UPLOADER") || isAdmin;
+  bool isBackupRestore = mitm::config::ConfigManager::GetInstance().HasRole("BACKUP-RESTORE") || isAdmin;
 
   m_dashboardWidget = new DashboardWidget(this);
   m_tabWidget->addTab(m_dashboardWidget, "📊 Dashboard");
@@ -87,6 +89,9 @@ void MainWindow::setupUi() {
   }
   if (isUploader) {
       m_tabWidget->addTab(new UploadWidget(this), "📤 Manual Upload");
+  }
+  if (isBackupRestore) {
+      m_tabWidget->addTab(new BackupRestoreWidget(this), "💾 Backup/Restore");
   }
 
   this->setCentralWidget(m_tabWidget);
