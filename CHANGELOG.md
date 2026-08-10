@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.20.0] - 2026-08-10
+
+### Added
+- **Scheduler**: Added `*/6`, `*/8`, and `*/12` hour intervals to the cron expression dropdown in the Job Editor.
+
+### Changed
+- **DLQ & Cursors**: Improved UI rendering and interaction performance by truncating massive `Error Message` and `Payload Snippet` strings to 256 characters within the QTableWidget.
+
 ## [v0.19.0] - 2026-08-09
 
 ### Added

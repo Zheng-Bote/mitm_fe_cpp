@@ -92,8 +92,16 @@ void DlqWidget::onRefresh() {
             failedAt.replace("T", " ").replace("Z", "");
 
             QString errorCode = obj->error_code() ? QString::fromUtf8(obj->error_code()->c_str()) : "";
+            
             QString errorMessage = obj->error_message() ? QString::fromUtf8(obj->error_message()->c_str()) : "";
+            if (errorMessage.length() > 256) {
+                errorMessage = errorMessage.left(253) + "...";
+            }
+            
             QString payload = obj->payload() ? QString::fromUtf8(obj->payload()->c_str()) : "";
+            if (payload.length() > 256) {
+                payload = payload.left(253) + "...";
+            }
 
             m_dlqTable->setItem(i, 0, new QTableWidgetItem(failedAt));
             m_dlqTable->setItem(i, 1, new QTableWidgetItem(errorCode));

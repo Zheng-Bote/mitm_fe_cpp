@@ -68,7 +68,7 @@ void JobEditorDialog::setupUi() {
     m_cronDow = new QComboBox(this);
 
     populateCronCombo(m_cronMin, 0, 59, {"*/5", "*/15", "*/30"});
-    populateCronCombo(m_cronHour, 0, 23, {"*/2", "*/4"});
+    populateCronCombo(m_cronHour, 0, 23, {"*/2", "*/4", "*/6", "*/8", "*/12"});
     populateCronCombo(m_cronDom, 1, 31);
     populateCronCombo(m_cronMonth, 1, 12);
     populateCronCombo(m_cronDow, 0, 6, {"1-5"}); // 0=Sun, 6=Sat
