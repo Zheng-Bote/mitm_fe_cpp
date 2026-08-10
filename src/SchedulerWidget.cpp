@@ -45,12 +45,14 @@ SchedulerWidget::SchedulerWidget(QWidget *parent)
     m_editButton = new QPushButton("Edit Selected", this);
     m_deleteButton = new QPushButton("Delete Selected", this);
     m_stopButton = new QPushButton("⏹ Stop Selected", this);
+    m_executeButton = new QPushButton("▶ Execute Selected", this);
     
     headerLayout->addWidget(m_refreshButton);
     headerLayout->addWidget(m_addButton);
     headerLayout->addWidget(m_editButton);
     headerLayout->addWidget(m_deleteButton);
     headerLayout->addWidget(m_stopButton);
+    headerLayout->addWidget(m_executeButton);
     headerLayout->addStretch();
     mainLayout->addLayout(headerLayout);
 
@@ -75,6 +77,7 @@ SchedulerWidget::SchedulerWidget(QWidget *parent)
     connect(m_editButton, &QPushButton::clicked, this, &SchedulerWidget::onEditJob);
     connect(m_deleteButton, &QPushButton::clicked, this, &SchedulerWidget::onDeleteJob);
     connect(m_stopButton, &QPushButton::clicked, this, &SchedulerWidget::onStopJob);
+    connect(m_executeButton, &QPushButton::clicked, this, &SchedulerWidget::onExecuteJob);
     connect(m_networkManager, &QNetworkAccessManager::finished, this, &SchedulerWidget::onApiResponse);
 }
 
@@ -266,3 +269,36 @@ void SchedulerWidget::onStopJob() {
         reply->deleteLater();
     });
 }
+
+void SchedulerWidget::onExecuteJob() {
+    if (!mitm::config::ConfigManager::GetInstance().HasRole("ADMIN")) {
+        QMessageBox::warning(this, "Permission Denied", "Only users with the 'ADMIN' role are allowed to execute jobs manually.");
+        return;
+    }
+
+    auto selection = m_tableView->selectionModel()->selectedRows();
+    if (selection.isEmpty()) return;
+    int row = selection.first().row();
+    QString jobName = m_model->item(row, 1)->text();
+    
+    if (QMessageBox::question(this, "Execute Job", "Are you sure you want to trigger job '" + jobName + "' now?") != QMessageBox::Yes) {
+        return;
+    }
+    
+    QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
+    QUrl url(host + "/admin/execute-job?name=" + jobName);
+    QNetworkRequest request(url);
+    request.setRawHeader("Authorization", getAuthHeader().toLocal8Bit());
+    
+    auto reply = m_networkManager->post(request, QByteArray());
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        if (reply->error() == QNetworkReply::NoError) {
+            QMessageBox::information(this, "Success", "Job execution triggered.");
+            onRefreshClicked();
+        } else {
+            QMessageBox::critical(this, "Error", "Failed to trigger job:\n" + reply->errorString() + "\n" + QString::fromUtf8(reply->readAll()));
+        }
+        reply->deleteLater();
+    });
+}
+

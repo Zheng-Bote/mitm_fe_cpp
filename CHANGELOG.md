@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.21.0] - 2026-08-10
+
+### Added
+- **Scheduler**: Added a new `"▶ Execute Selected"` button allowing administrators to manually trigger job execution via the `/admin/execute-job` API endpoint. Includes RBAC enforcement restricting usage to the `ADMIN` role.
+
 ## [v0.20.0] - 2026-08-10
 
 ### Added
