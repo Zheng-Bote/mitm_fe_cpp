@@ -22,6 +22,7 @@
 #include <QLabel>
 #include <QNetworkRequest>
 #include <QUrl>
+#include <QMessageBox>
 #include <spdlog/spdlog.h>
 #include "Config.h"
 #include "schematas/dlq_generated.h"
@@ -40,8 +41,8 @@ DlqWidget::DlqWidget(QWidget *parent) : QWidget(parent) {
 
     m_networkManager = new QNetworkAccessManager(this);
 
-    m_dlqTable = new QTableWidget(0, 4, this);
-    m_dlqTable->setHorizontalHeaderLabels({"Timestamp", "Component", "Error Message", "Payload Snippet"});
+    m_dlqTable = new QTableWidget(0, 5, this);
+    m_dlqTable->setHorizontalHeaderLabels({"ID", "Timestamp", "Component", "Error Message", "Payload Snippet"});
     m_dlqTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Interactive);
     m_dlqTable->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     m_dlqTable->setHorizontalScrollMode(QAbstractItemView::ScrollPerPixel);
@@ -87,6 +88,8 @@ void DlqWidget::onRefresh() {
             auto obj = arr->Get(i);
             if (!obj) continue;
             
+            QString idStr = obj->id() ? QString::fromUtf8(obj->id()->c_str()) : "";
+            
             // Format timestamp slightly
             QString failedAt = obj->failed_at() ? QString::fromUtf8(obj->failed_at()->c_str()) : "";
             failedAt.replace("T", " ").replace("Z", "");
@@ -103,10 +106,11 @@ void DlqWidget::onRefresh() {
                 payload = payload.left(253) + "...";
             }
 
-            m_dlqTable->setItem(i, 0, new QTableWidgetItem(failedAt));
-            m_dlqTable->setItem(i, 1, new QTableWidgetItem(errorCode));
-            m_dlqTable->setItem(i, 2, new QTableWidgetItem(errorMessage));
-            m_dlqTable->setItem(i, 3, new QTableWidgetItem(payload));
+            m_dlqTable->setItem(i, 0, new QTableWidgetItem(idStr));
+            m_dlqTable->setItem(i, 1, new QTableWidgetItem(failedAt));
+            m_dlqTable->setItem(i, 2, new QTableWidgetItem(errorCode));
+            m_dlqTable->setItem(i, 3, new QTableWidgetItem(errorMessage));
+            m_dlqTable->setItem(i, 4, new QTableWidgetItem(payload));
         }
         m_dlqTable->resizeColumnsToContents();
         spdlog::info("DLQ refreshed with {} items", arr->size());
@@ -114,5 +118,34 @@ void DlqWidget::onRefresh() {
 }
 
 void DlqWidget::onRequeue() {
-    spdlog::info("Requeueing selected DLQ items... (Concept)");
+    if (!mitm::config::ConfigManager::GetInstance().HasRole("ADMIN")) {
+        QMessageBox::warning(this, "Permission Denied", "Only users with the 'ADMIN' role are allowed to requeue DLQ items.");
+        return;
+    }
+
+    auto selection = m_dlqTable->selectionModel()->selectedRows();
+    if (selection.isEmpty()) return;
+    int row = selection.first().row();
+    QString idStr = m_dlqTable->item(row, 0)->text();
+    
+    if (QMessageBox::question(this, "Requeue DLQ Item", "Are you sure you want to requeue item '" + idStr + "'?") != QMessageBox::Yes) {
+        return;
+    }
+    
+    QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
+    QUrl url(host + "/admin/dlq/requeue?id=" + idStr);
+    QNetworkRequest request(url);
+    QString authHeader = mitm::config::ConfigManager::GetInstance().GetAuthHeader();
+    request.setRawHeader("Authorization", authHeader.toLocal8Bit());
+    
+    auto reply = m_networkManager->post(request, QByteArray());
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        if (reply->error() == QNetworkReply::NoError) {
+            QMessageBox::information(this, "Success", "DLQ item requeued.");
+            onRefresh();
+        } else {
+            QMessageBox::critical(this, "Error", "Failed to requeue DLQ item:\n" + reply->errorString() + "\n" + QString::fromUtf8(reply->readAll()));
+        }
+        reply->deleteLater();
+    });
 }
