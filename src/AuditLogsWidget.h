@@ -33,6 +33,7 @@ public:
 private slots:
     void onRefresh();
     void onExportCsv();
+    void onExportReport();
 
 private:
     QString getAuthHeader();
@@ -41,5 +42,6 @@ private:
     QStandardItemModel* m_model;
     QPushButton* m_refreshButton;
     QPushButton* m_exportButton;
+    QPushButton* m_exportReportButton;
     QNetworkAccessManager* m_networkManager;
 };

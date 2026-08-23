@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.23.0] - 2026-08-23
+
+### Added
+- **Export Report**: Added "Export Report" functionality to the Job-Logs tab. It generates a formatted Excel file (`.xlsx`) using the `QXlsx` library containing aggregated Upload Statistics (Records Added, Updated, Skipped, Rejected, Errors).
+- **Export Report**: Included a Pie Chart in the Excel export to visualize the distribution of upload statistics.
+- **Export Report**: Added dynamic parsing of unstructured log messages via Regex to deduce statistics.
+- **Dependencies**: Added `QXlsx` (QtExcel) dependency for native `.xlsx` generation.
+
+### Fixed
+- **Export Report**: Fixed `sharedStrings.xml` corruption in Excel exports by properly truncating massive SaaS log responses exceeding the 32,767 character limit.
+
 ## [v0.22.0] - 2026-08-10
 
 ### Added

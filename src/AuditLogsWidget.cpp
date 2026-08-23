@@ -1,20 +1,3 @@
-/**
- * SPDX-FileComment: AuditLogsWidget
- * SPDX-FileType: SOURCE
- * SPDX-FileContributor: ZHENG Robert
- * SPDX-FileCopyrightText: 2026 ZHENG Robert
- * SPDX-License-Identifier: Apache-2.0
- *
- * @file AuditLogsWidget.cpp
- * @brief AuditLogsWidget
- * @version 0.2.0
- * @date 2026-06-07
- *
- * @author ZHENG Robert (robert@hase-zheng.net)
- * @copyright Copyright (c) 2026 ZHENG Robert
- * @LICENSE Apache-2.0
- */
-
 #include "AuditLogsWidget.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -32,6 +15,11 @@
 #include <spdlog/spdlog.h>
 #include "Config.h"
 #include "schematas/job_audit_logs_generated.h"
+#include "ExportReportDialog.h"
+#include <QRegularExpression>
+#include <QDir>
+#include "xlsxdocument.h"
+#include "xlsxchart.h"
 
 AuditLogsWidget::AuditLogsWidget(QWidget *parent)
     : QWidget(parent), m_networkManager(new QNetworkAccessManager(this))
@@ -41,8 +29,10 @@ AuditLogsWidget::AuditLogsWidget(QWidget *parent)
     auto headerLayout = new QHBoxLayout();
     m_refreshButton = new QPushButton("Refresh Job Audits", this);
     m_exportButton = new QPushButton("Export CSV", this);
+    m_exportReportButton = new QPushButton("Export Report", this);
     headerLayout->addWidget(m_refreshButton);
     headerLayout->addWidget(m_exportButton);
+    headerLayout->addWidget(m_exportReportButton);
     headerLayout->addStretch();
     mainLayout->addLayout(headerLayout);
 
@@ -65,6 +55,7 @@ AuditLogsWidget::AuditLogsWidget(QWidget *parent)
 
     connect(m_refreshButton, &QPushButton::clicked, this, &AuditLogsWidget::onRefresh);
     connect(m_exportButton, &QPushButton::clicked, this, &AuditLogsWidget::onExportCsv);
+    connect(m_exportReportButton, &QPushButton::clicked, this, &AuditLogsWidget::onExportReport);
 }
 
 QString AuditLogsWidget::getAuthHeader() {
@@ -162,4 +153,202 @@ void AuditLogsWidget::onExportCsv() {
 
     file.close();
     QMessageBox::information(this, "Export Successful", "Logs exported successfully to\n" + fileName);
+}
+
+void AuditLogsWidget::onExportReport() {
+    ExportReportDialog dialog(this);
+    if (dialog.exec() != QDialog::Accepted) {
+        return;
+    }
+
+    QString jobName = dialog.getJobName();
+    QString topic = dialog.getTopic();
+    QDateTime startDate = dialog.getStartDate();
+    QDateTime endDate = dialog.getEndDate();
+
+    QString defaultFileName = QString("%1_%2_report.xlsx").arg(QDate::currentDate().toString("yyyy-MM-dd"), topic);
+    QString fileName = QFileDialog::getSaveFileName(this, "Save Report", defaultFileName, "Excel Files (*.xlsx)");
+    if (fileName.isEmpty()) return;
+
+    QXlsx::Document xlsx;
+    if (!xlsx.sheetNames().isEmpty()) {
+        xlsx.renameSheet(xlsx.sheetNames().first(), "Batch-Uploads");
+    } else {
+        xlsx.addSheet("Batch-Uploads");
+    }
+
+    QXlsx::Format titleFmt;
+    titleFmt.setFontBold(true);
+    titleFmt.setFillPattern(QXlsx::Format::PatternSolid);
+    titleFmt.setPatternBackgroundColor(QColor(220, 230, 241));
+    titleFmt.setPatternForegroundColor(QColor(220, 230, 241));
+
+    QXlsx::Format subTitleFmt;
+    subTitleFmt.setFillPattern(QXlsx::Format::PatternSolid);
+    subTitleFmt.setPatternBackgroundColor(QColor(220, 230, 241));
+    subTitleFmt.setPatternForegroundColor(QColor(220, 230, 241));
+
+    QXlsx::Format headerFmt;
+    headerFmt.setFontBold(true);
+    headerFmt.setHorizontalAlignment(QXlsx::Format::AlignHCenter);
+    headerFmt.setFillPattern(QXlsx::Format::PatternSolid);
+    headerFmt.setPatternBackgroundColor(QColor(220, 230, 241));
+    headerFmt.setPatternForegroundColor(QColor(220, 230, 241));
+
+    QString subTitleStr = QString("%1 - %2 %3").arg(
+        startDate.toString("dd.MM.yyyy"),
+        endDate.toString("dd.MM.yyyy"),
+        topic.isEmpty() ? "" : topic
+    );
+
+    xlsx.selectSheet("Batch-Uploads");
+    xlsx.write("A1", "Batch-Uploads", titleFmt);
+    xlsx.mergeCells("A1:B1", titleFmt);
+    xlsx.write("A2", subTitleStr, subTitleFmt);
+    xlsx.mergeCells("A2:B2", subTitleFmt);
+    
+    xlsx.write("A3", "Timestamp", headerFmt);
+    xlsx.write("B3", "Message", headerFmt);
+    
+    xlsx.addSheet("Upload-Report");
+    xlsx.selectSheet("Upload-Report");
+    
+    xlsx.write("A1", "Upload-Report", titleFmt);
+    xlsx.mergeCells("A1:G1", titleFmt);
+    xlsx.write("A2", subTitleStr, subTitleFmt);
+    xlsx.mergeCells("A2:G2", subTitleFmt);
+
+    xlsx.write("A3", "Timestamp", headerFmt);
+    xlsx.write("B3", "Records Total", headerFmt);
+    xlsx.write("C3", "Records Added", headerFmt);
+    xlsx.write("D3", "Records Updated", headerFmt);
+    xlsx.write("E3", "Records Skipped", headerFmt);
+    xlsx.write("F3", "Records Rejected", headerFmt);
+    xlsx.write("G3", "Errors", headerFmt);
+
+    int row1 = 4;
+    int row2 = 4;
+    
+    int sumAdded = 0;
+    int sumUpdated = 0;
+    int sumSkipped = 0;
+    int sumRejected = 0;
+    int sumErrors = 0;
+
+    for (int i = 0; i < m_model->rowCount(); ++i) {
+        QString tsStr = m_model->item(i, 1)->text();
+        QDateTime dt = QDateTime::fromString(tsStr, "yyyy-MM-dd HH:mm:ss");
+        if (dt.isValid() && (dt < startDate || dt > endDate)) continue;
+
+        QString comp = m_model->item(i, 3)->text();
+        if (!jobName.isEmpty() && !comp.contains(jobName, Qt::CaseInsensitive)) continue;
+
+        QString msg = m_model->item(i, 4)->text();
+        // Remove invalid XML control characters which can corrupt sharedStrings.xml
+        msg.remove(QRegularExpression("[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F]"));
+        
+        if (!topic.isEmpty() && !msg.contains(topic, Qt::CaseInsensitive)) continue;
+
+        // Excel cell character limit is 32,767. Truncate to prevent sharedStrings.xml corruption.
+        QString excelMsg = msg;
+        if (excelMsg.length() > 32700) {
+            excelMsg = excelMsg.left(32700) + "... (truncated)";
+        }
+
+        xlsx.selectSheet("Batch-Uploads");
+        xlsx.write(row1, 1, tsStr);
+        xlsx.write(row1, 2, excelMsg);
+        row1++;
+        
+        QRegularExpression totalRe("Records Total\\s*[:=]\\s*(\\d+)", QRegularExpression::CaseInsensitiveOption);
+        QRegularExpression addedRe("Records Added\\s*[:=]\\s*(\\d+)", QRegularExpression::CaseInsensitiveOption);
+        QRegularExpression updatedRe("Records Updated\\s*[:=]\\s*(\\d+)", QRegularExpression::CaseInsensitiveOption);
+        QRegularExpression skippedRe("Records Skipped\\s*[:=]\\s*(\\d+)", QRegularExpression::CaseInsensitiveOption);
+        QRegularExpression rejectedRe("Records Rejected\\s*[:=]\\s*(\\d+)", QRegularExpression::CaseInsensitiveOption);
+        QRegularExpression errorsRe("Errors\\s*[:=]\\s*(\\d+)", QRegularExpression::CaseInsensitiveOption);
+        
+        auto matchTotal = totalRe.match(msg);
+        auto matchAdded = addedRe.match(msg);
+        auto matchUpdated = updatedRe.match(msg);
+        auto matchSkipped = skippedRe.match(msg);
+        auto matchRejected = rejectedRe.match(msg);
+        auto matchErrors = errorsRe.match(msg);
+        
+        if (matchTotal.hasMatch() || matchAdded.hasMatch() || matchUpdated.hasMatch() || matchSkipped.hasMatch() || matchRejected.hasMatch() || matchErrors.hasMatch()) {
+            xlsx.selectSheet("Upload-Report");
+            xlsx.write(row2, 1, tsStr);
+
+            int added = matchAdded.hasMatch() ? matchAdded.captured(1).toInt() : 0;
+            int updated = matchUpdated.hasMatch() ? matchUpdated.captured(1).toInt() : 0;
+            int skipped = matchSkipped.hasMatch() ? matchSkipped.captured(1).toInt() : 0;
+            int rejected = matchRejected.hasMatch() ? matchRejected.captured(1).toInt() : 0;
+            int errors = matchErrors.hasMatch() ? matchErrors.captured(1).toInt() : 0;
+            
+            sumAdded += added;
+            sumUpdated += updated;
+            sumSkipped += skipped;
+            sumRejected += rejected;
+            sumErrors += errors;
+
+            int total = matchTotal.hasMatch() ? matchTotal.captured(1).toInt() : (added + updated + skipped + rejected + errors);
+            
+            xlsx.write(row2, 2, total);
+            if (matchAdded.hasMatch()) xlsx.write(row2, 3, added);
+            if (matchUpdated.hasMatch()) xlsx.write(row2, 4, updated);
+            if (matchSkipped.hasMatch()) xlsx.write(row2, 5, skipped);
+            if (matchRejected.hasMatch()) xlsx.write(row2, 6, rejected);
+            if (matchErrors.hasMatch()) xlsx.write(row2, 7, errors);
+            
+            row2++;
+        }
+    }
+
+    xlsx.addSheet("Chart");
+    xlsx.selectSheet("Chart");
+    
+    xlsx.write("A1", "Upload Statistics Summary", titleFmt);
+    xlsx.mergeCells("A1:B1", titleFmt);
+    xlsx.write("A2", subTitleStr, subTitleFmt);
+    xlsx.mergeCells("A2:B2", subTitleFmt);
+
+    xlsx.write("A3", "Category", headerFmt);
+    xlsx.write("B3", "Count", headerFmt);
+    
+    xlsx.write("A4", "Records Added");
+    xlsx.write("B4", sumAdded);
+    
+    xlsx.write("A5", "Records Updated");
+    xlsx.write("B5", sumUpdated);
+    
+    xlsx.write("A6", "Records Skipped");
+    xlsx.write("B6", sumSkipped);
+    
+    xlsx.write("A7", "Records Rejected");
+    xlsx.write("B7", sumRejected);
+    
+    xlsx.write("A8", "Errors");
+    xlsx.write("B8", sumErrors);
+
+    QXlsx::Chart *pieChart = xlsx.insertChart(3, 3, QSize(600, 400));
+    if (pieChart) {
+        pieChart->setChartType(QXlsx::Chart::CT_PieChart);
+        pieChart->setChartTitle("Upload Statistics Distribution");
+        pieChart->setChartLegend(QXlsx::Chart::Right);
+        pieChart->addSeries(QXlsx::CellRange("A3:B8"), xlsx.currentWorksheet(), true, true, true);
+    }
+
+    xlsx.selectSheet("Batch-Uploads");
+    xlsx.autosizeColumnWidth();
+    
+    xlsx.selectSheet("Upload-Report");
+    xlsx.autosizeColumnWidth();
+    
+    xlsx.selectSheet("Chart");
+    xlsx.autosizeColumnWidth();
+
+    if (!xlsx.saveAs(fileName)) {
+        QMessageBox::critical(this, "Error", "Failed to save the Excel file.");
+    } else {
+        QMessageBox::information(this, "Success", "Report exported successfully.");
+    }
 }

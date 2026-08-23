@@ -37,3 +37,7 @@ This project relies on the following third-party open-source components:
 * libsodium
   Licensed under the ISC License
   Copyright (c) 2013-2024 Frank Denis
+
+* QXlsx
+  Licensed under the MIT License
+  Copyright (c) 2017- j2doll & QtExcel

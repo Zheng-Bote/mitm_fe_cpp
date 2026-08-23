@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 project(mitm_fe_cpp
-VERSION 0.22.0
+VERSION 0.23.0
 DESCRIPTION "Admin frontend for the MitM project"
 HOMEPAGE_URL "https://github.com/Zheng-Bote/mitm_fe_cpp"
 LANGUAGES CXX)
@@ -31,6 +31,15 @@ endif()
 
 # Find Qt6 (assuming it is installed on the system and CMAKE_PREFIX_PATH is set if necessary)
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Network)
+set(QT_VERSION_MAJOR 6)
+
+FetchContent_Declare(
+  QXlsx
+  GIT_REPOSITORY https://github.com/QtExcel/QXlsx.git
+  GIT_TAG        master
+  SOURCE_SUBDIR  QXlsx
+)
+FetchContent_MakeAvailable(QXlsx)
 
 # Find Conan dependencies
 find_package(nlohmann_json CONFIG REQUIRED)
@@ -87,6 +96,8 @@ set(SOURCES
     src/AdminLogsWidget.cpp
     src/AuditLogsWidget.h
     src/AuditLogsWidget.cpp
+    src/ExportReportDialog.h
+    src/ExportReportDialog.cpp
     src/TransformationErrorsWidget.h
     src/TransformationErrorsWidget.cpp
     src/SourcesWidget.h
@@ -115,6 +126,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     openssl::openssl
     flatbuffers::flatbuffers
     gh_update_checker::gh_update_checker
+    QXlsx::QXlsx
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE
