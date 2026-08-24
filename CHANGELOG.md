@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.24.0] - 2026-08-24
+
+### Added
+- **Export Report**: The "Save Report" dialog now remembers the last used directory via `QSettings` and defaults to it for subsequent exports.
+- **Export Report**: Added a horizontal summary block in the "Upload-Report" sheet (starting at `I3`) that uses native Excel `=SUM(...)` formulas to dynamically calculate the totals for all numeric columns (Records Total, Added, Updated, Skipped, Rejected, Errors).
+
+### Fixed
+- **Export Report**: Fixed a bug where duplicate rows appeared in the "Upload-Report" sheet. The regex parser now actively ignores the raw JSON `Response:` payload to prevent double-counting when parsing SaaS statistics.
+
 ## [v0.23.0] - 2026-08-23
 
 ### Added

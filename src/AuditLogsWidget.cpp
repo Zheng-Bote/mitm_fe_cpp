@@ -18,6 +18,8 @@
 #include "ExportReportDialog.h"
 #include <QRegularExpression>
 #include <QDir>
+#include <QSettings>
+#include <QFileInfo>
 #include "xlsxdocument.h"
 #include "xlsxchart.h"
 
@@ -166,9 +168,13 @@ void AuditLogsWidget::onExportReport() {
     QDateTime startDate = dialog.getStartDate();
     QDateTime endDate = dialog.getEndDate();
 
-    QString defaultFileName = QString("%1_%2_report.xlsx").arg(QDate::currentDate().toString("yyyy-MM-dd"), topic);
+    QSettings settings;
+    QString lastReportDir = settings.value("export/lastReportDir", QDir::homePath()).toString();
+    QString defaultFileName = QDir(lastReportDir).filePath(QString("%1_%2_report.xlsx").arg(QDate::currentDate().toString("yyyy-MM-dd"), topic));
     QString fileName = QFileDialog::getSaveFileName(this, "Save Report", defaultFileName, "Excel Files (*.xlsx)");
     if (fileName.isEmpty()) return;
+    
+    settings.setValue("export/lastReportDir", QFileInfo(fileName).absolutePath());
 
     QXlsx::Document xlsx;
     if (!xlsx.sheetNames().isEmpty()) {
@@ -274,7 +280,10 @@ void AuditLogsWidget::onExportReport() {
         auto matchRejected = rejectedRe.match(msg);
         auto matchErrors = errorsRe.match(msg);
         
-        if (matchTotal.hasMatch() || matchAdded.hasMatch() || matchUpdated.hasMatch() || matchSkipped.hasMatch() || matchRejected.hasMatch() || matchErrors.hasMatch()) {
+        bool isRawResponse = msg.contains("Response:", Qt::CaseInsensitive) && 
+                             (msg.contains("Upload | Target:", Qt::CaseInsensitive) || msg.contains("CORITY_SAAS", Qt::CaseInsensitive));
+        
+        if (!isRawResponse && (matchTotal.hasMatch() || matchAdded.hasMatch() || matchUpdated.hasMatch() || matchSkipped.hasMatch() || matchRejected.hasMatch() || matchErrors.hasMatch())) {
             xlsx.selectSheet("Upload-Report");
             xlsx.write(row2, 1, tsStr);
 
@@ -302,6 +311,28 @@ void AuditLogsWidget::onExportReport() {
             row2++;
         }
     }
+    
+    // Write sum formulas in Upload-Report starting at I3 horizontally
+    xlsx.selectSheet("Upload-Report");
+    int lastDataRow = row2 > 4 ? row2 - 1 : 4;
+    
+    xlsx.write("I3", "Records Total", headerFmt);
+    xlsx.write("I4", QString("=SUM(B4:B%1)").arg(lastDataRow));
+    
+    xlsx.write("J3", "Records Added", headerFmt);
+    xlsx.write("J4", QString("=SUM(C4:C%1)").arg(lastDataRow));
+    
+    xlsx.write("K3", "Records Updated", headerFmt);
+    xlsx.write("K4", QString("=SUM(D4:D%1)").arg(lastDataRow));
+    
+    xlsx.write("L3", "Records Skipped", headerFmt);
+    xlsx.write("L4", QString("=SUM(E4:E%1)").arg(lastDataRow));
+    
+    xlsx.write("M3", "Records Rejected", headerFmt);
+    xlsx.write("M4", QString("=SUM(F4:F%1)").arg(lastDataRow));
+    
+    xlsx.write("N3", "Errors", headerFmt);
+    xlsx.write("N4", QString("=SUM(G4:G%1)").arg(lastDataRow));
 
     xlsx.addSheet("Chart");
     xlsx.selectSheet("Chart");

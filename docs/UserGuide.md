@@ -8,67 +8,73 @@ This native desktop application is built with modern **C++23** and **Qt 6**, des
 
 ## 1. Overview & Architecture
 
-The MitM Admin Frontend acts as the control panel for the Go-based Scheduler engine. It does not manipulate the PostgreSQL database directly. Instead, it communicates via secure **HTTP REST APIs** exposed by the Scheduler component.
+The MitM Admin Frontend acts as the control panel for the Go-based Scheduler engine. It communicates via secure **HTTP/HTTPS REST APIs** and highly efficient **FlatBuffers** binary endpoints exposed by the Scheduler component.
 
-### Security and Authentication
-To ensure zero-trust security, the frontend uses a transparent authentication mechanism:
-1. It queries your active Operating System user (`USER` on Linux, `USERNAME` on Windows).
-2. It cross-references your username against the `admins` block within the centralized `data/config.json`.
-3. If a match is found, the system securely extracts the corresponding authentication token (e.g., Windows Hello or Linux PAM integrated tokens) and passes it via HTTP Basic Authentication to the backend API.
+### Security and Role-Based Access Control (RBAC)
+The frontend dynamically adapts its features based on your authorized roles:
+- **Authentication**: Uses transparent OS-level authentication or biometric unlock (Windows Hello).
+- **ADMIN**: Full read/write access, including job execution/stopping, user management, and credentials.
+- **VIEWER**: Read-only access to most tables. Destructive or modifying actions (Add/Edit/Delete, Save) are disabled.
+- **UPLOADER**: Access to the Manual Upload Widget.
+- **BACKUP-RESTORE**: Access to the Backup/Restore tab.
 
 ---
 
 ## 2. Navigating the Interface
 
-The application is divided into several domain-specific tabs, allowing you to manage different layers of the MitM pipeline.
-
 ### 📊 Dashboard
-The **Dashboard** provides a high-level, real-time overview of the system's health.
-- **System Health**: Indicates whether the backend Scheduler is online and connected to the underlying PostgreSQL database.
-- **Engine Info**: Displays the currently running engine name and semantic version.
-- **Total Scheduled Jobs**: A quick counter of how many extraction/transformation jobs are registered in the pipeline.
-- *Usage:* Click the **Refresh Dashboard** button to poll the latest live data from the backend.
+The **Dashboard** provides a high-level, real-time overview of the system's health and statistics.
+- **System Health**: Indicates whether the backend Scheduler is online and connected to the PostgreSQL database.
+- **Summary Cards**: Displays total counts for Scheduled Jobs, System Logs, Admin Audit Logs, Job Audit Logs, and Transformation Errors, along with the oldest entry timestamp.
+- *Usage:* Click the **Refresh Dashboard** button to poll the latest live data.
 
 ### ⏱️ Scheduler
-The **Scheduler** tab is the heart of the orchestration layer. It lists all `ScheduledPrograms` configured in the system.
-- **Table View:** See exactly which jobs are configured, their execution command, cron schedules, and whether they are currently enabled or disabled.
-- **+ Add Job:** Opens the Job Editor dialog to register a new binary or script for execution. 
-- **Edit Selected:** Allows you to modify a selected job.
-  - *Cron Editor:* Instead of manually typing complex cron strings (e.g. `*/15 * * * *`), the editor provides 5 dedicated dropdown menus (Minute, Hour, Day, Month, Weekday) making schedule management highly intuitive.
-- **Delete Selected:** Removes a job entirely from the pipeline (requires confirmation).
+The **Scheduler** tab orchestrates all automated ingestion and delivery jobs.
+- **Table View:** See configured jobs, execution command, cron schedules, next run time (in your local timezone), and real-time **Active State** (e.g., `Running ⚙️` or `Idle`).
+- **+ Add / Edit Job:** Manage jobs using an intuitive Cron Editor with predefined intervals (e.g., `*/6`, `*/8`, `*/12` hours).
+- **▶ Execute Selected / ⏹ Stop Selected:** Manually trigger or forcefully terminate running jobs (requires `ADMIN` role).
+- **Delete Selected:** Removes a job entirely from the pipeline.
 
-### 📜 System Logs
-The **System Logs** tab provides a diagnostic view into the Scheduler's internal operations.
-- **Table View:** Displays logs with severity levels (`INFO`, `ERROR`, `DEBUG`), the reporting component (e.g., `HTTP`, `IPC`, `Scheduler`), and the timestamp.
-- **Sorting:** Click on any column header (like "Level" or "Timestamp") to sort the data ascending or descending.
-- **Export CSV:** Click the "Export CSV" button in the toolbar to save the current log view directly to your disk for external auditing or archiving.
+### 📤 Manual Upload
+A dedicated tab allowing users with the `UPLOADER` or `ADMIN` role to manually inject `.csv` and `.xlsx` files into the pipeline. The files are securely transmitted to the backend and immediately trigger the collector worker.
 
-### 🕵️ Audit Logs
-The **Audit Logs** tab focuses on security and execution traceability.
-- **Traceability:** It maps specific actions and events directly to a `Run ID` (the unique identifier for a single job execution).
-- **Admin Actions:** Records all UI-driven configuration changes (add/edit/delete in the Transformation layer), as well as the **frontend_startup** event, capturing the user, OS, and software version.
-- **Export CSV:** Similar to system logs, all audit logs can be exported to CSV.
+### 📜 Logs & Auditing
+Extensive tracing capabilities utilizing efficient FlatBuffers APIs. All timestamps are automatically converted to your system's local timezone.
+- **System Logs:** Diagnostic view into the Scheduler's internal operations and component logs.
+- **Admin Logs:** Records all UI-driven configuration changes, user management actions, and frontend logins.
+- **Job Audits:** Tracks execution events mapped to a specific `Run ID`. 
+  - **Export Excel Report:** Generates a comprehensive `.xlsx` report including a Pie Chart and dynamically calculated upload statistics (Records Added, Updated, Skipped, etc.) grouped in the `Upload-Report` and `Batch-Uploads` sheets. The export dialog remembers your last used directory.
 
-### 🧩 Rules & Mapping
-The **Transformation Layer** tab allows you to configure source systems, target fields, and the mapping rules linking them.
-- **Purpose:** Allows administrators to define dynamic mapping rules between source column formats (e.g., legacy CSV headers) and target JSON keys without modifying code.
-- **✨ Auto-Map (Smart Suggest):** A powerful tool to automatically generate `MappingRules`. By selecting a source and providing a comma-separated list of your raw column headers, the system uses Levenshtein distance (fuzzy string matching) to automatically link them to the most appropriate Target Fields in the database, saving significant manual configuration time.
+### 🧩 Transformation Layer
+Manage the data mapping pipeline components:
+- **Sources & Targets**: Define source files/APIs and map them to target SaaS fields.
+- **Rules & Transformations**: Define parsing and replacement logic. Features a **Live Preview** to test Regex and Date parsing locally without modifying backend state.
+- **✨ Auto-Map (Smart Suggest):** Automatically generates mapping rules from comma-separated headers using fuzzy string matching.
+- **Topic Dependencies**: Manage Stateful Aggregation requirements and execution order.
 
-### 🚑 DLQ & Cursors (Preview Concept)
-*Note: This tab is currently a conceptual preview.*
-- **Purpose:** Will serve as the primary interface for managing the **Dead Letter Queue**. If a payload fails to deliver to the target SaaS platform (due to validation errors or API downtime), it will appear here. Administrators will be able to inspect the failed payload and click "Requeue Selected" to attempt delivery again.
+### ⚠️ Transformation Errors & DLQ
+- **Transformation Errors:** Inspect payloads that failed validation or parsing during the transformation phase.
+- **DLQ (Dead Letter Queue):** Manages payloads that failed to deliver to the target SaaS platform. Administrators can inspect the truncated `Error Message` and click **"Requeue Selected"** to attempt delivery again via the API.
 
-### ⚙️ Settings & Key Vault (Preview Concept)
-*Note: This tab is currently a conceptual preview.*
-- **Purpose:** Manages the Envelope Encryption framework. You will use this tab to input the master Key Encryption Key (`MASTER_KEY`) or unlock it via biometrics (Windows Hello) to initialize the secure context for PII data decryption.
+### 👥 RBAC Management
+Manage system users and their roles directly from the frontend (requires `ADMIN` role). Features dynamic "Add User", "Remove User", and role assignment capabilities communicating with the Go backend API.
+
+### 💾 Backup & Restore
+Allows users with `BACKUP-RESTORE` or `ADMIN` roles to seamlessly export and import the complete system configuration (jobs, sources, targets, rules) as JSON. Backups are automatically saved to your local `<Binary-Folder>/data/backup/` directory.
+
+### ⚙️ Settings & Configuration
+- **Configuration Profiles**: Switch between different encrypted environment configurations (`*.enc`). The active profile is displayed in the status bar.
+- **Network Proxy**: Configure HTTP/HTTPS proxies securely. Proxies are stored using libsodium (AES-GCM) encryption in the `configs/` directory.
 
 ---
 
 ## 3. Keyboard Shortcuts and Tips
 
-- **Sorting Data:** You can click the column headers in any of the Log tables to easily sort by Date or Error Level.
-- **Window Resizing:** The UI is completely responsive. Stretching the window will automatically allocate more space to payload or message columns.
-- **Selecting Items:** In the Scheduler tab, you must click a specific row to highlight it before clicking "Edit" or "Delete".
+- **Sorting Data:** You can click the column headers in any of the tables to easily sort data alphanumerically.
+- **Local Timezones:** Timestamps in all log tables are automatically converted from raw backend UTC to your system's local time.
+- **Window Resizing:** The UI is completely responsive.
+- **Selecting Items:** In tables, you must click a specific row to highlight it before interacting with context buttons like "Edit", "Delete", or "Requeue".
 
 ## 4. Troubleshooting
-- **API Errors / Red Status:** If the Dashboard shows a red `Offline` or `Auth Error` status, verify that the Go Scheduler backend is currently running on `localhost:8080` and that your exact OS Username is configured within the `data/config.json` admins array.
+- **API Errors / Red Status:** If the Dashboard shows a red `Offline` or `Auth Error` status, verify that the Go Scheduler backend is running, the correct configuration profile is selected, and your OS user has been granted access via RBAC.
+- **Exporting Errors:** Ensure you have write permissions to the directory when exporting CSV or Excel reports.
