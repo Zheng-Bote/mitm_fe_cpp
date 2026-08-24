@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [v0.24.0] - 2026-08-24
 
 ### Added
+- **User Guide**: Integrated an in-app "User Guide" viewer under the "Info" menu. It fetches the remote Markdown documentation over HTTP (respecting the user's optional network proxy) and natively renders it inside a `QTextBrowser`. It dynamically rewrites GitHub repository URLs to their `raw.githubusercontent.com` endpoints.
 - **Export Report**: The "Save Report" dialog now remembers the last used directory via `QSettings` and defaults to it for subsequent exports.
 - **Export Report**: Added a horizontal summary block in the "Upload-Report" sheet (starting at `I3`) that uses native Excel `=SUM(...)` formulas to dynamically calculate the totals for all numeric columns (Records Total, Added, Updated, Skipped, Rejected, Errors).
 

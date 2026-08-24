@@ -122,6 +122,8 @@ void MainWindow::setupUi() {
   connect(configAction, &QAction::triggered, this, &MainWindow::showConfigDialog);
 
   auto infoMenu = menuBar()->addMenu("&Info");
+  auto userGuideAction = infoMenu->addAction("&User Guide");
+  connect(userGuideAction, &QAction::triggered, this, &MainWindow::showUserGuideDialog);
   auto aboutAction = infoMenu->addAction("&About");
   connect(aboutAction, &QAction::triggered, this, &MainWindow::showAboutDialog);
 
@@ -186,6 +188,8 @@ void MainWindow::setupUi() {
 #include <QDialog>
 #include <QLabel>
 #include <QPushButton>
+#include <QTextBrowser>
+#include <QNetworkProxy>
 
 void MainWindow::showAboutDialog() {
   QDialog dialog(this);
@@ -334,4 +338,63 @@ void MainWindow::showConfigDialog() {
         qApp->quit();
         QProcess::startDetached(qApp->arguments()[0], QStringList());
     }
+}
+
+void MainWindow::showUserGuideDialog() {
+    QDialog *dialog = new QDialog(this);
+    dialog->setWindowTitle("User Guide");
+    dialog->resize(900, 700);
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+
+    QVBoxLayout *layout = new QVBoxLayout(dialog);
+    QTextBrowser *textBrowser = new QTextBrowser(dialog);
+    textBrowser->setOpenExternalLinks(true);
+    layout->addWidget(textBrowser);
+
+    textBrowser->setText("Loading User Guide...");
+
+    QNetworkAccessManager *manager = new QNetworkAccessManager(dialog);
+    
+    auto proxyCfg = mitm::config::ConfigManager::GetInstance().GetConfig().proxy;
+    if (proxyCfg.proxy_active && !proxyCfg.proxy_host.empty()) {
+        QNetworkProxy proxy;
+        proxy.setType(QNetworkProxy::HttpProxy);
+        
+        QString proxyHost = QString::fromStdString(proxyCfg.proxy_host);
+        if (proxyHost.startsWith("https://", Qt::CaseInsensitive)) proxyHost = proxyHost.mid(8);
+        else if (proxyHost.startsWith("http://", Qt::CaseInsensitive)) proxyHost = proxyHost.mid(7);
+        
+        proxy.setHostName(proxyHost);
+        proxy.setPort(proxyCfg.proxy_port);
+        if (!proxyCfg.proxy_username.empty()) {
+            proxy.setUser(QString::fromStdString(proxyCfg.proxy_username));
+            proxy.setPassword(QString::fromStdString(proxyCfg.proxy_password));
+        }
+        manager->setProxy(proxy);
+    }
+
+    QString baseUrl = QString::fromStdString(std::string(rz::config::PROJECT_HOMEPAGE_URL));
+    QString fetchUrl = baseUrl;
+    if (fetchUrl.contains("github.com", Qt::CaseInsensitive)) {
+        fetchUrl.replace("github.com", "raw.githubusercontent.com", Qt::CaseInsensitive);
+        fetchUrl += "/main/docs/UserGuide.md";
+    } else {
+        fetchUrl += "/docs/UserGuide.md";
+    }
+    QUrl url(fetchUrl);
+    QNetworkRequest request(url);
+    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
+    QNetworkReply *reply = manager->get(request);
+
+    connect(reply, &QNetworkReply::finished, dialog, [reply, textBrowser]() {
+        if (reply->error() == QNetworkReply::NoError) {
+            QString content = QString::fromUtf8(reply->readAll());
+            textBrowser->setMarkdown(content);
+        } else {
+            textBrowser->setHtml(QString("<b>Error loading User Guide:</b><br>%1").arg(reply->errorString()));
+        }
+        reply->deleteLater();
+    });
+
+    dialog->show();
 }
