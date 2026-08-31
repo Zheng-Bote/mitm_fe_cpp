@@ -20,7 +20,7 @@
 
 namespace mitm::crypto {
 
-std::vector<uint8_t> Decrypt(const std::vector<uint8_t>& encryptedData, const std::string& password) {
+std::vector<uint8_t> Decrypt(const std::vector<uint8_t>& encryptedData, const mitm::crypto::SecureString& password) {
     if (sodium_init() < 0) {
         throw std::runtime_error("Failed to initialize libsodium");
     }
@@ -75,7 +75,7 @@ std::vector<uint8_t> Decrypt(const std::vector<uint8_t>& encryptedData, const st
     return plaintext;
 }
 
-std::vector<uint8_t> Encrypt(const std::vector<uint8_t>& plaintext, const std::string& password) {
+std::vector<uint8_t> Encrypt(const std::vector<uint8_t>& plaintext, const mitm::crypto::SecureString& password) {
     if (sodium_init() < 0) {
         throw std::runtime_error("Failed to initialize libsodium");
     }

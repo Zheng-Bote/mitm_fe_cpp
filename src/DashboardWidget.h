@@ -20,7 +20,6 @@
 #include <QWidget>
 #include <QPushButton>
 #include <QLabel>
-#include <QNetworkAccessManager>
 
 class DashboardWidget : public QWidget {
     Q_OBJECT
@@ -40,8 +39,6 @@ private:
     void fetchSystemLogsStats();
     void fetchJobLogsStats();
     void fetchTransformErrorsStats();
-    QString getAuthHeader();
-
     QLabel* m_healthLabel;
     QLabel* m_engineLabel;
     QLabel* m_jobsLabel;
@@ -50,5 +47,4 @@ private:
     QLabel* m_jobLogsLabel;
     QLabel* m_transformErrorsLabel;
     QPushButton* m_refreshButton;
-    QNetworkAccessManager* m_networkManager;
-};
+    };

@@ -21,7 +21,6 @@
 #include <QTableView>
 #include <QStandardItemModel>
 #include <QPushButton>
-#include <QNetworkAccessManager>
 
 class AdminLogsWidget : public QWidget {
     Q_OBJECT
@@ -37,6 +36,4 @@ private:
     QStandardItemModel *m_model;
     QPushButton *m_refreshButton;
     QPushButton *m_exportButton;
-    QNetworkAccessManager *m_networkManager;
-    QString getAuthHeader();
-};
+    };

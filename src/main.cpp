@@ -90,7 +90,7 @@ int main(int argc, char *argv[]) {
 
     // Load configuration
     try {
-        mitm::config::ConfigManager::GetInstance().LoadEncryptedConfig(configPath.toStdString(), password.toStdString());
+        mitm::config::ConfigManager::GetInstance().LoadEncryptedConfig(configPath.toStdString(), password.toStdString().c_str());
         spdlog::info("Successfully loaded and decrypted configuration.");
         
         // Set log level from config

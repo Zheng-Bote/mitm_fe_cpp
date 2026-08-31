@@ -21,7 +21,6 @@
 #include <QTableView>
 #include <QStandardItemModel>
 #include <QPushButton>
-#include <QNetworkAccessManager>
 
 class AuditLogsWidget : public QWidget {
     Q_OBJECT
@@ -36,12 +35,9 @@ private slots:
     void onExportReport();
 
 private:
-    QString getAuthHeader();
-
     QTableView* m_tableView;
     QStandardItemModel* m_model;
     QPushButton* m_refreshButton;
     QPushButton* m_exportButton;
     QPushButton* m_exportReportButton;
-    QNetworkAccessManager* m_networkManager;
-};
+    };

@@ -21,7 +21,6 @@
 #include <QTableView>
 #include <QStandardItemModel>
 #include <QPushButton>
-#include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <nlohmann/json.hpp>
 
@@ -34,8 +33,6 @@ public:
 
 private slots:
     void onRefreshClicked();
-    void onApiResponse(QNetworkReply* reply);
-    
     // New action slots
     void onAddJob();
     void onEditJob();
@@ -44,7 +41,6 @@ private slots:
     void onExecuteJob();
 
 private:
-    QString getAuthHeader();
     nlohmann::json m_currentJobs; // Holds the fetched JSON array
 
     QTableView* m_tableView;
@@ -55,5 +51,4 @@ private:
     QPushButton* m_deleteButton;
     QPushButton* m_stopButton;
     QPushButton* m_executeButton;
-    QNetworkAccessManager* m_networkManager;
-};
+    };

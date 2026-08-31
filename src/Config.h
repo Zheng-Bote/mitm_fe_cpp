@@ -21,7 +21,7 @@
 #include <vector>
 #include <stdexcept>
 #include <QString>
-
+#include "SecureString.h"
 namespace mitm::config {
 
 struct AdminUser {
@@ -33,7 +33,7 @@ struct ProxyConfig {
     std::string proxy_host;
     int proxy_port{8080};
     std::string proxy_username;
-    std::string proxy_password;
+    mitm::crypto::SecureString proxy_password;
     bool proxy_active{false};
 };
 
@@ -54,7 +54,7 @@ public:
         return instance;
     }
 
-    void LoadEncryptedConfig(const std::string& filepath, const std::string& password);
+    void LoadEncryptedConfig(const std::string& filepath, const mitm::crypto::SecureString& password);
     void LoadUserConfig();
     void SaveUserConfig(const ProxyConfig& proxyCfg);
     
@@ -79,7 +79,7 @@ private:
     ConfigManager& operator=(const ConfigManager&) = delete;
 
     ConfigData m_config;
-    std::string m_password;
+    mitm::crypto::SecureString m_password;
     std::string m_globalConfigPath;
     std::vector<std::string> m_userRoles;
 };

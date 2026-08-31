@@ -15,15 +15,12 @@ public:
 private slots:
     void browseFile();
     void uploadFile();
-    void onUploadFinished(QNetworkReply* reply);
-
 private:
     QLineEdit* m_fileEdit;
     QLineEdit* m_topicEdit;
     QPushButton* m_browseBtn;
     QPushButton* m_uploadBtn;
     QLabel* m_statusLabel;
-    QNetworkAccessManager* m_networkManager;
 };
 
 #endif // UPLOADWIDGET_H

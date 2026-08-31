@@ -16,6 +16,7 @@
  */
 
 #include "DashboardWidget.h"
+#include "ApiClient.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QGridLayout>
@@ -36,7 +37,7 @@
 using json = nlohmann::json;
 
 DashboardWidget::DashboardWidget(QWidget *parent)
-    : QWidget(parent), m_networkManager(new QNetworkAccessManager(this))
+    : QWidget(parent)
 {
     auto mainLayout = new QVBoxLayout(this);
 
@@ -92,10 +93,6 @@ DashboardWidget::DashboardWidget(QWidget *parent)
     connect(m_refreshButton, &QPushButton::clicked, this, &DashboardWidget::onRefreshClicked);
 }
 
-QString DashboardWidget::getAuthHeader() {
-    return mitm::config::ConfigManager::GetInstance().GetAuthHeader();
-}
-
 void DashboardWidget::onRefreshClicked() {
     spdlog::info("Refreshing Dashboard Widgets...");
     m_healthLabel->setText("System Health: Loading...");
@@ -116,78 +113,59 @@ void DashboardWidget::onRefreshClicked() {
 }
 
 void DashboardWidget::fetchHealth() {
-    QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
-    QNetworkRequest request(QUrl(host + "/health"));
-    QNetworkReply* reply = m_networkManager->get(request);
-    
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        if (reply->error() == QNetworkReply::NoError) {
+    mitm::api::ApiClient::instance().get("/health",
+        [this](const QByteArray& data, QNetworkReply* reply) {
             m_healthLabel->setText("System Health: Healthy 🟢");
-        } else {
-            m_healthLabel->setText("System Health: Offline 🔴\n(" + reply->errorString() + ")");
+        },
+        [this](int statusCode, const QString& errorString) {
+            m_healthLabel->setText("System Health: Offline 🔴\n(" + errorString + ")");
         }
-        reply->deleteLater();
-    });
+    );
 }
 
 void DashboardWidget::fetchInfo() {
-    QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
-    QNetworkRequest request(QUrl(host + "/info"));
-    QNetworkReply* reply = m_networkManager->get(request);
-    
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        if (reply->error() == QNetworkReply::NoError) {
+    mitm::api::ApiClient::instance().get("/info",
+        [this](const QByteArray& data, QNetworkReply* reply) {
             try {
-                json data = json::parse(reply->readAll().toStdString());
+                json j = json::parse(data.toStdString());
                 QString text = QString("Engine: %1\nVersion: %2")
-                    .arg(QString::fromStdString(data.value("name", "Unknown")))
-                    .arg(QString::fromStdString(data.value("version", "Unknown")));
+                    .arg(QString::fromStdString(j.value("name", "Unknown")))
+                    .arg(QString::fromStdString(j.value("version", "Unknown")));
                 m_engineLabel->setText(text);
             } catch (...) {
                 m_engineLabel->setText("Engine Info: Parse Error");
             }
-        } else {
+        },
+        [this](int statusCode, const QString& errorString) {
             m_engineLabel->setText("Engine Info: N/A 🔴");
         }
-        reply->deleteLater();
-    });
+    );
 }
 
 void DashboardWidget::fetchJobs() {
-    QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
-    QNetworkRequest request(QUrl(host + "/admin/jobs"));
-    request.setRawHeader("Authorization", getAuthHeader().toLocal8Bit());
-    QNetworkReply* reply = m_networkManager->get(request);
-    
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        if (reply->error() == QNetworkReply::NoError) {
+    mitm::api::ApiClient::instance().get("/admin/jobs",
+        [this](const QByteArray& data, QNetworkReply* reply) {
             try {
-                json data = json::parse(reply->readAll().toStdString());
-                if (data.is_array()) {
-                    m_jobsLabel->setText(QString("Total Scheduled Jobs: %1 📦").arg(data.size()));
+                json j = json::parse(data.toStdString());
+                if (j.is_array()) {
+                    m_jobsLabel->setText(QString("Total Scheduled Jobs: %1 📦").arg(j.size()));
                 } else {
                     m_jobsLabel->setText("Total Scheduled Jobs: 0");
                 }
             } catch (...) {
                 m_jobsLabel->setText("Jobs: Parse Error");
             }
-        } else {
+        },
+        [this](int statusCode, const QString& errorString) {
             m_jobsLabel->setText("Jobs: Auth Error / Offline 🔴");
         }
-        reply->deleteLater();
-    });
+    );
 }
 
 void DashboardWidget::fetchAdminLogsStats() {
-    QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
-    QNetworkRequest request(QUrl(host + "/admin/logs/admin-audit_bin"));
-    request.setRawHeader("Authorization", getAuthHeader().toLocal8Bit());
-    QNetworkReply* reply = m_networkManager->get(request);
-    
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        if (reply->error() == QNetworkReply::NoError) {
+    mitm::api::ApiClient::instance().get("/admin/logs/admin-audit_bin",
+        [this](const QByteArray& data, QNetworkReply* reply) {
             try {
-                QByteArray data = reply->readAll();
                 flatbuffers::Verifier verifier(reinterpret_cast<const uint8_t*>(data.constData()), data.size());
                 if (!schematas::VerifyAdminAuditLogListBuffer(verifier)) {
                     m_adminLogsLabel->setText("Admin Audit Logs: Parse Error");
@@ -207,7 +185,7 @@ void DashboardWidget::fetchAdminLogsStats() {
                             QDateTime dt = QDateTime::fromString(QString::fromStdString(oldestTs), Qt::ISODate);
                             displayTs = dt.isValid() ? dt.toString("yyyy-MM-dd HH:mm:ss") : QString::fromStdString(oldestTs);
                         }
-                        m_adminLogsLabel->setText(QString("Admin Audit Logs: %1 \U0001F4CB (Oldest: %2)").arg(arr->size()).arg(displayTs));
+                        m_adminLogsLabel->setText(QString("Admin Audit Logs: %1 📋 (Oldest: %2)").arg(arr->size()).arg(displayTs));
                     } else {
                         m_adminLogsLabel->setText("Admin Audit Logs: 0");
                     }
@@ -215,23 +193,17 @@ void DashboardWidget::fetchAdminLogsStats() {
             } catch (...) {
                 m_adminLogsLabel->setText("Admin Audit Logs: Parse Error");
             }
-        } else {
-            m_adminLogsLabel->setText("Admin Audit Logs: Error \U0001F534");
+        },
+        [this](int statusCode, const QString& errorString) {
+            m_adminLogsLabel->setText("Admin Audit Logs: Error 🔴");
         }
-        reply->deleteLater();
-    });
+    );
 }
 
 void DashboardWidget::fetchSystemLogsStats() {
-    QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
-    QNetworkRequest request(QUrl(host + "/admin/logs/system_bin"));
-    request.setRawHeader("Authorization", getAuthHeader().toLocal8Bit());
-    QNetworkReply* reply = m_networkManager->get(request);
-    
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        if (reply->error() == QNetworkReply::NoError) {
+    mitm::api::ApiClient::instance().get("/admin/logs/system_bin",
+        [this](const QByteArray& data, QNetworkReply* reply) {
             try {
-                QByteArray data = reply->readAll();
                 flatbuffers::Verifier verifier(reinterpret_cast<const uint8_t*>(data.constData()), data.size());
                 if (!schematas::VerifySystemLogListBuffer(verifier)) {
                     m_systemLogsLabel->setText("System Logs: Parse Error");
@@ -251,7 +223,7 @@ void DashboardWidget::fetchSystemLogsStats() {
                             QDateTime dt = QDateTime::fromString(QString::fromStdString(oldestTs), Qt::ISODate);
                             displayTs = dt.isValid() ? dt.toString("yyyy-MM-dd HH:mm:ss") : QString::fromStdString(oldestTs);
                         }
-                        m_systemLogsLabel->setText(QString("System Logs: %1 \U0001F4CB (Oldest: %2)").arg(arr->size()).arg(displayTs));
+                        m_systemLogsLabel->setText(QString("System Logs: %1 📋 (Oldest: %2)").arg(arr->size()).arg(displayTs));
                     } else {
                         m_systemLogsLabel->setText("System Logs: 0");
                     }
@@ -259,23 +231,17 @@ void DashboardWidget::fetchSystemLogsStats() {
             } catch (...) {
                 m_systemLogsLabel->setText("System Logs: Parse Error");
             }
-        } else {
-            m_systemLogsLabel->setText("System Logs: Error \U0001F534");
+        },
+        [this](int statusCode, const QString& errorString) {
+            m_systemLogsLabel->setText("System Logs: Error 🔴");
         }
-        reply->deleteLater();
-    });
+    );
 }
 
 void DashboardWidget::fetchJobLogsStats() {
-    QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
-    QNetworkRequest request(QUrl(host + "/admin/logs/job-audit_bin"));
-    request.setRawHeader("Authorization", getAuthHeader().toLocal8Bit());
-    QNetworkReply* reply = m_networkManager->get(request);
-    
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        if (reply->error() == QNetworkReply::NoError) {
+    mitm::api::ApiClient::instance().get("/admin/logs/job-audit_bin",
+        [this](const QByteArray& data, QNetworkReply* reply) {
             try {
-                QByteArray data = reply->readAll();
                 flatbuffers::Verifier verifier(reinterpret_cast<const uint8_t*>(data.constData()), data.size());
                 if (!schematas::VerifyJobAuditLogListBuffer(verifier)) {
                     m_jobLogsLabel->setText("Job Audit Logs: Parse Error");
@@ -295,7 +261,7 @@ void DashboardWidget::fetchJobLogsStats() {
                             QDateTime dt = QDateTime::fromString(QString::fromStdString(oldestTs), Qt::ISODate);
                             displayTs = dt.isValid() ? dt.toString("yyyy-MM-dd HH:mm:ss") : QString::fromStdString(oldestTs);
                         }
-                        m_jobLogsLabel->setText(QString("Job Audit Logs: %1 \U0001F4CB (Oldest: %2)").arg(arr->size()).arg(displayTs));
+                        m_jobLogsLabel->setText(QString("Job Audit Logs: %1 📋 (Oldest: %2)").arg(arr->size()).arg(displayTs));
                     } else {
                         m_jobLogsLabel->setText("Job Audit Logs: 0");
                     }
@@ -303,23 +269,17 @@ void DashboardWidget::fetchJobLogsStats() {
             } catch (...) {
                 m_jobLogsLabel->setText("Job Audit Logs: Parse Error");
             }
-        } else {
-            m_jobLogsLabel->setText("Job Audit Logs: Error \U0001F534");
+        },
+        [this](int statusCode, const QString& errorString) {
+            m_jobLogsLabel->setText("Job Audit Logs: Error 🔴");
         }
-        reply->deleteLater();
-    });
+    );
 }
 
 void DashboardWidget::fetchTransformErrorsStats() {
-    QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
-    QNetworkRequest request(QUrl(host + "/admin/transformation/errors_bin"));
-    request.setRawHeader("Authorization", getAuthHeader().toLocal8Bit());
-    QNetworkReply* reply = m_networkManager->get(request);
-    
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        if (reply->error() == QNetworkReply::NoError) {
+    mitm::api::ApiClient::instance().get("/admin/transformation/errors_bin",
+        [this](const QByteArray& data, QNetworkReply* reply) {
             try {
-                QByteArray data = reply->readAll();
                 flatbuffers::Verifier verifier(reinterpret_cast<const uint8_t*>(data.constData()), data.size());
                 if (!schematas::VerifyTransformationErrorListBuffer(verifier)) {
                     m_transformErrorsLabel->setText("Transformation Errors: Parse Error");
@@ -339,7 +299,7 @@ void DashboardWidget::fetchTransformErrorsStats() {
                             QDateTime dt = QDateTime::fromString(QString::fromStdString(oldestTs), Qt::ISODate);
                             displayTs = dt.isValid() ? dt.toString("yyyy-MM-dd HH:mm:ss") : QString::fromStdString(oldestTs);
                         }
-                        m_transformErrorsLabel->setText(QString("Transformation Errors: %1 \U0001F4CB (Oldest: %2)").arg(arr->size()).arg(displayTs));
+                        m_transformErrorsLabel->setText(QString("Transformation Errors: %1 📋 (Oldest: %2)").arg(arr->size()).arg(displayTs));
                     } else {
                         m_transformErrorsLabel->setText("Transformation Errors: 0");
                     }
@@ -347,10 +307,10 @@ void DashboardWidget::fetchTransformErrorsStats() {
             } catch (...) {
                 m_transformErrorsLabel->setText("Transformation Errors: Parse Error");
             }
-        } else {
-            m_transformErrorsLabel->setText("Transformation Errors: Error \U0001F534");
+        },
+        [this](int statusCode, const QString& errorString) {
+            m_transformErrorsLabel->setText("Transformation Errors: Error 🔴");
         }
-        reply->deleteLater();
-    });
+    );
 }
 

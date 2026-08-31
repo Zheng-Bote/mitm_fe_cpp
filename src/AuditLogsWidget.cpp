@@ -1,4 +1,5 @@
 #include "AuditLogsWidget.h"
+#include "ApiClient.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QHeaderView>
@@ -24,7 +25,7 @@
 #include "xlsxchart.h"
 
 AuditLogsWidget::AuditLogsWidget(QWidget *parent)
-    : QWidget(parent), m_networkManager(new QNetworkAccessManager(this))
+    : QWidget(parent)
 {
     auto mainLayout = new QVBoxLayout(this);
 
@@ -60,27 +61,18 @@ AuditLogsWidget::AuditLogsWidget(QWidget *parent)
     connect(m_exportReportButton, &QPushButton::clicked, this, &AuditLogsWidget::onExportReport);
 }
 
-QString AuditLogsWidget::getAuthHeader() {
-    return mitm::config::ConfigManager::GetInstance().GetAuthHeader();
-}
-
 void AuditLogsWidget::onRefresh() {
     m_refreshButton->setEnabled(false);
     
-    QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
-    QUrl url(host + "/admin/logs/job-audit_bin");
-    QNetworkRequest request(url);
-    request.setRawHeader("Authorization", getAuthHeader().toLocal8Bit());
-    
-    QNetworkReply* reply = m_networkManager->get(request);
-    
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+    mitm::api::ApiClient::instance().get("/admin/logs/job-audit_bin",
+        [this](const QByteArray& data, QNetworkReply* reply) {
+
         m_refreshButton->setEnabled(true);
 
-        if (reply->error() == QNetworkReply::NoError) {
+        
             m_model->setRowCount(0);
             try {
-                QByteArray data = reply->readAll();
+                
                 flatbuffers::Verifier verifier(reinterpret_cast<const uint8_t*>(data.constData()), data.size());
                 if (!schematas::VerifyJobAuditLogListBuffer(verifier)) {
                     spdlog::error("Invalid JobAuditLogs FlatBuffer data received");
@@ -113,14 +105,23 @@ void AuditLogsWidget::onRefresh() {
             } catch (const std::exception& e) {
                 spdlog::error("FlatBuffers parsing error in AuditLogs: {}", e.what());
             }
-        } else {
-            spdlog::error("AuditLogs API failed: {}", reply->errorString().toStdString());
-            m_model->setRowCount(0);
-            m_model->appendRow({new QStandardItem("Error"), new QStandardItem(reply->errorString())});
-        }
+        
         m_tableView->resizeColumnsToContents();
-        reply->deleteLater();
-    });
+        
+            },
+        [this](int statusCode, const QString& errorString) {
+
+        m_refreshButton->setEnabled(true);
+
+        
+            spdlog::error("AuditLogs API failed: {}", errorString.toStdString());
+            m_model->setRowCount(0);
+            m_model->appendRow({new QStandardItem("Error"), new QStandardItem(errorString)});
+        
+        m_tableView->resizeColumnsToContents();
+        
+            }
+    );
 }
 
 void AuditLogsWidget::onExportCsv() {

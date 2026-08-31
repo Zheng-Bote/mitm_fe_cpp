@@ -29,7 +29,7 @@
 
 namespace mitm::config {
 
-void ConfigManager::LoadEncryptedConfig(const std::string& filepath, const std::string& password) {
+void ConfigManager::LoadEncryptedConfig(const std::string& filepath, const mitm::crypto::SecureString& password) {
     m_password = password;
     m_globalConfigPath = filepath;
 
@@ -197,7 +197,7 @@ std::optional<std::string> ConfigManager::GetProxyString() const {
 
     std::string proxyStr;
     if (!m_config.proxy.proxy_username.empty() || !m_config.proxy.proxy_password.empty()) {
-        proxyStr = m_config.proxy.proxy_username + ":" + m_config.proxy.proxy_password + "@" + host + ":" + std::to_string(m_config.proxy.proxy_port);
+        proxyStr = m_config.proxy.proxy_username + ":" + m_config.proxy.proxy_password.c_str() + "@" + host + ":" + std::to_string(m_config.proxy.proxy_port);
     } else {
         // dummy credentials so proxy regex parsing doesn't fail
         proxyStr = "user:pass@" + host + ":" + std::to_string(m_config.proxy.proxy_port);

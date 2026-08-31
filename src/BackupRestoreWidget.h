@@ -1,7 +1,6 @@
 #pragma once
 
 #include <QWidget>
-#include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QPushButton>
 #include <QVBoxLayout>
@@ -22,7 +21,6 @@ private:
     void setupUi();
     void logMessage(const QString& msg);
 
-    QNetworkAccessManager *m_networkManager;
     QPushButton *m_btnBackup;
     QPushButton *m_btnRestore;
     QTextEdit *m_logArea;

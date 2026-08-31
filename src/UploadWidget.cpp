@@ -1,4 +1,5 @@
 #include "UploadWidget.h"
+#include "ApiClient.h"
 #include "Config.h"
 #include <QFile>
 #include <QFileDialog>
@@ -7,13 +8,11 @@
 #include <QHttpMultiPart>
 #include <QHttpPart>
 #include <QMessageBox>
-#include <QNetworkAccessManager>
 #include <QNetworkReply>
-#include <QNetworkRequest>
 #include <QVBoxLayout>
 
 UploadWidget::UploadWidget(QWidget *parent)
-    : QWidget(parent), m_networkManager(new QNetworkAccessManager(this)) {
+    : QWidget(parent) {
   auto *layout = new QVBoxLayout(this);
 
   auto *title = new QLabel("<h2>📂 Manual File Upload</h2>", this);
@@ -103,36 +102,14 @@ void UploadWidget::uploadFile() {
   file->setParent(multiPart); // File deleted when multiPart is deleted
   multiPart->append(filePart);
 
-  QString url = mitm::config::ConfigManager::GetInstance().GetHostUrl() +
-                "/admin/upload/source_file";
-  QNetworkRequest request((QUrl(url)));
-  QString authHeader =
-      mitm::config::ConfigManager::GetInstance().GetAuthHeader();
-  request.setRawHeader("Authorization", authHeader.toUtf8());
-
-  QNetworkAccessManager *networkManager = new QNetworkAccessManager(this);
-  QNetworkReply *reply = networkManager->post(request, multiPart);
-  multiPart->setParent(reply); // Delete multipart with the reply
-
-  connect(reply, &QNetworkReply::finished, this,
-          [this, reply, networkManager]() {
-            onUploadFinished(reply);
-            networkManager->deleteLater();
-          });
-}
-
-void UploadWidget::onUploadFinished(QNetworkReply *reply) {
-  reply->deleteLater();
-  m_uploadBtn->setEnabled(true);
-
-  if (reply->error() == QNetworkReply::NoError) {
-    m_statusLabel->setText("<font color='green'>Upload successful! The "
-                           "collector has been triggered.</font>");
-    m_fileEdit->clear();
-  } else {
-    QString errStr = reply->readAll();
-    m_statusLabel->setText(
-        QString("<font color='red'>Upload failed: %1 - %2</font>")
-            .arg(reply->errorString(), errStr));
-  }
+  mitm::api::ApiClient::instance().post("/admin/upload/source_file", multiPart,
+  [this](const QByteArray& data, QNetworkReply* reply) {
+      m_uploadBtn->setEnabled(true);
+      m_statusLabel->setText("<font color='green'>Upload successful! The collector has been triggered.</font>");
+      m_fileEdit->clear();
+  },
+  [this](int statusCode, const QString& errorString) {
+      m_uploadBtn->setEnabled(true);
+      m_statusLabel->setText(QString("<font color='red'>Upload failed: %1 - %2</font>").arg(QString::number(statusCode), errorString));
+  });
 }

@@ -1,4 +1,5 @@
 #include "RbacWidget.h"
+#include "ApiClient.h"
 #include <QHeaderView>
 #include <QMessageBox>
 #include <QJsonDocument>
@@ -73,39 +74,29 @@ void RbacWidget::setupUi() {
 }
 
 void RbacWidget::fetchUsersAndRoles() {
-    auto manager = new QNetworkAccessManager(this);
-    QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
-    QString auth = mitm::config::ConfigManager::GetInstance().GetAuthHeader();
-
     // Fetch Roles
-    QNetworkRequest rolesReq(QUrl(host + "/admin/rbac/roles"));
-    rolesReq.setRawHeader("Authorization", auth.toLocal8Bit());
-    
-    auto rolesReply = manager->get(rolesReq);
-    connect(rolesReply, &QNetworkReply::finished, this, [this, rolesReply]() {
-        if (rolesReply->error() == QNetworkReply::NoError) {
+    mitm::api::ApiClient::instance().get("/admin/rbac/roles",
+        [this](const QByteArray& data, QNetworkReply* reply) {
             rolesList->clear();
-            auto doc = QJsonDocument::fromJson(rolesReply->readAll());
+            auto doc = QJsonDocument::fromJson(data);
             for (const auto& v : doc.array()) {
                 auto obj = v.toObject();
                 auto* item = new QListWidgetItem(obj["name"].toString());
                 item->setData(Qt::UserRole, obj["id"].toInt());
                 rolesList->addItem(item);
             }
+        },
+        [this](int statusCode, const QString& errorString) {
+            // handle error if needed
         }
-        rolesReply->deleteLater();
-    });
+    );
 
     // Fetch Users
-    QNetworkRequest usersReq(QUrl(host + "/admin/rbac/users"));
-    usersReq.setRawHeader("Authorization", auth.toLocal8Bit());
-    
-    auto usersReply = manager->get(usersReq);
-    connect(usersReply, &QNetworkReply::finished, this, [this, usersReply]() {
-        if (usersReply->error() == QNetworkReply::NoError) {
+    mitm::api::ApiClient::instance().get("/admin/rbac/users",
+        [this](const QByteArray& data, QNetworkReply* reply) {
             usersTable->setSortingEnabled(false);
             usersTable->setRowCount(0);
-            auto doc = QJsonDocument::fromJson(usersReply->readAll());
+            auto doc = QJsonDocument::fromJson(data);
             auto arr = doc.array();
             for (int i = 0; i < arr.size(); ++i) {
                 auto obj = arr[i].toObject();
@@ -121,9 +112,11 @@ void RbacWidget::fetchUsersAndRoles() {
                 usersTable->setItem(i, 2, activeItem);
             }
             usersTable->setSortingEnabled(true);
+        },
+        [this](int statusCode, const QString& errorString) {
+            // handle error if needed
         }
-        usersReply->deleteLater();
-    });
+    );
 }
 
 void RbacWidget::onUserSelected() {
@@ -136,17 +129,9 @@ void RbacWidget::onUserSelected() {
     int row = ranges.first().topRow();
     currentUserId = usersTable->item(row, 0)->text().toInt();
 
-    auto manager = new QNetworkAccessManager(this);
-    QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
-    QString auth = mitm::config::ConfigManager::GetInstance().GetAuthHeader();
-
-    QNetworkRequest req(QUrl(host + "/admin/rbac/user_roles?user_id=" + QString::number(currentUserId)));
-    req.setRawHeader("Authorization", auth.toLocal8Bit());
-    
-    auto reply = manager->get(req);
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        if (reply->error() == QNetworkReply::NoError) {
-            auto doc = QJsonDocument::fromJson(reply->readAll());
+    mitm::api::ApiClient::instance().get("/admin/rbac/user_roles?user_id=" + QString::number(currentUserId),
+        [this](const QByteArray& data, QNetworkReply* reply) {
+            auto doc = QJsonDocument::fromJson(data);
             auto roleIdsArray = doc.array();
             QList<int> userRoles;
             for (const auto& v : roleIdsArray) {
@@ -160,9 +145,11 @@ void RbacWidget::onUserSelected() {
                     item->setSelected(true);
                 }
             }
+        },
+        [this](int statusCode, const QString& errorString) {
+            // handle error if needed
         }
-        reply->deleteLater();
-    });
+    );
 }
 
 void RbacWidget::saveRoleAssignments() {
@@ -183,23 +170,14 @@ void RbacWidget::saveRoleAssignments() {
     payload["user_id"] = currentUserId;
     payload["role_ids"] = roleIds;
 
-    auto manager = new QNetworkAccessManager(this);
-    QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
-    QString auth = mitm::config::ConfigManager::GetInstance().GetAuthHeader();
-
-    QNetworkRequest req(QUrl(host + "/admin/rbac/assign"));
-    req.setRawHeader("Authorization", auth.toLocal8Bit());
-    req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-
-    auto reply = manager->post(req, QJsonDocument(payload).toJson());
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        if (reply->error() == QNetworkReply::NoError) {
+    mitm::api::ApiClient::instance().post("/admin/rbac/assign", QJsonDocument(payload).toJson(),
+        [this](const QByteArray& data, QNetworkReply* reply) {
             QMessageBox::information(this, "Success", "Roles assigned successfully.");
-        } else {
-            QMessageBox::critical(this, "Error", "Failed to assign roles: " + reply->errorString());
+        },
+        [this](int statusCode, const QString& errorString) {
+            QMessageBox::critical(this, "Error", "Failed to assign roles: " + errorString);
         }
-        reply->deleteLater();
-    });
+    );
 }
 
 void RbacWidget::onAddUserClicked() {
@@ -234,24 +212,15 @@ void RbacWidget::onAddUserClicked() {
         payload["username"] = username;
         payload["password"] = password;
 
-        auto manager = new QNetworkAccessManager(this);
-        QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
-        QString auth = mitm::config::ConfigManager::GetInstance().GetAuthHeader();
-
-        QNetworkRequest req(QUrl(host + "/admin/rbac/user/create"));
-        req.setRawHeader("Authorization", auth.toLocal8Bit());
-        req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-
-        auto reply = manager->post(req, QJsonDocument(payload).toJson());
-        connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-            if (reply->error() == QNetworkReply::NoError) {
+        mitm::api::ApiClient::instance().post("/admin/rbac/user/create", QJsonDocument(payload).toJson(),
+            [this](const QByteArray& data, QNetworkReply* reply) {
                 QMessageBox::information(this, "Success", "User added successfully.");
                 fetchUsersAndRoles();
-            } else {
-                QMessageBox::critical(this, "Error", "Failed to add user: " + reply->errorString());
+            },
+            [this](int statusCode, const QString& errorString) {
+                QMessageBox::critical(this, "Error", "Failed to add user: " + errorString);
             }
-            reply->deleteLater();
-        });
+        );
     }
 }
 
@@ -266,24 +235,15 @@ void RbacWidget::onRemoveUserClicked() {
         return;
     }
 
-    auto manager = new QNetworkAccessManager(this);
-    QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
-    QString auth = mitm::config::ConfigManager::GetInstance().GetAuthHeader();
-
-    QNetworkRequest req(QUrl(host + "/admin/rbac/user/delete?id=" + QString::number(currentUserId)));
-    req.setRawHeader("Authorization", auth.toLocal8Bit());
-
-    auto reply = manager->deleteResource(req);
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        if (reply->error() == QNetworkReply::NoError) {
+    mitm::api::ApiClient::instance().deleteResource("/admin/rbac/user/delete?id=" + QString::number(currentUserId),
+        [this](const QByteArray& data, QNetworkReply* reply) {
             QMessageBox::information(this, "Success", "User removed successfully.");
             currentUserId = -1;
             rolesList->clearSelection();
             fetchUsersAndRoles();
-        } else {
-            QMessageBox::critical(this, "Error", "Failed to remove user: " + reply->errorString());
+        },
+        [this](int statusCode, const QString& errorString) {
+            QMessageBox::critical(this, "Error", "Failed to remove user: " + errorString);
         }
-        reply->deleteLater();
-    });
+    );
 }
-

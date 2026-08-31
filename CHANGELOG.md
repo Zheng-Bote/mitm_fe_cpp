@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.26.0] - 2026-08-31
+
+### Added
+- **Security**: Implemented `SecureString` wrapper leveraging `sodium_malloc` and `sodium_memzero` for secure memory allocation and wiping of proxy credentials and master password.
+- **Architecture**: Introduced a centralized `ApiClient` singleton to unify HTTP status code handling, schemas, timeouts, and error responses across UI components.
+
+### Changed
+- **Architecture**: Refactored 9 core widgets (including Dashboard, RBAC, Scheduler) to utilize the new `ApiClient`, deprecating direct `QNetworkAccessManager` usage.
+- **Build System**: Increased the `cmake_minimum_required` version to `3.25` and updated the C++ standard to `C++26` for enhanced modern language features.
+
 ## [v0.25.0] - 2026-08-31
 
 ### Fixed

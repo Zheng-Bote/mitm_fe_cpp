@@ -1,4 +1,5 @@
 #include "BackupRestoreWidget.h"
+#include "ApiClient.h"
 #include "Config.h"
 #include <QFileDialog>
 #include <QDateTime>
@@ -9,7 +10,7 @@
 #include <QCoreApplication>
 
 BackupRestoreWidget::BackupRestoreWidget(QWidget *parent)
-    : QWidget(parent), m_networkManager(new QNetworkAccessManager(this)) {
+    : QWidget(parent) {
     setupUi();
 }
 
@@ -37,22 +38,10 @@ void BackupRestoreWidget::logMessage(const QString& msg) {
 }
 
 void BackupRestoreWidget::onBackupClicked() {
-    QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
-    QUrl url(host + "/admin/backup");
-    QNetworkRequest request(url);
-    request.setRawHeader("Authorization", mitm::config::ConfigManager::GetInstance().GetAuthHeader().toLocal8Bit());
-    
     logMessage("Requesting backup from server...");
     
-    auto reply = m_networkManager->get(request);
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        reply->deleteLater();
-        if (reply->error() != QNetworkReply::NoError) {
-            logMessage("Backup failed: " + reply->errorString());
-            return;
-        }
-        
-        QByteArray data = reply->readAll();
+    mitm::api::ApiClient::instance().get("/admin/backup",
+        [this](const QByteArray& data, QNetworkReply* reply) {
         
         QString binFolder = QCoreApplication::applicationDirPath();
         QString backupDir = binFolder + "/data/backup";
@@ -76,6 +65,10 @@ void BackupRestoreWidget::onBackupClicked() {
         } else {
             logMessage("Failed to save backup file: " + file.errorString());
         }
+    },
+    [this](int statusCode, const QString& errorString) {
+            logMessage("Backup failed: " + errorString);
+            return;
     });
 }
 
@@ -101,25 +94,16 @@ void BackupRestoreWidget::onRestoreClicked() {
         
     if (replyBox != QMessageBox::Yes) return;
     
-    QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
-    QUrl url(host + "/admin/restore");
-    QNetworkRequest request(url);
-    request.setRawHeader("Authorization", mitm::config::ConfigManager::GetInstance().GetAuthHeader().toLocal8Bit());
-    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-    
     logMessage("Sending restore request to server...");
     
-    auto reply = m_networkManager->post(request, data);
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        reply->deleteLater();
-        if (reply->error() != QNetworkReply::NoError) {
-            logMessage("Restore failed: " + reply->errorString());
-            QByteArray errBody = reply->readAll();
-            if (!errBody.isEmpty()) logMessage("Server message: " + QString(errBody));
-            return;
-        }
+    mitm::api::ApiClient::instance().post("/admin/restore", data,
+        [this](const QByteArray& data, QNetworkReply* reply) {
         
         logMessage("Restore completed successfully.");
         QMessageBox::information(this, "Restore Successful", "Configuration restored successfully. Scheduler has been reloaded.");
+    },
+    [this](int statusCode, const QString& errorString) {
+            logMessage("Restore failed: " + errorString);
+            return;
     });
 }

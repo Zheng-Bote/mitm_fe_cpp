@@ -21,6 +21,7 @@
 #include <string>
 #include <cstdint>
 #include <stdexcept>
+#include "SecureString.h"
 
 namespace mitm::crypto {
 
@@ -31,7 +32,7 @@ namespace mitm::crypto {
  * @return Decrypted plaintext data.
  * @throws std::runtime_error on decryption failure.
  */
-std::vector<uint8_t> Decrypt(const std::vector<uint8_t>& encryptedData, const std::string& password);
+std::vector<uint8_t> Decrypt(const std::vector<uint8_t>& encryptedData, const mitm::crypto::SecureString& password);
 
 /**
  * @brief Encrypts data using AES-256-GCM and Argon2id derived key.
@@ -40,6 +41,6 @@ std::vector<uint8_t> Decrypt(const std::vector<uint8_t>& encryptedData, const st
  * @return Encrypted data (salt + nonce + ciphertext).
  * @throws std::runtime_error on encryption failure.
  */
-std::vector<uint8_t> Encrypt(const std::vector<uint8_t>& plaintext, const std::string& password);
+std::vector<uint8_t> Encrypt(const std::vector<uint8_t>& plaintext, const mitm::crypto::SecureString& password);
 
 } // namespace mitm::crypto

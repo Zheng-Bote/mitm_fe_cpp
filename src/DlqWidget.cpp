@@ -16,6 +16,7 @@
  */
 
 #include "DlqWidget.h"
+#include "ApiClient.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QHeaderView>
@@ -39,7 +40,6 @@ DlqWidget::DlqWidget(QWidget *parent) : QWidget(parent) {
     headerLayout->addWidget(m_requeueButton);
     mainLayout->addLayout(headerLayout);
 
-    m_networkManager = new QNetworkAccessManager(this);
 
     m_dlqTable = new QTableWidget(0, 5, this);
     m_dlqTable->setHorizontalHeaderLabels({"ID", "Timestamp", "Component", "Error Message", "Payload Snippet"});
@@ -58,20 +58,8 @@ DlqWidget::DlqWidget(QWidget *parent) : QWidget(parent) {
 void DlqWidget::onRefresh() {
     m_dlqTable->setRowCount(0);
     
-    QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
-    QNetworkRequest request(QUrl(host + "/admin/dlq_bin"));
-    QString authHeader = mitm::config::ConfigManager::GetInstance().GetAuthHeader();
-    request.setRawHeader("Authorization", authHeader.toLocal8Bit());
-
-    auto reply = m_networkManager->get(request);
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        reply->deleteLater();
-        if (reply->error() != QNetworkReply::NoError) {
-            spdlog::error("Failed to fetch DLQ: {}", reply->errorString().toStdString());
-            return;
-        }
-
-        QByteArray data = reply->readAll();
+    mitm::api::ApiClient::instance().get("/admin/dlq_bin",
+        [this](const QByteArray& data, QNetworkReply* reply) {
         flatbuffers::Verifier verifier(reinterpret_cast<const uint8_t*>(data.constData()), data.size());
         if (!schematas::VerifyDLQEntryListBuffer(verifier)) {
             spdlog::error("Invalid DLQ FlatBuffer data received");
@@ -114,6 +102,10 @@ void DlqWidget::onRefresh() {
         }
         m_dlqTable->resizeColumnsToContents();
         spdlog::info("DLQ refreshed with {} items", arr->size());
+    },
+    [this](int statusCode, const QString& errorString) {
+            spdlog::error("Failed to fetch DLQ: {}", errorString.toStdString());
+            return;
     });
 }
 
@@ -132,20 +124,13 @@ void DlqWidget::onRequeue() {
         return;
     }
     
-    QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
-    QUrl url(host + "/admin/dlq/requeue?id=" + idStr);
-    QNetworkRequest request(url);
-    QString authHeader = mitm::config::ConfigManager::GetInstance().GetAuthHeader();
-    request.setRawHeader("Authorization", authHeader.toLocal8Bit());
-    
-    auto reply = m_networkManager->post(request, QByteArray());
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        if (reply->error() == QNetworkReply::NoError) {
+    mitm::api::ApiClient::instance().post("/admin/dlq/requeue?id=" + idStr, QByteArray(),
+        [this](const QByteArray& data, QNetworkReply* reply) {
             QMessageBox::information(this, "Success", "DLQ item requeued.");
             onRefresh();
-        } else {
-            QMessageBox::critical(this, "Error", "Failed to requeue DLQ item:\n" + reply->errorString() + "\n" + QString::fromUtf8(reply->readAll()));
+        },
+        [this](int statusCode, const QString& errorString) {
+            QMessageBox::critical(this, "Error", "Failed to requeue DLQ item:\n" + errorString); // Can't easily read error body with current API unless we modify ApiClient, so just print errorString
         }
-        reply->deleteLater();
-    });
+    );
 }

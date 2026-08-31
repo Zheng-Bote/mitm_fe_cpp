@@ -1,4 +1,5 @@
 #include <QPointer>
+#include "ApiClient.h"
 /**
  * SPDX-FileComment: MainWindow
  * SPDX-FileType: SOURCE
@@ -141,13 +142,6 @@ void MainWindow::setupUi() {
 
   // Log frontend startup to backend
   {
-      auto manager = new QNetworkAccessManager(this);
-      QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
-      QUrl url(host + "/admin/action");
-      QNetworkRequest request(url);
-      request.setRawHeader("Authorization", mitm::config::ConfigManager::GetInstance().GetAuthHeader().toLocal8Bit());
-      request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-      
       nlohmann::json j;
       j["action"] = "frontend_startup";
       j["details"] = {
@@ -156,14 +150,14 @@ void MainWindow::setupUi() {
           {"computer", compName.toStdString()}
       };
       
-      auto reply = manager->post(request, QString::fromStdString(j.dump()).toUtf8());
-      connect(reply, &QNetworkReply::finished, this, [reply, manager]() {
-          if (reply->error() != QNetworkReply::NoError) {
-              spdlog::warn("Failed to log frontend startup to backend: {}", reply->errorString().toStdString());
+      mitm::api::ApiClient::instance().post("/admin/action", QString::fromStdString(j.dump()).toUtf8(),
+          [](const QByteArray& data, QNetworkReply* reply) {
+              // Success
+          },
+          [](int statusCode, const QString& errorString) {
+              spdlog::warn("Failed to log frontend startup to backend: {}", errorString.toStdString());
           }
-          reply->deleteLater();
-          manager->deleteLater();
-      });
+      );
   }
 
   // Check for updates asynchronously
@@ -299,7 +293,7 @@ void MainWindow::showProxyDialog() {
   auto *userEdit = new QLineEdit(
       QString::fromStdString(proxyConfig.proxy_username), &dialog);
   auto *passEdit = new QLineEdit(
-      QString::fromStdString(proxyConfig.proxy_password), &dialog);
+      QString::fromStdString(std::string(proxyConfig.proxy_password.c_str())), &dialog);
   passEdit->setEchoMode(QLineEdit::Password);
   auto *activeCheck = new QCheckBox("Enable Proxy", &dialog);
   activeCheck->setChecked(proxyConfig.proxy_active);
@@ -372,7 +366,7 @@ void MainWindow::showUserGuideDialog() {
         proxy.setPort(proxyCfg.proxy_port);
         if (!proxyCfg.proxy_username.empty()) {
             proxy.setUser(QString::fromStdString(proxyCfg.proxy_username));
-            proxy.setPassword(QString::fromStdString(proxyCfg.proxy_password));
+            proxy.setPassword(QString::fromStdString(std::string(proxyCfg.proxy_password.c_str())));
         }
         manager->setProxy(proxy);
     }

@@ -16,6 +16,7 @@
  */
 
 #include "SchedulerWidget.h"
+#include "ApiClient.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QHeaderView>
@@ -35,7 +36,7 @@
 using json = nlohmann::json;
 
 SchedulerWidget::SchedulerWidget(QWidget *parent)
-    : QWidget(parent), m_networkManager(new QNetworkAccessManager(this))
+    : QWidget(parent)
 {
     auto mainLayout = new QVBoxLayout(this);
 
@@ -78,84 +79,70 @@ SchedulerWidget::SchedulerWidget(QWidget *parent)
     connect(m_deleteButton, &QPushButton::clicked, this, &SchedulerWidget::onDeleteJob);
     connect(m_stopButton, &QPushButton::clicked, this, &SchedulerWidget::onStopJob);
     connect(m_executeButton, &QPushButton::clicked, this, &SchedulerWidget::onExecuteJob);
-    connect(m_networkManager, &QNetworkAccessManager::finished, this, &SchedulerWidget::onApiResponse);
-}
-
-QString SchedulerWidget::getAuthHeader() {
-    return mitm::config::ConfigManager::GetInstance().GetAuthHeader();
-}
+    }
 
 void SchedulerWidget::onRefreshClicked() {
     m_refreshButton->setEnabled(false);
     
-    QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
-    QUrl url(host + "/admin/jobs");
-    QNetworkRequest request(url);
-    request.setRawHeader("Authorization", getAuthHeader().toLocal8Bit());
-    
-    m_networkManager->get(request);
-}
+    mitm::api::ApiClient::instance().get("/admin/jobs",
+        [this](const QByteArray& data, QNetworkReply* reply) {
+            m_refreshButton->setEnabled(true);
+            m_model->setRowCount(0); // clear existing rows
+            try {
+                m_currentJobs = json::parse(data.toStdString());
+                
+                if (m_currentJobs.is_array()) {
+                    for (const auto& job : m_currentJobs) {
+                        QList<QStandardItem*> rowItems;
+                        rowItems << new QStandardItem(QString::number(job.value("id", 0)));
+                        rowItems << new QStandardItem(QString::fromStdString(job.value("name", "")));
+                        rowItems << new QStandardItem(QString::fromStdString(job.value("command", "")));
+                        rowItems << new QStandardItem(QString::fromStdString(job.value("cron_expr", "")));
+                        
+                        bool enabled = job.value("enabled", false);
+                        auto statusItem = new QStandardItem(enabled ? "Enabled 🟢" : "Disabled 🔴");
+                        rowItems << statusItem;
 
-void SchedulerWidget::onApiResponse(QNetworkReply* reply) {
-    m_refreshButton->setEnabled(true);
-
-    if (reply->error() == QNetworkReply::NoError) {
-        m_model->setRowCount(0); // clear existing rows
-        QByteArray response = reply->readAll();
-        
-        try {
-            m_currentJobs = json::parse(response.toStdString());
-            
-            if (m_currentJobs.is_array()) {
-                for (const auto& job : m_currentJobs) {
-                    QList<QStandardItem*> rowItems;
-                    rowItems << new QStandardItem(QString::number(job.value("id", 0)));
-                    rowItems << new QStandardItem(QString::fromStdString(job.value("name", "")));
-                    rowItems << new QStandardItem(QString::fromStdString(job.value("command", "")));
-                    rowItems << new QStandardItem(QString::fromStdString(job.value("cron_expr", "")));
-                    
-                    bool enabled = job.value("enabled", false);
-                    auto statusItem = new QStandardItem(enabled ? "Enabled 🟢" : "Disabled 🔴");
-                    rowItems << statusItem;
-
-                    QString nextRunStr = "-";
-                    if (enabled) {
-                        std::string nr = job.value("next_run", "");
-                        if (!nr.empty()) {
-                            QDateTime dt = QDateTime::fromString(QString::fromStdString(nr), Qt::ISODate);
-                            if (dt.isValid()) {
-                                nextRunStr = dt.toLocalTime().toString("yyyy-MM-dd HH:mm:ss");
+                        QString nextRunStr = "-";
+                        if (enabled) {
+                            std::string nr = job.value("next_run", "");
+                            if (!nr.empty()) {
+                                QDateTime dt = QDateTime::fromString(QString::fromStdString(nr), Qt::ISODate);
+                                if (dt.isValid()) {
+                                    nextRunStr = dt.toLocalTime().toString("yyyy-MM-dd HH:mm:ss");
+                                }
                             }
                         }
-                    }
-                    rowItems << new QStandardItem(nextRunStr);
+                        rowItems << new QStandardItem(nextRunStr);
 
-                    bool isRunning = job.value("is_running", false);
-                    int activePid = job.value("active_pid", 0);
-                    QString activeStr = "Idle";
-                    if (isRunning) {
-                        if (activePid > 0) {
-                            activeStr = QString("Running ⚙️ (PID %1)").arg(activePid);
-                        } else {
-                            activeStr = "Running ⚙️";
+                        bool isRunning = job.value("is_running", false);
+                        int activePid = job.value("active_pid", 0);
+                        QString activeStr = "Idle";
+                        if (isRunning) {
+                            if (activePid > 0) {
+                                activeStr = QString("Running ⚙️ (PID %1)").arg(activePid);
+                            } else {
+                                activeStr = "Running ⚙️";
+                            }
                         }
+                        rowItems << new QStandardItem(activeStr);
+
+                        m_model->appendRow(rowItems);
                     }
-                    rowItems << new QStandardItem(activeStr);
-
-                    m_model->appendRow(rowItems);
                 }
+            } catch (const std::exception& e) {
+                spdlog::error("JSON parsing error: {}", e.what());
             }
-        } catch (const std::exception& e) {
-            spdlog::error("JSON parsing error: {}", e.what());
+            m_tableView->resizeColumnsToContents();
+        },
+        [this](int statusCode, const QString& errorString) {
+            m_refreshButton->setEnabled(true);
+            spdlog::error("Scheduler API request failed: {}", errorString.toStdString());
+            m_model->setRowCount(0);
+            m_model->appendRow({new QStandardItem("Error"), new QStandardItem(errorString)});
+            m_tableView->resizeColumnsToContents();
         }
-    } else {
-        spdlog::error("Scheduler API request failed: {}", reply->errorString().toStdString());
-        m_model->setRowCount(0);
-        m_model->appendRow({new QStandardItem("Error"), new QStandardItem(reply->errorString())});
-    }
-    m_tableView->resizeColumnsToContents();
-
-    reply->deleteLater();
+    );
 }
 
 void SchedulerWidget::onAddJob() {
@@ -164,18 +151,10 @@ void SchedulerWidget::onAddJob() {
         json newJob = dlg.getJob();
         json payload = json::array({newJob});
         
-        QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
-        QUrl url(host + "/admin/update-jobs");
-        QNetworkRequest request(url);
-        request.setRawHeader("Authorization", getAuthHeader().toLocal8Bit());
-        request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-        
-        auto reply = m_networkManager->post(request, QByteArray::fromStdString(payload.dump()));
-        connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-            if (reply->error() == QNetworkReply::NoError) onRefreshClicked();
-            else QMessageBox::critical(this, "Error", "Failed to add job:\n" + reply->errorString());
-            reply->deleteLater();
-        });
+        mitm::api::ApiClient::instance().post("/admin/update-jobs", QByteArray::fromStdString(payload.dump()),
+            [this](const QByteArray& data, QNetworkReply* reply) { onRefreshClicked(); },
+            [this](int statusCode, const QString& errorString) { QMessageBox::critical(this, "Error", "Failed to add job:\n" + errorString); }
+        );
     }
 }
 
@@ -200,18 +179,10 @@ void SchedulerWidget::onEditJob() {
         json updatedJob = dlg.getJob();
         json payload = json::array({updatedJob});
         
-        QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
-        QUrl url(host + "/admin/update-jobs");
-        QNetworkRequest request(url);
-        request.setRawHeader("Authorization", getAuthHeader().toLocal8Bit());
-        request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-        
-        auto reply = m_networkManager->post(request, QByteArray::fromStdString(payload.dump()));
-        connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-            if (reply->error() == QNetworkReply::NoError) onRefreshClicked();
-            else QMessageBox::critical(this, "Error", "Failed to update job:\n" + reply->errorString());
-            reply->deleteLater();
-        });
+        mitm::api::ApiClient::instance().post("/admin/update-jobs", QByteArray::fromStdString(payload.dump()),
+            [this](const QByteArray& data, QNetworkReply* reply) { onRefreshClicked(); },
+            [this](int statusCode, const QString& errorString) { QMessageBox::critical(this, "Error", "Failed to update job:\n" + errorString); }
+        );
     }
 }
 
@@ -225,17 +196,10 @@ void SchedulerWidget::onDeleteJob() {
         return;
     }
     
-    QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
-    QUrl url(host + "/admin/delete-job?name=" + jobName);
-    QNetworkRequest request(url);
-    request.setRawHeader("Authorization", getAuthHeader().toLocal8Bit());
-    
-    auto reply = m_networkManager->deleteResource(request);
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        if (reply->error() == QNetworkReply::NoError) onRefreshClicked();
-        else QMessageBox::critical(this, "Error", "Failed to delete job:\n" + reply->errorString());
-        reply->deleteLater();
-    });
+    mitm::api::ApiClient::instance().deleteResource("/admin/delete-job?name=" + jobName,
+        [this](const QByteArray& data, QNetworkReply* reply) { onRefreshClicked(); },
+        [this](int statusCode, const QString& errorString) { QMessageBox::critical(this, "Error", "Failed to delete job:\n" + errorString); }
+    );
 }
 
 void SchedulerWidget::onStopJob() {
@@ -253,21 +217,15 @@ void SchedulerWidget::onStopJob() {
         return;
     }
     
-    QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
-    QUrl url(host + "/admin/stop-job?name=" + jobName);
-    QNetworkRequest request(url);
-    request.setRawHeader("Authorization", getAuthHeader().toLocal8Bit());
-    
-    auto reply = m_networkManager->post(request, QByteArray());
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        if (reply->error() == QNetworkReply::NoError) {
+    mitm::api::ApiClient::instance().post("/admin/stop-job?name=" + jobName, QByteArray(),
+        [this](const QByteArray& data, QNetworkReply* reply) {
             QMessageBox::information(this, "Success", "Stop signal sent to job.");
             onRefreshClicked();
-        } else {
-            QMessageBox::critical(this, "Error", "Failed to stop job:\n" + reply->errorString() + "\n" + QString::fromUtf8(reply->readAll()));
+        },
+        [this](int statusCode, const QString& errorString) {
+            QMessageBox::critical(this, "Error", "Failed to stop job:\n" + errorString);
         }
-        reply->deleteLater();
-    });
+    );
 }
 
 void SchedulerWidget::onExecuteJob() {
@@ -285,20 +243,14 @@ void SchedulerWidget::onExecuteJob() {
         return;
     }
     
-    QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
-    QUrl url(host + "/admin/execute-job?name=" + jobName);
-    QNetworkRequest request(url);
-    request.setRawHeader("Authorization", getAuthHeader().toLocal8Bit());
-    
-    auto reply = m_networkManager->post(request, QByteArray());
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        if (reply->error() == QNetworkReply::NoError) {
+    mitm::api::ApiClient::instance().post("/admin/execute-job?name=" + jobName, QByteArray(),
+        [this](const QByteArray& data, QNetworkReply* reply) {
             QMessageBox::information(this, "Success", "Job execution triggered.");
             onRefreshClicked();
-        } else {
-            QMessageBox::critical(this, "Error", "Failed to trigger job:\n" + reply->errorString() + "\n" + QString::fromUtf8(reply->readAll()));
+        },
+        [this](int statusCode, const QString& errorString) {
+            QMessageBox::critical(this, "Error", "Failed to trigger job:\n" + errorString);
         }
-        reply->deleteLater();
-    });
+    );
 }
 
