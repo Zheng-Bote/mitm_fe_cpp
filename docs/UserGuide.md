@@ -14,7 +14,7 @@ The MitM Admin Frontend acts as the control panel for the Go-based Scheduler eng
 
 The frontend dynamically adapts its features based on your authorized roles:
 
-- **Authentication**: Uses transparent OS-level authentication or biometric unlock (Windows Hello).
+- **Authentication**: Uses transparent OS-level authentication based on your OS username. The username is strictly validated and sanitized to prevent path traversal and backend bypass.
 - **ADMIN**: Full read/write access, including job execution/stopping, user management, and credentials.
 - **VIEWER**: Read-only access to most tables. Destructive or modifying actions (Add/Edit/Delete, Save) are disabled.
 - **UPLOADER**: Access to the Manual Upload Widget.
@@ -50,10 +50,11 @@ The first line of the uploaded file is used as the column names (headers) for th
 
 Extensive tracing capabilities utilizing efficient FlatBuffers APIs. All timestamps are automatically converted to your system's local timezone.
 
-- **System Logs:** Diagnostic view into the Scheduler's internal operations and component logs.
-- **Admin Logs:** Records all UI-driven configuration changes, user management actions, and frontend logins.
-- **Job Audits:** Tracks execution events mapped to a specific `Run ID`.
-  - **Export Excel Report:** Generates a comprehensive `.xlsx` report including a Pie Chart and dynamically calculated upload statistics (Records Added, Updated, Skipped, etc.) grouped in the `Upload-Report` and `Batch-Uploads` sheets. The export dialog remembers your last used directory.
+- **Admin-Logs:** Records all UI-driven configuration changes, user management actions, and frontend logins.
+- **Jobs-Logs:** Tracks execution events mapped to a specific `Run ID`.
+  - **Export Excel Report:** Generates a comprehensive `.xlsx` report including a Pie Chart and dynamically calculated upload statistics.
+- **System-Logs:** Diagnostic view into the Scheduler's internal operations and component logs.
+- **Transformation Errors:** Inspect payloads that failed validation or parsing during the transformation phase.
 
 ### 🧩 Transformation Layer
 
@@ -64,10 +65,19 @@ Manage the data mapping pipeline components:
 - **✨ Auto-Map (Smart Suggest):** Automatically generates mapping rules from comma-separated headers using fuzzy string matching.
 - **Topic Dependencies**: Manage Stateful Aggregation requirements and execution order.
 
-### ⚠️ Transformation Errors & DLQ
+### 🚑 DLQ & Cursors
 
-- **Transformation Errors:** Inspect payloads that failed validation or parsing during the transformation phase.
 - **DLQ (Dead Letter Queue):** Manages payloads that failed to deliver to the target SaaS platform. Administrators can inspect the truncated `Error Message` and click **"Requeue Selected"** to attempt delivery again via the API.
+- **Cursors:** (If applicable) Monitor the database cursors that track the ingestion progress for various Source Systems.
+
+### 🔌 Source Credentials & 🎯 Target Credentials
+
+*(Requires `ADMIN` role)*
+
+Dedicated tabs for managing encrypted database and API credentials used by the Collector and Delivery layers:
+- **Source Credentials:** Securely configure connection strings, usernames, and passwords for PostgreSQL, Oracle, or Kafka source systems.
+- **Target Credentials:** Securely store SaaS API Keys, Base URLs, and authentication tokens for data delivery.
+- **Note:** The frontend never transmits plain-text passwords. Changes are immediately passed to the Scheduler's Key Vault (KEK-encrypted).
 
 ### 👥 RBAC Management
 
@@ -77,7 +87,7 @@ Manage system users and their roles directly from the frontend (requires `ADMIN`
 
 Allows users with `BACKUP-RESTORE` or `ADMIN` roles to seamlessly export and import the complete system configuration (jobs, sources, targets, rules) as JSON. Backups are automatically saved to your local `<Binary-Folder>/data/backup/` directory.
 
-### ⚙️ Settings & Configuration
+### ⚙️ Settings & Key Vault
 
 - **Configuration Profiles**: Switch between different encrypted environment configurations (`*.enc`). The active profile is displayed in the status bar.
 - **Network Proxy**: Configure HTTP/HTTPS proxies securely. Proxies are stored using libsodium (AES-GCM) encryption in the `configs/` directory.
