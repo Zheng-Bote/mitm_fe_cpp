@@ -90,7 +90,7 @@ bool ConfigManager::IsAdmin(const std::string& username) const {
 QString ConfigManager::GetAuthHeader() const {
     auto env = QProcessEnvironment::systemEnvironment();
     QString osUser = env.value("USER", env.value("USERNAME", "unknown"));
-    QString token = "helo_linux"; // Fallback
+    QString token = "";
     
     for (const auto& admin : m_config.admin_users) {
         if (admin.username == osUser.toStdString() && !admin.token.empty()) {

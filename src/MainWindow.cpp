@@ -1,3 +1,4 @@
+#include <QPointer>
 /**
  * SPDX-FileComment: MainWindow
  * SPDX-FileType: SOURCE
@@ -238,7 +239,8 @@ void MainWindow::showAboutDialog() {
   layout->addWidget(okButton);
 
   auto proxy = mitm::config::ConfigManager::GetInstance().GetProxyString();
-  std::thread([updateLabel, proxy]() {
+  QPointer<QLabel> safeLabel(updateLabel);
+  std::thread([safeLabel, proxy]() {
     try {
       auto future = ghupdate::check_github_update_async(
           std::string(rz::config::PROJECT_HOMEPAGE_URL),
@@ -246,23 +248,25 @@ void MainWindow::showAboutDialog() {
       auto result = future.get();
 
       QMetaObject::invokeMethod(
-          updateLabel,
-          [updateLabel, result]() {
+          safeLabel,
+          [safeLabel, result]() {
+            if (!safeLabel) return;
             if (result.hasUpdate) {
-              updateLabel->setText(
+              safeLabel->setText(
                   QString("<font color='green'><b>🚀 Update available: "
                           "%1</b></font>")
                       .arg(QString::fromStdString(result.latestVersion)));
             } else {
-              updateLabel->setText("You are using the latest version.");
+              safeLabel->setText("You are using the latest version.");
             }
           },
           Qt::QueuedConnection);
     } catch (const std::exception &) {
       QMetaObject::invokeMethod(
-          updateLabel,
-          [updateLabel]() {
-            updateLabel->setText(
+          safeLabel,
+          [safeLabel]() {
+            if (!safeLabel) return;
+            safeLabel->setText(
                 "<font color='red'>Update check failed.</font><br/><i>Note: "
                 "You may need to configure a proxy in the Settings.</i>");
           },
