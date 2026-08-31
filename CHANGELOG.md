@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.25.0] - 2026-08-31
+
+### Fixed
+- **Security**: Removed the hardcoded fallback authentication token (`helo_linux`) in `ConfigManager::GetAuthHeader`. Unauthenticated requests now fail instead of silently passing.
+- **Security**: Fixed a use-after-free risk in the About dialog's asynchronous update check by guarding the status label with `QPointer`.
+- **Security**: Sanitized the OS username (`USER`/`USERNAME`) against path traversal before using it in configuration file paths.
+
+### Changed
+- **Documentation**: Synced the in-app User Guide with the recent UI and security changes. Removed `docs/todo.md` in favor of `admin-frontend.sdd`.
+
 ## [v0.24.0] - 2026-08-24
 
 ### Added
