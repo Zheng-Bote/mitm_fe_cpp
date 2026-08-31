@@ -4,10 +4,10 @@ Based on the Code Quality, Security, and Performance Report (2026-08-27), the fo
 
 ## Immediate Priority (Sofort)
 
-- [ ] **Remove Hardcoded Fallback Token:** Remove the hardcoded fallback token (`helo_linux`) and prevent any backend requests if valid credentials are not configured.
-- [ ] **Enforce Backend Authorization:** Verify and enforce backend-side authorization for all administrative routes. The UI Role-Based Access Control (RBAC) must not be treated as a security boundary.
-- [ ] **Fix Use-After-Free Risk in About Dialog:** Secure the update thread in the About dialog against use-after-free vulnerabilities by utilizing `QPointer<QLabel>` or QObject-bound asynchronous logic.
-- [ ] **Sanitize OS Username in File Paths:** Stop using the unvalidated OS username (`USER`/`USERNAME` environment variables) directly as part of the configuration file path to prevent path traversal or unintended file access.
+- [x] **Remove Hardcoded Fallback Token:** Remove the hardcoded fallback token (`helo_linux`) and prevent any backend requests if valid credentials are not configured.
+- [x] **Enforce Backend Authorization:** Verify and enforce backend-side authorization for all administrative routes. The UI Role-Based Access Control (RBAC) must not be treated as a security boundary.
+- [x] **Fix Use-After-Free Risk in About Dialog:** Secure the update thread in the About dialog against use-after-free vulnerabilities by utilizing `QPointer<QLabel>` or QObject-bound asynchronous logic.
+- [x] **Sanitize OS Username in File Paths:** Stop using the unvalidated OS username (`USER`/`USERNAME` environment variables) directly as part of the configuration file path to prevent path traversal or unintended file access.
 
 ## Short-term Priority (Kurzfristig)
 

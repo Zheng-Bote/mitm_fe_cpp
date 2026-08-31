@@ -1,3 +1,4 @@
+#include <QRegularExpression>
 /**
  * SPDX-FileComment: Config
  * SPDX-FileType: SOURCE
@@ -119,6 +120,8 @@ QString ConfigManager::GetHostUrl() const {
 void ConfigManager::LoadUserConfig() {
     auto env = QProcessEnvironment::systemEnvironment();
     QString osUser = env.value("USER", env.value("USERNAME", "unknown"));
+    osUser.remove(QRegularExpression("[^a-zA-Z0-9_-]"));
+    if (osUser.isEmpty()) osUser = "unknown";
     
     // Path should be in <Programm-Ordner>/configs/
     QString dir = QCoreApplication::applicationDirPath() + "/configs/";
@@ -158,6 +161,8 @@ void ConfigManager::SaveUserConfig(const ProxyConfig& proxyCfg) {
 
     auto env = QProcessEnvironment::systemEnvironment();
     QString osUser = env.value("USER", env.value("USERNAME", "unknown"));
+    osUser.remove(QRegularExpression("[^a-zA-Z0-9_-]"));
+    if (osUser.isEmpty()) osUser = "unknown";
     
     QString dir = QCoreApplication::applicationDirPath() + "/configs/";
     QDir().mkpath(dir); // Ensure the configs directory exists
