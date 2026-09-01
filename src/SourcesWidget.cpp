@@ -31,12 +31,13 @@
 #include <QDialogButtonBox>
 #include <QCheckBox>
 #include <spdlog/spdlog.h>
+#include "ApiClient.h"
 #include <nlohmann/json.hpp>
 
 using json = nlohmann::json;
 
 SourcesWidget::SourcesWidget(QWidget *parent)
-    : QWidget(parent), m_networkManager(new QNetworkAccessManager(this))
+    : QWidget(parent)
 {
     setupUi();
     onRefresh();
@@ -72,28 +73,19 @@ void SourcesWidget::setupUi() {
     connect(m_editBtn, &QPushButton::clicked, this, &SourcesWidget::onEditSource);
 }
 
-QString SourcesWidget::getAuthHeader() {
-    return mitm::config::ConfigManager::GetInstance().GetAuthHeader();
-}
-
 void SourcesWidget::onRefresh() {
     spdlog::info("Refreshing Sources...");
     fetchSources();
 }
 
 void SourcesWidget::fetchSources() {
-    QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
-    QNetworkRequest request(QUrl(host + "/admin/credentials")); // Hypothetical endpoint
-    request.setRawHeader("Authorization", getAuthHeader().toLocal8Bit());
-    QNetworkReply* reply = m_networkManager->get(request);
-    
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        if (reply->error() == QNetworkReply::NoError) {
+    mitm::api::ApiClient::instance().get("/admin/credentials",
+        [this](const QByteArray& data, QNetworkReply*) {
             try {
                 m_table->setRowCount(0);
-                json data = json::parse(reply->readAll().toStdString());
-                if (data.is_array()) {
-                    for (const auto& item : data) {
+                json j = json::parse(data.toStdString());
+                if (j.is_array()) {
+                    for (const auto& item : j) {
                         int row = m_table->rowCount();
                         m_table->insertRow(row);
                         
@@ -118,8 +110,10 @@ void SourcesWidget::fetchSources() {
             } catch (...) {
                 spdlog::error("Parse Error fetching sources");
             }
-        } else {
-            spdlog::error("Error fetching sources: {}", reply->errorString().toStdString());
+            m_table->resizeColumnsToContents();
+        },
+        [this](int /*statusCode*/, const QString& errorString) {
+            spdlog::error("Error fetching sources: {}", errorString.toStdString());
             // Mock data for demonstration if backend not available
             m_table->setRowCount(0);
             m_table->insertRow(0);
@@ -129,10 +123,9 @@ void SourcesWidget::fetchSources() {
             m_table->setItem(0, 3, new QTableWidgetItem("Employee"));
             m_table->setItem(0, 4, new QTableWidgetItem("{\"host\":\"localhost\"}"));
             m_table->setItem(0, 5, new QTableWidgetItem("Yes"));
+            m_table->resizeColumnsToContents();
         }
-        m_table->resizeColumnsToContents();
-        reply->deleteLater();
-    });
+    );
 }
 
 void SourcesWidget::onAddSource() {
@@ -168,21 +161,15 @@ void SourcesWidget::onAddSource() {
         j["config_payload"] = configEdit->toPlainText().toStdString();
         j["is_active"] = activeCheck->isChecked();
 
-        QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
-        QNetworkRequest request(QUrl(host + "/admin/credentials"));
-        request.setRawHeader("Authorization", getAuthHeader().toLocal8Bit());
-        request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-
-        QNetworkReply* reply = m_networkManager->post(request, QString::fromStdString(j.dump()).toUtf8());
-        connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-            if (reply->error() == QNetworkReply::NoError) {
+        mitm::api::ApiClient::instance().post("/admin/credentials", QString::fromStdString(j.dump()).toUtf8(),
+            [this](const QByteArray&, QNetworkReply*) {
                 QMessageBox::information(this, "Success", "Source added.");
                 onRefresh();
-            } else {
-                QMessageBox::critical(this, "Error", "Failed to add source: " + reply->errorString());
+            },
+            [this](int /*statusCode*/, const QString& errorString) {
+                QMessageBox::critical(this, "Error", "Failed to add source: " + errorString);
             }
-            reply->deleteLater();
-        });
+        );
     }
 }
 
@@ -233,20 +220,14 @@ void SourcesWidget::onEditSource() {
         j["config_payload"] = configEdit->toPlainText().toStdString();
         j["is_active"] = activeCheck->isChecked();
 
-        QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
-        QNetworkRequest request(QUrl(host + "/admin/credentials"));
-        request.setRawHeader("Authorization", getAuthHeader().toLocal8Bit());
-        request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-
-        QNetworkReply* reply = m_networkManager->post(request, QString::fromStdString(j.dump()).toUtf8());
-        connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-            if (reply->error() == QNetworkReply::NoError) {
+        mitm::api::ApiClient::instance().post("/admin/credentials", QString::fromStdString(j.dump()).toUtf8(),
+            [this](const QByteArray&, QNetworkReply*) {
                 QMessageBox::information(this, "Success", "Source updated.");
                 onRefresh();
-            } else {
-                QMessageBox::critical(this, "Error", "Failed to update source: " + reply->errorString());
+            },
+            [this](int /*statusCode*/, const QString& errorString) {
+                QMessageBox::critical(this, "Error", "Failed to update source: " + errorString);
             }
-            reply->deleteLater();
-        });
+        );
     }
 }

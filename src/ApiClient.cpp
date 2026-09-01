@@ -11,6 +11,8 @@
 #include <QUrl>
 #include <QDebug>
 #include <QTimer>
+#include <QElapsedTimer>
+#include <spdlog/spdlog.h>
 
 namespace mitm::api {
 
@@ -31,7 +33,12 @@ QNetworkRequest ApiClient::createRequest(const QString& path) const {
 }
 
 void ApiClient::handleReply(QNetworkReply* reply, const SuccessCallback& onSuccess, const ErrorCallback& onError) {
-    connect(reply, &QNetworkReply::finished, this, [this, reply, onSuccess, onError]() {
+    QElapsedTimer* timer = new QElapsedTimer();
+    timer->start();
+
+    connect(reply, &QNetworkReply::finished, this, [this, reply, timer, onSuccess, onError]() {
+        qint64 elapsed = timer->elapsed();
+        delete timer;
         reply->deleteLater();
         int statusCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
 
@@ -39,11 +46,25 @@ void ApiClient::handleReply(QNetworkReply* reply, const SuccessCallback& onSucce
             emit unauthorized();
         }
 
+        QString method = reply->request().attribute(QNetworkRequest::CustomVerbAttribute).toString();
+        if (method.isEmpty()) {
+            switch (reply->operation()) {
+                case QNetworkAccessManager::GetOperation: method = "GET"; break;
+                case QNetworkAccessManager::PostOperation: method = "POST"; break;
+                case QNetworkAccessManager::PutOperation: method = "PUT"; break;
+                case QNetworkAccessManager::DeleteOperation: method = "DELETE"; break;
+                default: method = "UNKNOWN"; break;
+            }
+        }
+        QString urlPath = reply->url().path();
+
         if (reply->error() == QNetworkReply::NoError) {
+            spdlog::info("[Telemetry] API SUCCESS: {} {} - Latency: {}ms - Status: {}", method.toStdString(), urlPath.toStdString(), elapsed, statusCode);
             if (onSuccess) {
                 onSuccess(reply->readAll(), reply);
             }
         } else {
+            spdlog::warn("[Telemetry] API ERROR: {} {} - Latency: {}ms - Status: {} - Error: {}", method.toStdString(), urlPath.toStdString(), elapsed, statusCode, reply->errorString().toStdString());
             if (onError) {
                 onError(statusCode, reply->errorString());
             } else {

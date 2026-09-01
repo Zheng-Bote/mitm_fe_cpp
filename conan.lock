@@ -1,0 +1,19 @@
+{
+    "version": "0.5",
+    "requires": [
+        "zlib/1.3.2#1cb806da49011867778ffb6ac7190fcb%1777558780.503",
+        "spdlog/1.17.0#bcbaaf7147bda6ad24ffbd1ac3d7142c%1767636069.964",
+        "openssl/3.6.2#36f92686a9285adfe2ccd1c1dbf9ea35%1775635547.022",
+        "nlohmann_json/3.12.0#2d634ab0ec8d9f56353e5ccef6d6612c%1744735883.94",
+        "libsodium/1.0.21#97a4d338addc5776009f94afde8b493d%1774434089.821",
+        "fmt/12.1.0#50abab23274d56bb8f42c94b3b9a40c7%1761885265.231",
+        "flatbuffers/23.5.26#0290575326fe9b2c39a0236ea81d8c30%1743154511.803",
+        "cpp-httplib/0.44.0#ddb45a54b9e778385d128c6f22744a08%1778683407.387"
+    ],
+    "build_requires": [
+        "strawberryperl/5.32.1.1#8d114504d172cfea8ea1662d09b6333e%1751971032.423",
+        "nasm/2.16.01#31e26f2ee3c4346ecd347911bd126904%1745483323.489"
+    ],
+    "python_requires": [],
+    "config_requires": []
+}

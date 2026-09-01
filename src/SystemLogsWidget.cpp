@@ -33,8 +33,10 @@
 #include "Config.h"
 #include "schematas/system_logs_generated.h"
 
+#include "ApiClient.h"
+
 SystemLogsWidget::SystemLogsWidget(QWidget *parent)
-    : QWidget(parent), m_networkManager(new QNetworkAccessManager(this))
+    : QWidget(parent)
 {
     auto mainLayout = new QVBoxLayout(this);
 
@@ -67,27 +69,14 @@ SystemLogsWidget::SystemLogsWidget(QWidget *parent)
     connect(m_exportButton, &QPushButton::clicked, this, &SystemLogsWidget::onExportCsv);
 }
 
-QString SystemLogsWidget::getAuthHeader() {
-    return mitm::config::ConfigManager::GetInstance().GetAuthHeader();
-}
-
 void SystemLogsWidget::onRefresh() {
     m_refreshButton->setEnabled(false);
     
-    QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
-    QUrl url(host + "/admin/logs/system_bin");
-    QNetworkRequest request(url);
-    request.setRawHeader("Authorization", getAuthHeader().toLocal8Bit());
-    
-    QNetworkReply* reply = m_networkManager->get(request);
-    
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        m_refreshButton->setEnabled(true);
-
-        if (reply->error() == QNetworkReply::NoError) {
+    mitm::api::ApiClient::instance().get("/admin/logs/system_bin",
+        [this](const QByteArray& data, QNetworkReply*) {
+            m_refreshButton->setEnabled(true);
             m_model->setRowCount(0);
             try {
-                QByteArray data = reply->readAll();
                 flatbuffers::Verifier verifier(reinterpret_cast<const uint8_t*>(data.constData()), data.size());
                 if (!schematas::VerifySystemLogListBuffer(verifier)) {
                     spdlog::error("Invalid SystemLogs FlatBuffer data received");
@@ -120,14 +109,16 @@ void SystemLogsWidget::onRefresh() {
             } catch (const std::exception& e) {
                 spdlog::error("FlatBuffers parsing error in SystemLogs: {}", e.what());
             }
-        } else {
-            spdlog::error("SystemLogs API failed: {}", reply->errorString().toStdString());
+            m_tableView->resizeColumnsToContents();
+        },
+        [this](int /*statusCode*/, const QString& errorString) {
+            m_refreshButton->setEnabled(true);
+            spdlog::error("SystemLogs API failed: {}", errorString.toStdString());
             m_model->setRowCount(0);
-            m_model->appendRow({new QStandardItem("Error"), new QStandardItem(reply->errorString())});
+            m_model->appendRow({new QStandardItem("Error"), new QStandardItem(errorString)});
+            m_tableView->resizeColumnsToContents();
         }
-        m_tableView->resizeColumnsToContents();
-        reply->deleteLater();
-    });
+    );
 }
 
 void SystemLogsWidget::onExportCsv() {

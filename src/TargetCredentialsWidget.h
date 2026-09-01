@@ -20,7 +20,6 @@
 #include <QWidget>
 #include <QTableWidget>
 #include <QPushButton>
-#include <QNetworkAccessManager>
 
 class TargetCredentialsWidget : public QWidget {
     Q_OBJECT
@@ -37,11 +36,9 @@ private slots:
 private:
     void setupUi();
     void fetchTargets();
-    QString getAuthHeader();
 
     QTableWidget* m_table;
     QPushButton* m_refreshBtn;
     QPushButton* m_addBtn;
     QPushButton* m_editBtn;
-    QNetworkAccessManager* m_networkManager;
 };

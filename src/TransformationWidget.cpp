@@ -29,8 +29,10 @@
 
 using json = nlohmann::json;
 
+#include "ApiClient.h"
+
 TransformationWidget::TransformationWidget(QWidget *parent)
-    : QWidget(parent), m_networkManager(new QNetworkAccessManager(this)) {
+    : QWidget(parent) {
     
     auto mainLayout = new QVBoxLayout(this);
     m_tabWidget = new QTabWidget(this);
@@ -65,47 +67,34 @@ TransformationWidget::TransformationWidget(QWidget *parent)
     onRefreshValidations();
 }
 
-QString TransformationWidget::getAuthHeader() {
-    return mitm::config::ConfigManager::GetInstance().GetAuthHeader();
-}
-
 void TransformationWidget::postEntity(const QString& endpoint, const nlohmann::json& payload, const std::function<void()>& onSuccess) {
-    QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
-    QUrl url(host + endpoint);
-    QNetworkRequest request(url);
-    request.setRawHeader("Authorization", getAuthHeader().toLocal8Bit());
-    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-
-    QNetworkReply* reply = m_networkManager->post(request, QString::fromStdString(payload.dump()).toUtf8());
-    connect(reply, &QNetworkReply::finished, this, [this, reply, onSuccess]() {
-        if (reply->error() == QNetworkReply::NoError) {
+    if (!mitm::config::ConfigManager::GetInstance().HasRole("ADMIN")) {
+        QMessageBox::warning(this, "Permission Denied", "Only users with the 'ADMIN' role can modify transformations.");
+        return;
+    }
+    mitm::api::ApiClient::instance().post(endpoint, QString::fromStdString(payload.dump()).toUtf8(),
+        [onSuccess](const QByteArray&, QNetworkReply*) {
             onSuccess();
-        } else {
-            QString errBody = reply->readAll();
-            if (errBody.isEmpty()) errBody = reply->errorString();
-            QMessageBox::critical(this, "Error", "Failed to save: " + errBody);
+        },
+        [this](int /*statusCode*/, const QString& errorString) {
+            QMessageBox::critical(this, "Error", "Failed to save: " + errorString);
         }
-        reply->deleteLater();
-    });
+    );
 }
 
 void TransformationWidget::deleteEntity(const QString& endpoint, const QString& id, const std::function<void()>& onSuccess) {
-    QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
-    QUrl url(host + endpoint + "?id=" + id);
-    QNetworkRequest request(url);
-    request.setRawHeader("Authorization", getAuthHeader().toLocal8Bit());
-
-    QNetworkReply* reply = m_networkManager->deleteResource(request);
-    connect(reply, &QNetworkReply::finished, this, [this, reply, onSuccess]() {
-        if (reply->error() == QNetworkReply::NoError) {
+    if (!mitm::config::ConfigManager::GetInstance().HasRole("ADMIN")) {
+        QMessageBox::warning(this, "Permission Denied", "Only users with the 'ADMIN' role can modify transformations.");
+        return;
+    }
+    mitm::api::ApiClient::instance().deleteResource(endpoint + "?id=" + id,
+        [onSuccess](const QByteArray&, QNetworkReply*) {
             onSuccess();
-        } else {
-            QString errBody = reply->readAll();
-            if (errBody.isEmpty()) errBody = reply->errorString();
-            QMessageBox::critical(this, "Error", "Failed to delete: " + errBody);
+        },
+        [this](int /*statusCode*/, const QString& errorString) {
+            QMessageBox::critical(this, "Error", "Failed to delete: " + errorString);
         }
-        reply->deleteLater();
-    });
+    );
 }
 
 
@@ -298,20 +287,14 @@ void TransformationWidget::setupValidationsTab(QWidget* tab) {
 // ---------------------------------------------------------
 
 void TransformationWidget::onRefreshSources() {
-    QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
-    QUrl url(host + "/admin/transformation/sources");
-    QNetworkRequest request(url);
-    request.setRawHeader("Authorization", getAuthHeader().toLocal8Bit());
-    
-    auto reply = m_networkManager->get(request);
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        if (reply->error() == QNetworkReply::NoError) {
+    mitm::api::ApiClient::instance().get("/admin/transformation/sources",
+        [this](const QByteArray& data, QNetworkReply*) {
             m_sourcesTable->setSortingEnabled(false);
             m_sourcesTable->setRowCount(0);
             try {
-                json data = json::parse(reply->readAll().toStdString());
-                if (data.is_array()) {
-                    for (const auto& item : data) {
+                json j = json::parse(data.toStdString());
+                if (j.is_array()) {
+                    for (const auto& item : j) {
                         int row = m_sourcesTable->rowCount();
                         m_sourcesTable->insertRow(row);
                         m_sourcesTable->setItem(row, 0, new QTableWidgetItem(QString::fromStdString(item.value("id", ""))));
@@ -330,29 +313,23 @@ void TransformationWidget::onRefreshSources() {
                 spdlog::error("JSON parse error on sources");
             }
             m_sourcesTable->setSortingEnabled(true);
-        } else {
-            spdlog::error("Error fetching sources: {}", reply->errorString().toStdString());
+            m_sourcesTable->resizeColumnsToContents();
+        },
+        [this](int /*statusCode*/, const QString& errorString) {
+            spdlog::error("Error fetching sources: {}", errorString.toStdString());
         }
-        m_sourcesTable->resizeColumnsToContents();
-        reply->deleteLater();
-    });
+    );
 }
 
 void TransformationWidget::onRefreshTargets() {
-    QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
-    QUrl url(host + "/admin/transformation/targets");
-    QNetworkRequest request(url);
-    request.setRawHeader("Authorization", getAuthHeader().toLocal8Bit());
-    
-    auto reply = m_networkManager->get(request);
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        if (reply->error() == QNetworkReply::NoError) {
+    mitm::api::ApiClient::instance().get("/admin/transformation/targets",
+        [this](const QByteArray& data, QNetworkReply*) {
             m_targetsTable->setSortingEnabled(false);
             m_targetsTable->setRowCount(0);
             try {
-                json data = json::parse(reply->readAll().toStdString());
-                if (data.is_array()) {
-                    for (const auto& item : data) {
+                json j = json::parse(data.toStdString());
+                if (j.is_array()) {
+                    for (const auto& item : j) {
                         int row = m_targetsTable->rowCount();
                         m_targetsTable->insertRow(row);
                         m_targetsTable->setItem(row, 0, new QTableWidgetItem(QString::fromStdString(item.value("id", ""))));
@@ -368,27 +345,23 @@ void TransformationWidget::onRefreshTargets() {
                 spdlog::error("JSON parse error on targets");
             }
             m_targetsTable->setSortingEnabled(true);
+            m_targetsTable->resizeColumnsToContents();
+        },
+        [this](int /*statusCode*/, const QString& errorString) {
+            spdlog::error("Error fetching targets: {}", errorString.toStdString());
         }
-        m_targetsTable->resizeColumnsToContents();
-        reply->deleteLater();
-    });
+    );
 }
 
 void TransformationWidget::onRefreshRules() {
-    QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
-    QUrl url(host + "/admin/transformation/rules");
-    QNetworkRequest request(url);
-    request.setRawHeader("Authorization", getAuthHeader().toLocal8Bit());
-    
-    auto reply = m_networkManager->get(request);
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        if (reply->error() == QNetworkReply::NoError) {
+    mitm::api::ApiClient::instance().get("/admin/transformation/rules",
+        [this](const QByteArray& data, QNetworkReply*) {
             m_rulesTable->setSortingEnabled(false);
             m_rulesTable->setRowCount(0);
             try {
-                json data = json::parse(reply->readAll().toStdString());
-                if (data.is_array()) {
-                    for (const auto& item : data) {
+                json j = json::parse(data.toStdString());
+                if (j.is_array()) {
+                    for (const auto& item : j) {
                         int row = m_rulesTable->rowCount();
                         m_rulesTable->insertRow(row);
                         m_rulesTable->setItem(row, 0, new QTableWidgetItem(QString::fromStdString(item.value("id", ""))));
@@ -429,27 +402,23 @@ void TransformationWidget::onRefreshRules() {
                 spdlog::error("JSON parse error on rules");
             }
             m_rulesTable->setSortingEnabled(true);
+            m_rulesTable->resizeColumnsToContents();
+        },
+        [this](int /*statusCode*/, const QString& errorString) {
+            spdlog::error("Error fetching rules: {}", errorString.toStdString());
         }
-        m_rulesTable->resizeColumnsToContents();
-        reply->deleteLater();
-    });
+    );
 }
 
 void TransformationWidget::onRefreshTransformations() {
-    QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
-    QUrl url(host + "/admin/transformation/transformations");
-    QNetworkRequest request(url);
-    request.setRawHeader("Authorization", getAuthHeader().toLocal8Bit());
-    
-    auto reply = m_networkManager->get(request);
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        if (reply->error() == QNetworkReply::NoError) {
+    mitm::api::ApiClient::instance().get("/admin/transformation/transformations",
+        [this](const QByteArray& data, QNetworkReply*) {
             m_transformTable->setSortingEnabled(false);
             m_transformTable->setRowCount(0);
             try {
-                json data = json::parse(reply->readAll().toStdString());
-                if (data.is_array()) {
-                    for (const auto& item : data) {
+                json j = json::parse(data.toStdString());
+                if (j.is_array()) {
+                    for (const auto& item : j) {
                         int row = m_transformTable->rowCount();
                         m_transformTable->insertRow(row);
                         m_transformTable->setItem(row, 0, new QTableWidgetItem(QString::fromStdString(item.value("id", ""))));
@@ -468,27 +437,23 @@ void TransformationWidget::onRefreshTransformations() {
                 spdlog::error("JSON parse error on transformations");
             }
             m_transformTable->setSortingEnabled(true);
+            m_transformTable->resizeColumnsToContents();
+        },
+        [this](int /*statusCode*/, const QString& errorString) {
+            spdlog::error("Error fetching transformations: {}", errorString.toStdString());
         }
-        m_transformTable->resizeColumnsToContents();
-        reply->deleteLater();
-    });
+    );
 }
 
 void TransformationWidget::onRefreshValidations() {
-    QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
-    QUrl url(host + "/admin/transformation/validations");
-    QNetworkRequest request(url);
-    request.setRawHeader("Authorization", getAuthHeader().toLocal8Bit());
-    
-    auto reply = m_networkManager->get(request);
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        if (reply->error() == QNetworkReply::NoError) {
+    mitm::api::ApiClient::instance().get("/admin/transformation/validations",
+        [this](const QByteArray& data, QNetworkReply*) {
             m_validTable->setSortingEnabled(false);
             m_validTable->setRowCount(0);
             try {
-                json data = json::parse(reply->readAll().toStdString());
-                if (data.is_array()) {
-                    for (const auto& item : data) {
+                json j = json::parse(data.toStdString());
+                if (j.is_array()) {
+                    for (const auto& item : j) {
                         int row = m_validTable->rowCount();
                         m_validTable->insertRow(row);
                         m_validTable->setItem(row, 0, new QTableWidgetItem(QString::fromStdString(item.value("id", ""))));
@@ -507,10 +472,12 @@ void TransformationWidget::onRefreshValidations() {
                 spdlog::error("JSON parse error on validations");
             }
             m_validTable->setSortingEnabled(true);
+            m_validTable->resizeColumnsToContents();
+        },
+        [this](int /*statusCode*/, const QString& errorString) {
+            spdlog::error("Error fetching validations: {}", errorString.toStdString());
         }
-        m_validTable->resizeColumnsToContents();
-        reply->deleteLater();
-    });
+    );
 }
 
 // --- CRUD Impl ---

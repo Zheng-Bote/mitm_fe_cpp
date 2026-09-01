@@ -24,8 +24,10 @@
 
 using json = nlohmann::json;
 
+#include "ApiClient.h"
+
 TopicDependenciesWidget::TopicDependenciesWidget(QWidget *parent)
-    : QWidget(parent), m_networkManager(new QNetworkAccessManager(this))
+    : QWidget(parent)
 {
     auto mainLayout = new QVBoxLayout(this);
 
@@ -59,29 +61,17 @@ TopicDependenciesWidget::TopicDependenciesWidget(QWidget *parent)
     onRefresh();
 }
 
-QString TopicDependenciesWidget::getAuthHeader() {
-    return mitm::config::ConfigManager::GetInstance().GetAuthHeader();
-}
-
 void TopicDependenciesWidget::onRefresh() {
     m_refreshButton->setEnabled(false);
     
-    QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
-    QUrl url(host + "/admin/transformation/topic-dependencies");
-    QNetworkRequest request(url);
-    request.setRawHeader("Authorization", getAuthHeader().toLocal8Bit());
-    
-    QNetworkReply* reply = m_networkManager->get(request);
-    
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        m_refreshButton->setEnabled(true);
-
-        if (reply->error() == QNetworkReply::NoError) {
+    mitm::api::ApiClient::instance().get("/admin/transformation/topic-dependencies",
+        [this](const QByteArray& data, QNetworkReply*) {
+            m_refreshButton->setEnabled(true);
             m_model->setRowCount(0);
             try {
-                json data = json::parse(reply->readAll().toStdString());
-                if (data.is_array()) {
-                    for (const auto& row : data) {
+                json j = json::parse(data.toStdString());
+                if (j.is_array()) {
+                    for (const auto& row : j) {
                         QList<QStandardItem*> rowItems;
                         rowItems << new QStandardItem(QString::fromStdString(row.value("topic", "")));
                         
@@ -99,13 +89,14 @@ void TopicDependenciesWidget::onRefresh() {
             } catch (const std::exception& e) {
                 spdlog::error("JSON parsing error in TopicDependencies: {}", e.what());
             }
-        } else {
-            spdlog::error("TopicDependencies API failed: {}", reply->errorString().toStdString());
+        },
+        [this](int /*statusCode*/, const QString& errorString) {
+            m_refreshButton->setEnabled(true);
+            spdlog::error("TopicDependencies API failed: {}", errorString.toStdString());
             m_model->setRowCount(0);
-            m_model->appendRow({new QStandardItem("Error"), new QStandardItem(reply->errorString())});
+            m_model->appendRow({new QStandardItem("Error"), new QStandardItem(errorString)});
         }
-        reply->deleteLater();
-    });
+    );
 }
 
 void TopicDependenciesWidget::onAdd() {
@@ -126,21 +117,14 @@ void TopicDependenciesWidget::onAdd() {
     payload["topic"] = topic;
     payload["required_sources"] = sourcesArray;
 
-    QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
-    QUrl url(host + "/admin/transformation/topic-dependencies");
-    QNetworkRequest request(url);
-    request.setRawHeader("Authorization", getAuthHeader().toLocal8Bit());
-    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-
-    QNetworkReply* reply = m_networkManager->post(request, QJsonDocument(payload).toJson());
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        if (reply->error() == QNetworkReply::NoError) {
+    mitm::api::ApiClient::instance().post("/admin/transformation/topic-dependencies", QJsonDocument(payload).toJson(),
+        [this](const QByteArray&, QNetworkReply*) {
             onRefresh();
-        } else {
-            QMessageBox::critical(this, "Error", "Failed to add topic dependency:\n" + reply->errorString());
+        },
+        [this](int /*statusCode*/, const QString& errorString) {
+            QMessageBox::critical(this, "Error", "Failed to add topic dependency:\n" + errorString);
         }
-        reply->deleteLater();
-    });
+    );
 }
 
 void TopicDependenciesWidget::onDelete() {
@@ -154,18 +138,12 @@ void TopicDependenciesWidget::onDelete() {
         return;
     }
 
-    QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
-    QUrl url(host + "/admin/transformation/topic-dependencies?topic=" + topic);
-    QNetworkRequest request(url);
-    request.setRawHeader("Authorization", getAuthHeader().toLocal8Bit());
-
-    QNetworkReply* reply = m_networkManager->deleteResource(request);
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        if (reply->error() == QNetworkReply::NoError) {
+    mitm::api::ApiClient::instance().deleteResource("/admin/transformation/topic-dependencies?topic=" + topic,
+        [this](const QByteArray&, QNetworkReply*) {
             onRefresh();
-        } else {
-            QMessageBox::critical(this, "Error", "Failed to delete topic dependency:\n" + reply->errorString());
+        },
+        [this](int /*statusCode*/, const QString& errorString) {
+            QMessageBox::critical(this, "Error", "Failed to delete topic dependency:\n" + errorString);
         }
-        reply->deleteLater();
-    });
+    );
 }

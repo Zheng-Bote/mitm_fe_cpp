@@ -65,6 +65,11 @@ void UploadWidget::browseFile() {
 }
 
 void UploadWidget::uploadFile() {
+  if (!mitm::config::ConfigManager::GetInstance().HasRole("UPLOADER") && !mitm::config::ConfigManager::GetInstance().HasRole("ADMIN")) {
+      QMessageBox::warning(this, "Permission Denied", "Only users with the 'UPLOADER' or 'ADMIN' role can upload files.");
+      return;
+  }
+
   QString topic = m_topicEdit->text().trimmed();
   QString filePath = m_fileEdit->text().trimmed();
 

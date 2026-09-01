@@ -22,8 +22,10 @@
 #include "Config.h"
 #include "schematas/transformation_errors_generated.h"
 
+#include "ApiClient.h"
+
 TransformationErrorsWidget::TransformationErrorsWidget(QWidget *parent)
-    : QWidget(parent), m_networkManager(new QNetworkAccessManager(this))
+    : QWidget(parent)
 {
     auto mainLayout = new QVBoxLayout(this);
 
@@ -56,28 +58,15 @@ TransformationErrorsWidget::TransformationErrorsWidget(QWidget *parent)
     onRefresh(); // Initial load
 }
 
-QString TransformationErrorsWidget::getAuthHeader() {
-    return mitm::config::ConfigManager::GetInstance().GetAuthHeader();
-}
-
 void TransformationErrorsWidget::onRefresh() {
     m_refreshButton->setEnabled(false);
     
-    QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
-    QUrl url(host + "/admin/transformation/errors_bin");
-    QNetworkRequest request(url);
-    request.setRawHeader("Authorization", getAuthHeader().toLocal8Bit());
-    
-    QNetworkReply* reply = m_networkManager->get(request);
-    
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        m_refreshButton->setEnabled(true);
-
-        if (reply->error() == QNetworkReply::NoError) {
+    mitm::api::ApiClient::instance().get("/admin/transformation/errors_bin",
+        [this](const QByteArray& data, QNetworkReply*) {
+            m_refreshButton->setEnabled(true);
             m_tableView->setSortingEnabled(false);
             m_model->setRowCount(0);
             try {
-                QByteArray data = reply->readAll();
                 flatbuffers::Verifier verifier(reinterpret_cast<const uint8_t*>(data.constData()), data.size());
                 if (!schematas::VerifyTransformationErrorListBuffer(verifier)) {
                     spdlog::error("Invalid TransformationErrors FlatBuffer data received");
@@ -111,16 +100,18 @@ void TransformationErrorsWidget::onRefresh() {
                 spdlog::error("FlatBuffers parsing error in TransformationErrors: {}", e.what());
             }
             m_tableView->setSortingEnabled(true);
-        } else {
-            spdlog::error("TransformationErrors API failed: {}", reply->errorString().toStdString());
+            m_tableView->resizeColumnsToContents();
+        },
+        [this](int /*statusCode*/, const QString& errorString) {
+            m_refreshButton->setEnabled(true);
+            spdlog::error("TransformationErrors API failed: {}", errorString.toStdString());
             m_tableView->setSortingEnabled(false);
             m_model->setRowCount(0);
-            m_model->appendRow({new QStandardItem("Error"), new QStandardItem(reply->errorString())});
+            m_model->appendRow({new QStandardItem("Error"), new QStandardItem(errorString)});
             m_tableView->setSortingEnabled(true);
+            m_tableView->resizeColumnsToContents();
         }
-        m_tableView->resizeColumnsToContents();
-        reply->deleteLater();
-    });
+    );
 }
 
 void TransformationErrorsWidget::onExportCsv() {

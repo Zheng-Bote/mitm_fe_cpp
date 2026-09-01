@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.27.0] - 2026-09-01
+
+### Added
+- **Testing & CI**: Implemented CTest unit testing for cryptographic logic (`CryptoTest.cpp`) and integrated a GitHub Actions continuous integration pipeline (`ci.yml`).
+- **Security**: Added Conan dependency lockfiles (`conan.lock`) to serve as a Software Bill of Materials (SBOM) and integrated Aqua Security Trivy filesystem vulnerability scanning into the CI pipeline.
+- **Telemetry**: Added network telemetry tracking via `QElapsedTimer` and `spdlog` to record latency and HTTP response codes within the centralized `ApiClient` and update checker.
+
+### Changed
+- **Dependencies**: Removed `gh-update-checker` and implemented native, asynchronous GitHub API update checking using `QNetworkAccessManager` to prevent unauthenticated proxy credential enforcement.
+- **Architecture**: Completed migration of the remaining UI widgets to the new `ApiClient`, entirely replacing ad-hoc `QNetworkAccessManager` usage.
+
+### Fixed
+- **Security**: Fixed UI-layer authorization bypasses. Execution flows in `SchedulerWidget` and `UploadWidget` now strictly enforce local `ADMIN` / `UPLOADER` role validation before triggering sensitive actions.
+- **Security**: The application now seamlessly detects `401`/`403` HTTP status codes via `ApiClient` and gracefully halts, prompting the user to restart and re-authenticate.
+- **Update Checker**: Fixed a logic bug in semantic version comparison where the application incorrectly reported newer local builds as outdated compared to older remote GitHub tags.
+
 ## [v0.26.0] - 2026-08-31
 
 ### Added

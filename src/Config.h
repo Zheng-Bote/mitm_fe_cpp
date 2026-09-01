@@ -21,6 +21,7 @@
 #include <vector>
 #include <stdexcept>
 #include <QString>
+#include <QNetworkProxy>
 #include "SecureString.h"
 namespace mitm::config {
 
@@ -69,7 +70,7 @@ public:
         return std::find(m_userRoles.begin(), m_userRoles.end(), role) != m_userRoles.end();
     }
     
-    std::optional<std::string> GetProxyString() const;
+    QNetworkProxy GetProxy() const;
 
 private:
     ConfigManager() = default;

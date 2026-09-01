@@ -31,12 +31,13 @@
 #include <QDialogButtonBox>
 #include <QCheckBox>
 #include <spdlog/spdlog.h>
+#include "ApiClient.h"
 #include <nlohmann/json.hpp>
 
 using json = nlohmann::json;
 
 TargetCredentialsWidget::TargetCredentialsWidget(QWidget *parent)
-    : QWidget(parent), m_networkManager(new QNetworkAccessManager(this))
+    : QWidget(parent)
 {
     setupUi();
     onRefresh();
@@ -72,28 +73,19 @@ void TargetCredentialsWidget::setupUi() {
     connect(m_editBtn, &QPushButton::clicked, this, &TargetCredentialsWidget::onEditTarget);
 }
 
-QString TargetCredentialsWidget::getAuthHeader() {
-    return mitm::config::ConfigManager::GetInstance().GetAuthHeader();
-}
-
 void TargetCredentialsWidget::onRefresh() {
-    spdlog::info("Refreshing Sources...");
+    spdlog::info("Refreshing Targets...");
     fetchTargets();
 }
 
 void TargetCredentialsWidget::fetchTargets() {
-    QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
-    QNetworkRequest request(QUrl(host + "/admin/delivery_targets")); // Hypothetical endpoint
-    request.setRawHeader("Authorization", getAuthHeader().toLocal8Bit());
-    QNetworkReply* reply = m_networkManager->get(request);
-    
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        if (reply->error() == QNetworkReply::NoError) {
+    mitm::api::ApiClient::instance().get("/admin/delivery_targets",
+        [this](const QByteArray& data, QNetworkReply*) {
             try {
                 m_table->setRowCount(0);
-                json data = json::parse(reply->readAll().toStdString());
-                if (data.is_array()) {
-                    for (const auto& item : data) {
+                json j = json::parse(data.toStdString());
+                if (j.is_array()) {
+                    for (const auto& item : j) {
                         int row = m_table->rowCount();
                         m_table->insertRow(row);
                         
@@ -116,10 +108,12 @@ void TargetCredentialsWidget::fetchTargets() {
                     }
                 }
             } catch (...) {
-                spdlog::error("Parse Error fetching sources");
+                spdlog::error("Parse Error fetching targets");
             }
-        } else {
-            spdlog::error("Error fetching sources: {}", reply->errorString().toStdString());
+            m_table->resizeColumnsToContents();
+        },
+        [this](int /*statusCode*/, const QString& errorString) {
+            spdlog::error("Error fetching targets: {}", errorString.toStdString());
             // Mock data for demonstration if backend not available
             m_table->setRowCount(0);
             m_table->insertRow(0);
@@ -129,10 +123,9 @@ void TargetCredentialsWidget::fetchTargets() {
             m_table->setItem(0, 3, new QTableWidgetItem("https://demo.cority.com"));
             m_table->setItem(0, 4, new QTableWidgetItem("{\"host\":\"localhost\"}"));
             m_table->setItem(0, 5, new QTableWidgetItem("Yes"));
+            m_table->resizeColumnsToContents();
         }
-        m_table->resizeColumnsToContents();
-        reply->deleteLater();
-    });
+    );
 }
 
 void TargetCredentialsWidget::onAddTarget() {
@@ -168,21 +161,15 @@ void TargetCredentialsWidget::onAddTarget() {
         j["config_payload"] = configEdit->toPlainText().toStdString();
         j["is_active"] = activeCheck->isChecked();
 
-        QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
-        QNetworkRequest request(QUrl(host + "/admin/delivery_targets"));
-        request.setRawHeader("Authorization", getAuthHeader().toLocal8Bit());
-        request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-
-        QNetworkReply* reply = m_networkManager->post(request, QString::fromStdString(j.dump()).toUtf8());
-        connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-            if (reply->error() == QNetworkReply::NoError) {
+        mitm::api::ApiClient::instance().post("/admin/delivery_targets", QString::fromStdString(j.dump()).toUtf8(),
+            [this](const QByteArray&, QNetworkReply*) {
                 QMessageBox::information(this, "Success", "Source added.");
                 onRefresh();
-            } else {
-                QMessageBox::critical(this, "Error", "Failed to add source: " + reply->errorString());
+            },
+            [this](int /*statusCode*/, const QString& errorString) {
+                QMessageBox::critical(this, "Error", "Failed to add source: " + errorString);
             }
-            reply->deleteLater();
-        });
+        );
     }
 }
 
@@ -233,20 +220,14 @@ void TargetCredentialsWidget::onEditTarget() {
         j["config_payload"] = configEdit->toPlainText().toStdString();
         j["is_active"] = activeCheck->isChecked();
 
-        QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
-        QNetworkRequest request(QUrl(host + "/admin/delivery_targets"));
-        request.setRawHeader("Authorization", getAuthHeader().toLocal8Bit());
-        request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-
-        QNetworkReply* reply = m_networkManager->post(request, QString::fromStdString(j.dump()).toUtf8());
-        connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-            if (reply->error() == QNetworkReply::NoError) {
+        mitm::api::ApiClient::instance().post("/admin/delivery_targets", QString::fromStdString(j.dump()).toUtf8(),
+            [this](const QByteArray&, QNetworkReply*) {
                 QMessageBox::information(this, "Success", "Source updated.");
                 onRefresh();
-            } else {
-                QMessageBox::critical(this, "Error", "Failed to update source: " + reply->errorString());
+            },
+            [this](int /*statusCode*/, const QString& errorString) {
+                QMessageBox::critical(this, "Error", "Failed to update source: " + errorString);
             }
-            reply->deleteLater();
-        });
+        );
     }
 }

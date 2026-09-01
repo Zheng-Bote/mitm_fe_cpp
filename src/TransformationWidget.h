@@ -4,8 +4,6 @@
 #include <QTabWidget>
 #include <QTableWidget>
 #include <QPushButton>
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
 #include <nlohmann/json.hpp>
 
 class TransformationWidget : public QWidget {
@@ -40,8 +38,6 @@ private slots:
     void onDeleteValidation();
 
 private:
-    QNetworkAccessManager* m_networkManager;
-
     QTabWidget* m_tabWidget;
 
     QTableWidget* m_sourcesTable;
@@ -76,7 +72,6 @@ private:
     QPushButton* m_editValidBtn;
     QPushButton* m_deleteValidBtn;
 
-    QString getAuthHeader();
     void deleteEntity(const QString& endpoint, const QString& id, const std::function<void()>& onSuccess);
     void postEntity(const QString& endpoint, const nlohmann::json& payload, const std::function<void()>& onSuccess);
     void setupSourcesTab(QWidget* tab);

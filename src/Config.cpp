@@ -185,9 +185,11 @@ void ConfigManager::SaveUserConfig(const ProxyConfig& proxyCfg) {
     }
 }
 
-std::optional<std::string> ConfigManager::GetProxyString() const {
+QNetworkProxy ConfigManager::GetProxy() const {
+    QNetworkProxy proxy;
     if (!m_config.proxy.proxy_active || m_config.proxy.proxy_host.empty()) {
-        return std::nullopt;
+        proxy.setType(QNetworkProxy::NoProxy);
+        return proxy;
     }
 
     std::string host = m_config.proxy.proxy_host;
@@ -195,14 +197,16 @@ std::optional<std::string> ConfigManager::GetProxyString() const {
     if (host.starts_with("https://")) host = host.substr(8);
     else if (host.starts_with("http://")) host = host.substr(7);
 
-    std::string proxyStr;
+    proxy.setType(QNetworkProxy::HttpProxy);
+    proxy.setHostName(QString::fromStdString(host));
+    proxy.setPort(m_config.proxy.proxy_port);
+
     if (!m_config.proxy.proxy_username.empty() || !m_config.proxy.proxy_password.empty()) {
-        proxyStr = m_config.proxy.proxy_username + ":" + m_config.proxy.proxy_password.c_str() + "@" + host + ":" + std::to_string(m_config.proxy.proxy_port);
-    } else {
-        // dummy credentials so proxy regex parsing doesn't fail
-        proxyStr = "user:pass@" + host + ":" + std::to_string(m_config.proxy.proxy_port);
+        proxy.setUser(QString::fromStdString(m_config.proxy.proxy_username));
+        proxy.setPassword(QString::fromStdString(m_config.proxy.proxy_password.c_str()));
     }
-    return proxyStr;
+    
+    return proxy;
 }
 
 } // namespace mitm::config

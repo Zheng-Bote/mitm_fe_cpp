@@ -146,6 +146,10 @@ void SchedulerWidget::onRefreshClicked() {
 }
 
 void SchedulerWidget::onAddJob() {
+    if (!mitm::config::ConfigManager::GetInstance().HasRole("ADMIN")) {
+        QMessageBox::warning(this, "Permission Denied", "Only users with the 'ADMIN' role are allowed to add jobs.");
+        return;
+    }
     JobEditorDialog dlg(this);
     if (dlg.exec() == QDialog::Accepted) {
         json newJob = dlg.getJob();
@@ -159,6 +163,10 @@ void SchedulerWidget::onAddJob() {
 }
 
 void SchedulerWidget::onEditJob() {
+    if (!mitm::config::ConfigManager::GetInstance().HasRole("ADMIN")) {
+        QMessageBox::warning(this, "Permission Denied", "Only users with the 'ADMIN' role are allowed to edit jobs.");
+        return;
+    }
     auto selection = m_tableView->selectionModel()->selectedRows();
     if (selection.isEmpty()) return;
     int row = selection.first().row();
@@ -187,6 +195,10 @@ void SchedulerWidget::onEditJob() {
 }
 
 void SchedulerWidget::onDeleteJob() {
+    if (!mitm::config::ConfigManager::GetInstance().HasRole("ADMIN")) {
+        QMessageBox::warning(this, "Permission Denied", "Only users with the 'ADMIN' role are allowed to delete jobs.");
+        return;
+    }
     auto selection = m_tableView->selectionModel()->selectedRows();
     if (selection.isEmpty()) return;
     int row = selection.first().row();

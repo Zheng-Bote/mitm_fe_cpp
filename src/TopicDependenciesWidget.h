@@ -12,7 +12,6 @@
 #include <QTableView>
 #include <QStandardItemModel>
 #include <QPushButton>
-#include <QNetworkAccessManager>
 
 class TopicDependenciesWidget : public QWidget {
     Q_OBJECT
@@ -25,13 +24,9 @@ private slots:
     void onDelete();
 
 private:
-    QString getAuthHeader();
-    void loadData();
-
     QTableView* m_tableView;
     QStandardItemModel* m_model;
     QPushButton* m_refreshButton;
     QPushButton* m_addButton;
     QPushButton* m_deleteButton;
-    QNetworkAccessManager* m_networkManager;
 };

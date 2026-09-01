@@ -40,4 +40,5 @@ private:
 
     QTabWidget* m_tabWidget;
     DashboardWidget* m_dashboardWidget;
+    bool m_unauthorizedShown = false;
 };

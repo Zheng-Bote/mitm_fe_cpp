@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.25)
 project(mitm_fe_cpp
-VERSION 0.26.0
+VERSION 0.27.0
 DESCRIPTION "Admin frontend for the MitM project"
 HOMEPAGE_URL "https://github.com/Zheng-Bote/mitm_fe_cpp"
 LANGUAGES CXX)
@@ -25,16 +25,6 @@ set(CMAKE_AUTOUIC ON)
 # --- Dependencies via FetchContent ---
 include(FetchContent)
 
-FetchContent_Declare(
-  gh_update_checker
-  GIT_REPOSITORY https://github.com/Zheng-Bote/gh-update-checker.git
-  GIT_TAG        v1.2.0
-)
-FetchContent_MakeAvailable(gh_update_checker)
-if(NOT TARGET gh_update_checker::gh_update_checker)
-    add_library(gh_update_checker::gh_update_checker ALIAS gh_update_checker)
-endif()
-
 # Find Qt6 (assuming it is installed on the system and CMAKE_PREFIX_PATH is set if necessary)
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Network)
 set(QT_VERSION_MAJOR 6)
@@ -42,7 +32,7 @@ set(QT_VERSION_MAJOR 6)
 FetchContent_Declare(
   QXlsx
   GIT_REPOSITORY https://github.com/QtExcel/QXlsx.git
-  GIT_TAG        master
+  GIT_TAG        v1.5.1.1
   SOURCE_SUBDIR  QXlsx
 )
 FetchContent_MakeAvailable(QXlsx)
@@ -133,7 +123,6 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     httplib::httplib
     openssl::openssl
     flatbuffers::flatbuffers
-    gh_update_checker::gh_update_checker
     QXlsx::QXlsx
 )
 
@@ -148,3 +137,14 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 
 file(GENERATE OUTPUT "${CMAKE_BINARY_DIR}/${PROJECT_NAME}_libs.txt" 
      CONTENT "$<TARGET_PROPERTY:${PROJECT_NAME},LINK_LIBRARIES>")
+
+# --- Testing ---
+include(CTest)
+enable_testing()
+if(BUILD_TESTING)
+    find_package(Qt6 REQUIRED COMPONENTS Test)
+    add_executable(crypto_test tests/CryptoTest.cpp src/Crypto.cpp)
+    target_link_libraries(crypto_test PRIVATE Qt6::Core Qt6::Test libsodium::libsodium)
+    target_include_directories(crypto_test PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_SOURCE_DIR}/include)
+    add_test(NAME CryptoTest COMMAND crypto_test)
+endif()

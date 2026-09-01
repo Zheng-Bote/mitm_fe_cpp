@@ -38,13 +38,14 @@
 #include <QProcessEnvironment>
 #include <QStatusBar>
 #include <QVBoxLayout>
-#include <check_gh-update.hpp>
 #include <spdlog/spdlog.h>
 #include <QSysInfo>
 #include <thread>
 #include <QNetworkAccessManager>
 #include <QNetworkRequest>
 #include <QNetworkReply>
+#include <QUrl>
+#include <QElapsedTimer>
 #include <nlohmann/json.hpp>
 #include <QLabel>
 #include <QFileDialog>
@@ -52,6 +53,35 @@
 #include <QProcess>
 #include <QCoreApplication>
 #include <QMessageBox>
+#include "ExportReportDialog.h"
+
+#include <sstream>
+#include <vector>
+#include <string>
+
+namespace {
+int compareVersions(const std::string& a, const std::string& b) {
+    auto split = [](const std::string& v) {
+        std::vector<int> res;
+        std::stringstream ss(v);
+        std::string item;
+        while (std::getline(ss, item, '.')) {
+            try { res.push_back(std::stoi(item)); } catch(...) { res.push_back(0); }
+        }
+        return res;
+    };
+    auto va = split(a);
+    auto vb = split(b);
+    size_t len = std::max(va.size(), vb.size());
+    for (size_t i = 0; i < len; ++i) {
+        int partA = (i < va.size()) ? va[i] : 0;
+        int partB = (i < vb.size()) ? vb[i] : 0;
+        if (partA < partB) return -1;
+        if (partA > partB) return 1;
+    }
+    return 0;
+}
+} // namespace
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
   spdlog::info("Initializing MainWindow...");
@@ -160,24 +190,57 @@ void MainWindow::setupUi() {
       );
   }
 
-  // Check for updates asynchronously
-  auto proxy = mitm::config::ConfigManager::GetInstance().GetProxyString();
-  std::thread([proxy]() {
-    try {
-      auto future = ghupdate::check_github_update_async(
-          std::string(rz::config::PROJECT_HOMEPAGE_URL),
-          std::string(rz::config::VERSION), proxy);
-      auto result = future.get();
-
-      if (result.hasUpdate) {
-        spdlog::info("🚀 Update available: {}", result.latestVersion);
-      } else {
-        spdlog::info("Frontend is up-to-date.");
+  // Handle unauthorized events
+  connect(&mitm::api::ApiClient::instance(), &mitm::api::ApiClient::unauthorized, this, [this]() {
+      if (!m_unauthorizedShown) {
+          m_unauthorizedShown = true;
+          QMessageBox::critical(this, "Authentication Failed", 
+              "Your session is unauthorized (401/403). Please verify your roles and credentials, or restart to log in again.");
       }
-    } catch (const std::exception &e) {
-      spdlog::error("Update check failed: {}", e.what());
-    }
-  }).detach();
+  });
+
+  // Check for updates asynchronously
+  QNetworkAccessManager* manager = new QNetworkAccessManager(this);
+  manager->setProxy(mitm::config::ConfigManager::GetInstance().GetProxy());
+  
+  QString baseUrl = QString::fromStdString(std::string(rz::config::PROJECT_HOMEPAGE_URL));
+  QString apiUrl = baseUrl;
+  apiUrl.replace("https://github.com/", "https://api.github.com/repos/");
+  apiUrl += "/releases/latest";
+  
+  QNetworkRequest request((QUrl(apiUrl)));
+  request.setRawHeader("User-Agent", "MitmAdminFrontend");
+  request.setRawHeader("Accept", "application/vnd.github+json");
+  
+  QNetworkReply* reply = manager->get(request);
+  QElapsedTimer* timer = new QElapsedTimer();
+  timer->start();
+
+  connect(reply, &QNetworkReply::finished, this, [reply, manager, timer]() {
+      qint64 elapsed = timer->elapsed();
+      delete timer;
+
+      if (reply->error() == QNetworkReply::NoError) {
+          spdlog::info("[Telemetry] Update Check SUCCESS - Latency: {}ms", elapsed);
+          try {
+              nlohmann::json j = nlohmann::json::parse(reply->readAll().toStdString());
+              if (j.contains("tag_name")) {
+                  std::string latest = j["tag_name"].get<std::string>();
+                  if (latest.starts_with("v")) latest = latest.substr(1);
+                  std::string current = std::string(rz::config::VERSION);
+                  if (compareVersions(latest, current) > 0) {
+                      spdlog::info("🚀 Update available: {}", latest);
+                  } else {
+                      spdlog::info("Frontend is up-to-date.");
+                  }
+              }
+          } catch (...) {}
+      } else {
+          spdlog::error("[Telemetry] Update Check ERROR - Latency: {}ms - Error: {}", elapsed, reply->errorString().toStdString());
+      }
+      reply->deleteLater();
+      manager->deleteLater();
+  });
 }
 
 #include <QDialog>
@@ -232,41 +295,47 @@ void MainWindow::showAboutDialog() {
   layout->addStretch();
   layout->addWidget(okButton);
 
-  auto proxy = mitm::config::ConfigManager::GetInstance().GetProxyString();
   QPointer<QLabel> safeLabel(updateLabel);
-  std::thread([safeLabel, proxy]() {
-    try {
-      auto future = ghupdate::check_github_update_async(
-          std::string(rz::config::PROJECT_HOMEPAGE_URL),
-          std::string(rz::config::VERSION), proxy);
-      auto result = future.get();
-
-      QMetaObject::invokeMethod(
-          safeLabel,
-          [safeLabel, result]() {
-            if (!safeLabel) return;
-            if (result.hasUpdate) {
-              safeLabel->setText(
-                  QString("<font color='green'><b>🚀 Update available: "
-                          "%1</b></font>")
-                      .arg(QString::fromStdString(result.latestVersion)));
-            } else {
-              safeLabel->setText("You are using the latest version.");
-            }
-          },
-          Qt::QueuedConnection);
-    } catch (const std::exception &) {
-      QMetaObject::invokeMethod(
-          safeLabel,
-          [safeLabel]() {
-            if (!safeLabel) return;
-            safeLabel->setText(
-                "<font color='red'>Update check failed.</font><br/><i>Note: "
-                "You may need to configure a proxy in the Settings.</i>");
-          },
-          Qt::QueuedConnection);
-    }
-  }).detach();
+  
+  QNetworkAccessManager* manager = new QNetworkAccessManager(&dialog);
+  manager->setProxy(mitm::config::ConfigManager::GetInstance().GetProxy());
+  
+  QString baseUrl = QString::fromStdString(std::string(rz::config::PROJECT_HOMEPAGE_URL));
+  QString apiUrl = baseUrl;
+  apiUrl.replace("https://github.com/", "https://api.github.com/repos/");
+  apiUrl += "/releases/latest";
+  
+  QNetworkRequest request((QUrl(apiUrl)));
+  request.setRawHeader("User-Agent", "MitmAdminFrontend");
+  request.setRawHeader("Accept", "application/vnd.github+json");
+  
+  QNetworkReply* reply = manager->get(request);
+  connect(reply, &QNetworkReply::finished, &dialog, [safeLabel, reply, manager]() {
+      if (!safeLabel) {
+          reply->deleteLater();
+          return;
+      }
+      if (reply->error() == QNetworkReply::NoError) {
+          try {
+              nlohmann::json j = nlohmann::json::parse(reply->readAll().toStdString());
+              if (j.contains("tag_name")) {
+                  std::string latest = j["tag_name"].get<std::string>();
+                  if (latest.starts_with("v")) latest = latest.substr(1);
+                  std::string current = std::string(rz::config::VERSION);
+                  if (compareVersions(latest, current) > 0) {
+                      safeLabel->setText(QString("<font color='green'><b>🚀 Update available: %1</b></font>").arg(QString::fromStdString(latest)));
+                  } else {
+                      safeLabel->setText("You are using the latest version.");
+                  }
+              }
+          } catch (...) {
+              safeLabel->setText("Failed to parse update info.");
+          }
+      } else {
+          safeLabel->setText("<font color='red'>Update check failed.</font><br/><i>Note: You may need to configure a proxy in the Settings.</i>");
+      }
+      reply->deleteLater();
+  });
 
   dialog.exec();
 }
