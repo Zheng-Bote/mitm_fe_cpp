@@ -62,9 +62,19 @@ DashboardWidget::DashboardWidget(QWidget *parent)
     m_jobsLabel->setStyleSheet("font-size: 16px; padding: 15px; background-color: #2b2b2b; border-radius: 8px; color: white;");
     m_jobsLabel->setAlignment(Qt::AlignCenter);
 
+    m_dbInfoLabel = new QLabel("DB Info: Unknown", this);
+    m_dbInfoLabel->setStyleSheet("font-size: 16px; padding: 15px; background-color: #2b2b2b; border-radius: 8px; color: white;");
+    m_dbInfoLabel->setAlignment(Qt::AlignCenter);
+
+    m_dlqCursorLabel = new QLabel("DLQ Cursors: Unknown", this);
+    m_dlqCursorLabel->setStyleSheet("font-size: 16px; padding: 15px; background-color: #552222; border-radius: 8px; color: white;");
+    m_dlqCursorLabel->setAlignment(Qt::AlignCenter);
+
     gridLayout->addWidget(m_healthLabel, 0, 0);
     gridLayout->addWidget(m_engineLabel, 0, 1);
-    gridLayout->addWidget(m_jobsLabel, 1, 0, 1, 2);
+    gridLayout->addWidget(m_dbInfoLabel, 1, 0);
+    gridLayout->addWidget(m_dlqCursorLabel, 1, 1);
+    gridLayout->addWidget(m_jobsLabel, 2, 0, 1, 2);
 
     m_adminLogsLabel = new QLabel("Admin Audit Logs: Unknown", this);
     m_adminLogsLabel->setStyleSheet("font-size: 16px; padding: 15px; background-color: #2b2b2b; border-radius: 8px; color: white;");
@@ -82,10 +92,10 @@ DashboardWidget::DashboardWidget(QWidget *parent)
     m_transformErrorsLabel->setStyleSheet("font-size: 16px; padding: 15px; background-color: #552222; border-radius: 8px; color: white;");
     m_transformErrorsLabel->setAlignment(Qt::AlignCenter);
 
-    gridLayout->addWidget(m_adminLogsLabel, 2, 0, 1, 2);
-    gridLayout->addWidget(m_systemLogsLabel, 3, 0, 1, 2);
-    gridLayout->addWidget(m_jobLogsLabel, 4, 0, 1, 2);
-    gridLayout->addWidget(m_transformErrorsLabel, 5, 0, 1, 2);
+    gridLayout->addWidget(m_adminLogsLabel, 3, 0, 1, 2);
+    gridLayout->addWidget(m_systemLogsLabel, 4, 0, 1, 2);
+    gridLayout->addWidget(m_jobLogsLabel, 5, 0, 1, 2);
+    gridLayout->addWidget(m_transformErrorsLabel, 6, 0, 1, 2);
 
     mainLayout->addLayout(gridLayout);
     mainLayout->addStretch(); // Push elements to the top
@@ -102,6 +112,8 @@ void DashboardWidget::onRefreshClicked() {
     m_systemLogsLabel->setText("System Logs: Loading...");
     m_jobLogsLabel->setText("Job Audit Logs: Loading...");
     m_transformErrorsLabel->setText("Transformation Errors: Loading...");
+    m_dbInfoLabel->setText("DB Info: Loading...");
+    m_dlqCursorLabel->setText("DLQ Cursors: Loading...");
 
     fetchHealth();
     fetchInfo();
@@ -110,6 +122,7 @@ void DashboardWidget::onRefreshClicked() {
     fetchSystemLogsStats();
     fetchJobLogsStats();
     fetchTransformErrorsStats();
+    fetchDashboardStats();
 }
 
 void DashboardWidget::fetchHealth() {
@@ -314,3 +327,27 @@ void DashboardWidget::fetchTransformErrorsStats() {
     );
 }
 
+
+void DashboardWidget::fetchDashboardStats() {
+    mitm::api::ApiClient::instance().get("/admin/dashboard/stats",
+        [this](const QByteArray& data, QNetworkReply* reply) {
+            try {
+                auto j = json::parse(data.toStdString());
+                QString dbName = QString::fromStdString(j.value("db_name", "Unknown"));
+                QString dbVersion = QString::fromStdString(j.value("db_version", "Unknown"));
+                QString dbSize = QString::fromStdString(j.value("db_size", "Unknown"));
+                int dlqCount = j.value("dlq_count", 0);
+                
+                m_dbInfoLabel->setText(QString("DB: %1 %2\nSize: %3").arg(dbName).arg(dbVersion).arg(dbSize));
+                m_dlqCursorLabel->setText(QString("DLQ Cursors: %1").arg(dlqCount));
+            } catch (...) {
+                m_dbInfoLabel->setText("DB Info: Parse Error");
+                m_dlqCursorLabel->setText("DLQ Cursors: Parse Error");
+            }
+        },
+        [this](int statusCode, const QString& errorString) {
+            m_dbInfoLabel->setText("DB Info: Error 🔴");
+            m_dlqCursorLabel->setText("DLQ Cursors: Error 🔴");
+        }
+    );
+}

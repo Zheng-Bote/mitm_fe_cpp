@@ -39,9 +39,12 @@ private:
     void fetchSystemLogsStats();
     void fetchJobLogsStats();
     void fetchTransformErrorsStats();
+    void fetchDashboardStats();
     QLabel* m_healthLabel;
     QLabel* m_engineLabel;
     QLabel* m_jobsLabel;
+    QLabel* m_dbInfoLabel;
+    QLabel* m_dlqCursorLabel;
     QLabel* m_adminLogsLabel;
     QLabel* m_systemLogsLabel;
     QLabel* m_jobLogsLabel;
