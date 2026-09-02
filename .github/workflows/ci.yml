@@ -21,13 +21,13 @@ jobs:
         conan profile detect
 
     - name: Configure CMake
-      run: cmake -S admin-frontend/mitm_fe_cpp -B admin-frontend/mitm_fe_cpp/build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
+      run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
 
     - name: Build
-      run: cmake --build admin-frontend/mitm_fe_cpp/build --config Release
+      run: cmake --build build --config Release
 
     - name: Test
-      working-directory: admin-frontend/mitm_fe_cpp/build
+      working-directory: build
       run: ctest -C Release --output-on-failure
 
     - name: Run Trivy vulnerability scanner
