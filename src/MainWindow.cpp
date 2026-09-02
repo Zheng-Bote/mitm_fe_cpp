@@ -288,6 +288,7 @@ void MainWindow::showAboutDialog() {
 
   auto *updateLabel = new QLabel("<i>Checking for updates...</i>", &dialog);
   updateLabel->setWordWrap(true);
+  updateLabel->setOpenExternalLinks(true);
   layout->addWidget(updateLabel);
 
   auto *okButton = new QPushButton("OK", &dialog);
@@ -323,7 +324,8 @@ void MainWindow::showAboutDialog() {
                   if (latest.starts_with("v")) latest = latest.substr(1);
                   std::string current = std::string(rz::config::VERSION);
                   if (compareVersions(latest, current) > 0) {
-                      safeLabel->setText(QString("<font color='green'><b>🚀 Update available: %1</b></font>").arg(QString::fromStdString(latest)));
+                      QString releaseUrl = QString::fromStdString(std::string(rz::config::PROJECT_HOMEPAGE_URL)) + "/releases/latest";
+                      safeLabel->setText(QString("<font color='green'><b>🚀 Update available: <a href=\"%1\">%2</a></b></font>").arg(releaseUrl, QString::fromStdString(latest)));
                   } else {
                       safeLabel->setText("You are using the latest version.");
                   }

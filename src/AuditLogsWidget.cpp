@@ -33,7 +33,23 @@ AuditLogsWidget::AuditLogsWidget(QWidget *parent)
     m_refreshButton = new QPushButton("Refresh Job Audits", this);
     m_exportButton = new QPushButton("Export CSV", this);
     m_exportReportButton = new QPushButton("Export Report", this);
+    
+    m_useDateRangeCheckbox = new QCheckBox("Filter by Date", this);
+    m_startDateEdit = new QDateEdit(QDate::currentDate().addDays(-7), this);
+    m_startDateEdit->setCalendarPopup(true);
+    m_startDateEdit->setEnabled(false);
+    
+    m_endDateEdit = new QDateEdit(QDate::currentDate(), this);
+    m_endDateEdit->setCalendarPopup(true);
+    m_endDateEdit->setEnabled(false);
+    
+    connect(m_useDateRangeCheckbox, &QCheckBox::toggled, m_startDateEdit, &QWidget::setEnabled);
+    connect(m_useDateRangeCheckbox, &QCheckBox::toggled, m_endDateEdit, &QWidget::setEnabled);
+
     headerLayout->addWidget(m_refreshButton);
+    headerLayout->addWidget(m_useDateRangeCheckbox);
+    headerLayout->addWidget(m_startDateEdit);
+    headerLayout->addWidget(m_endDateEdit);
     headerLayout->addWidget(m_exportButton);
     headerLayout->addWidget(m_exportReportButton);
     headerLayout->addStretch();
@@ -64,7 +80,14 @@ AuditLogsWidget::AuditLogsWidget(QWidget *parent)
 void AuditLogsWidget::onRefresh() {
     m_refreshButton->setEnabled(false);
     
-    mitm::api::ApiClient::instance().get("/admin/logs/job-audit_bin",
+    QString url = "/admin/logs/job-audit_bin";
+    if (m_useDateRangeCheckbox->isChecked()) {
+        QString from = m_startDateEdit->date().toString("yyyy-MM-dd");
+        QString to = m_endDateEdit->date().toString("yyyy-MM-dd");
+        url += QString("?from=%1&to=%2").arg(from, to);
+    }
+    
+    mitm::api::ApiClient::instance().get(url,
         [this](const QByteArray& data, QNetworkReply* reply) {
 
         m_refreshButton->setEnabled(true);
@@ -171,7 +194,17 @@ void AuditLogsWidget::onExportReport() {
 
     QSettings settings;
     QString lastReportDir = settings.value("export/lastReportDir", QDir::homePath()).toString();
-    QString defaultFileName = QDir(lastReportDir).filePath(QString("%1_%2_report.xlsx").arg(QDate::currentDate().toString("yyyy-MM-dd"), topic));
+    /* QString defaultFileName = QDir(lastReportDir).filePath(QString("%1__%2-%3_%4_report.xlsx")
+        .arg(QDate::currentDate().toString("yyyy-MM-dd"))
+        .arg(startDate.toString("yyyy-MM-dd_HHmm"))
+        .arg(endDate.toString("yyyy-MM-dd_HHmm"))
+        .arg(topic));
+    */
+     QString defaultFileName = QDir(lastReportDir).filePath(QString("%1__%4_report__%2-%3.xlsx")
+        .arg(QDate::currentDate().toString("yyyy-MM-dd"))
+        .arg(startDate.toString("yyyy-MM-dd_HHmm"))
+        .arg(endDate.toString("yyyy-MM-dd_HHmm"))
+        .arg(topic));
     QString fileName = QFileDialog::getSaveFileName(this, "Save Report", defaultFileName, "Excel Files (*.xlsx)");
     if (fileName.isEmpty()) return;
     

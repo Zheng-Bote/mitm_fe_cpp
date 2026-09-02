@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Dashboard**: Extended the Dashboard to display Database Information (name, version, size) and Dead Letter Queue (DLQ) cursor counts, integrating with the new `/admin/dashboard/stats` backend API endpoint (Issue #4).
+- **Audit Logs**: Added an optional date range filter (start and end date) for fetching Job-Audit-Logs via the `/admin/logs/job-audit_bin` API (Issue #3).
+- **About Dialog**: The "Info -> About" dialog now provides a clickable hyperlink to the latest GitHub release if an update is available, opening the system default browser (Issue #5).
+
+### Changed
+- **Export Report**: The default "Start Date" and "End Date" in the Job-Log Export Report dialog now default to yesterday, and the suggested filename format has been updated to `<yyyy-mm-dd>__<topic>_report__<start_date>-<end_date>.xlsx` (Issue #2).
 
 ## [v0.27.0] - 2026-09-01
 

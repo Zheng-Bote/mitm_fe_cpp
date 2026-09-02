@@ -15,10 +15,10 @@ ExportReportDialog::ExportReportDialog(QWidget *parent) : QDialog(parent) {
     m_jobEdit = new QLineEdit("mitm_delivery", this);
     m_topicEdit = new QLineEdit("Employee", this);
 
-    m_startEdit = new QDateTimeEdit(QDateTime(QDate::currentDate().addDays(-7), QTime(0, 0)), this);
+    m_startEdit = new QDateTimeEdit(QDateTime(QDate::currentDate().addDays(-1), QTime(0, 0)), this);
     m_startEdit->setCalendarPopup(true);
 
-    m_endEdit = new QDateTimeEdit(QDateTime(QDate::currentDate(), QTime(23, 59, 59)), this);
+    m_endEdit = new QDateTimeEdit(QDateTime(QDate::currentDate().addDays(-1), QTime(23, 59, 59)), this);
     m_endEdit->setCalendarPopup(true);
 
     formLayout->addRow("mitm-deliver Job:", m_jobEdit);

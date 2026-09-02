@@ -21,6 +21,8 @@
 #include <QTableView>
 #include <QStandardItemModel>
 #include <QPushButton>
+#include <QDateEdit>
+#include <QCheckBox>
 
 class AuditLogsWidget : public QWidget {
     Q_OBJECT
@@ -40,4 +42,7 @@ private:
     QPushButton* m_refreshButton;
     QPushButton* m_exportButton;
     QPushButton* m_exportReportButton;
-    };
+    QCheckBox* m_useDateRangeCheckbox;
+    QDateEdit* m_startDateEdit;
+    QDateEdit* m_endDateEdit;
+};

@@ -70,10 +70,9 @@ DashboardWidget::DashboardWidget(QWidget *parent)
     m_dlqCursorLabel->setStyleSheet("font-size: 16px; padding: 15px; background-color: #552222; border-radius: 8px; color: white;");
     m_dlqCursorLabel->setAlignment(Qt::AlignCenter);
 
-    gridLayout->addWidget(m_healthLabel, 0, 0);
-    gridLayout->addWidget(m_engineLabel, 0, 1);
-    gridLayout->addWidget(m_dbInfoLabel, 1, 0);
-    gridLayout->addWidget(m_dlqCursorLabel, 1, 1);
+    gridLayout->addWidget(m_healthLabel, 0, 0, 1, 2);
+    gridLayout->addWidget(m_engineLabel, 1, 0);
+    gridLayout->addWidget(m_dbInfoLabel, 1, 1);
     gridLayout->addWidget(m_jobsLabel, 2, 0, 1, 2);
 
     m_adminLogsLabel = new QLabel("Admin Audit Logs: Unknown", this);
@@ -96,6 +95,7 @@ DashboardWidget::DashboardWidget(QWidget *parent)
     gridLayout->addWidget(m_systemLogsLabel, 4, 0, 1, 2);
     gridLayout->addWidget(m_jobLogsLabel, 5, 0, 1, 2);
     gridLayout->addWidget(m_transformErrorsLabel, 6, 0, 1, 2);
+    gridLayout->addWidget(m_dlqCursorLabel, 7, 0, 1, 2);
 
     mainLayout->addLayout(gridLayout);
     mainLayout->addStretch(); // Push elements to the top
