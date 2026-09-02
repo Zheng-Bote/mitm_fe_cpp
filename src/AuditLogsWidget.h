@@ -37,6 +37,7 @@ private slots:
     void onExportReport();
 
 private:
+    void generateExcelReport(const QByteArray& data, const QString& fileName, const QString& jobName, const QString& topic, const QDateTime& startDate, const QDateTime& endDate);
     QTableView* m_tableView;
     QStandardItemModel* m_model;
     QPushButton* m_refreshButton;

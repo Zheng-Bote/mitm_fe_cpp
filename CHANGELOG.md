@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.29.0] - 2026-09-02
+
+### Changed
+- **UI Structure**: Grouped the "Source Credentials", "Target Credentials", "RBAC", "Settings & Key Vault", and "Backup/Restore" tabs under a new centralized "System / Settings" top-level tab (Issue #7).
+
+### Fixed
+- **Export Report**: Fixed a bug where the Job-Audit-Log Export Report could be completely empty if the requested report date range fell outside the currently filtered UI data view. The export generation now safely and accurately fetches the full API payload directly based on the chosen export dates (Issue #6).
+- **CI Pipeline**: Fixed the GitHub Actions `ci.yml` build paths to correctly recognize the repository root when running as a standalone repository instead of a monorepo subdirectory.
+
 ## [v0.28.0] - 2026-09-02
 
 ### Added

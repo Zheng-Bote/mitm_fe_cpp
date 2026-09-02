@@ -113,17 +113,28 @@ void MainWindow::setupUi() {
       m_tabWidget->addTab(new TransformationWidget(this), "🧩 Transformation Layer");
       m_tabWidget->addTab(new DlqWidget(this), "🚑 DLQ & Cursors");
   }
+  auto settingsTabWidget = new QTabWidget(this);
+  bool addSettingsTab = false;
+
   if (isAdmin) {
-      m_tabWidget->addTab(new SourcesWidget(this), "🔌 Source Credentials");
-      m_tabWidget->addTab(new TargetCredentialsWidget(this), "🎯 Target Credentials");
-      m_tabWidget->addTab(new RbacWidget(this), "👥 RBAC");
-      m_tabWidget->addTab(new SettingsWidget(this), "⚙️ Settings & Key Vault");
+      settingsTabWidget->addTab(new SourcesWidget(this), "🔌 Source Credentials");
+      settingsTabWidget->addTab(new TargetCredentialsWidget(this), "🎯 Target Credentials");
+      settingsTabWidget->addTab(new RbacWidget(this), "👥 RBAC");
+      settingsTabWidget->addTab(new SettingsWidget(this), "⚙️ Settings & Key Vault");
+      addSettingsTab = true;
   }
   if (isUploader) {
       m_tabWidget->addTab(new UploadWidget(this), "📤 Manual Upload");
   }
   if (isBackupRestore) {
-      m_tabWidget->addTab(new BackupRestoreWidget(this), "💾 Backup/Restore");
+      settingsTabWidget->addTab(new BackupRestoreWidget(this), "💾 Backup/Restore");
+      addSettingsTab = true;
+  }
+
+  if (addSettingsTab) {
+      m_tabWidget->addTab(settingsTabWidget, "🛠️ System / Settings");
+  } else {
+      settingsTabWidget->deleteLater();
   }
 
   this->setCentralWidget(m_tabWidget);

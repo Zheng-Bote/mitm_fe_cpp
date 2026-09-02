@@ -194,13 +194,7 @@ void AuditLogsWidget::onExportReport() {
 
     QSettings settings;
     QString lastReportDir = settings.value("export/lastReportDir", QDir::homePath()).toString();
-    /* QString defaultFileName = QDir(lastReportDir).filePath(QString("%1__%2-%3_%4_report.xlsx")
-        .arg(QDate::currentDate().toString("yyyy-MM-dd"))
-        .arg(startDate.toString("yyyy-MM-dd_HHmm"))
-        .arg(endDate.toString("yyyy-MM-dd_HHmm"))
-        .arg(topic));
-    */
-     QString defaultFileName = QDir(lastReportDir).filePath(QString("%1__%4_report__%2-%3.xlsx")
+    QString defaultFileName = QDir(lastReportDir).filePath(QString("%1__%4_report__%2-%3.xlsx")
         .arg(QDate::currentDate().toString("yyyy-MM-dd"))
         .arg(startDate.toString("yyyy-MM-dd_HHmm"))
         .arg(endDate.toString("yyyy-MM-dd_HHmm"))
@@ -210,6 +204,24 @@ void AuditLogsWidget::onExportReport() {
     
     settings.setValue("export/lastReportDir", QFileInfo(fileName).absolutePath());
 
+    m_exportReportButton->setEnabled(false);
+    
+    QString url = QString("/admin/logs/job-audit_bin?from=%1&to=%2")
+        .arg(startDate.toString("yyyy-MM-dd"), endDate.toString("yyyy-MM-dd"));
+
+    mitm::api::ApiClient::instance().get(url,
+        [this, fileName, jobName, topic, startDate, endDate](const QByteArray& data, QNetworkReply* reply) {
+            m_exportReportButton->setEnabled(true);
+            this->generateExcelReport(data, fileName, jobName, topic, startDate, endDate);
+        },
+        [this](int statusCode, const QString& errorString) {
+            m_exportReportButton->setEnabled(true);
+            QMessageBox::critical(this, "Export Error", "Failed to fetch audit logs for the specified date range:\n" + errorString);
+        }
+    );
+}
+
+void AuditLogsWidget::generateExcelReport(const QByteArray& data, const QString& fileName, const QString& jobName, const QString& topic, const QDateTime& startDate, const QDateTime& endDate) {
     QXlsx::Document xlsx;
     if (!xlsx.sheetNames().isEmpty()) {
         xlsx.renameSheet(xlsx.sheetNames().first(), "Batch-Uploads");
@@ -275,78 +287,92 @@ void AuditLogsWidget::onExportReport() {
     int sumRejected = 0;
     int sumErrors = 0;
 
-    for (int i = 0; i < m_model->rowCount(); ++i) {
-        QString tsStr = m_model->item(i, 1)->text();
-        QDateTime dt = QDateTime::fromString(tsStr, "yyyy-MM-dd HH:mm:ss");
-        if (dt.isValid() && (dt < startDate || dt > endDate)) continue;
+    try {
+        flatbuffers::Verifier verifier(reinterpret_cast<const uint8_t*>(data.constData()), data.size());
+        if (schematas::VerifyJobAuditLogListBuffer(verifier)) {
+            auto list = schematas::GetJobAuditLogList(data.constData());
+            if (list && list->logs()) {
+                auto arr = list->logs();
+                for (int i = 0; i < arr->size(); ++i) {
+                    auto log = arr->Get(i);
+                    if (!log) continue;
 
-        QString comp = m_model->item(i, 3)->text();
-        if (!jobName.isEmpty() && !comp.contains(jobName, Qt::CaseInsensitive)) continue;
+                    QString rawTs = log->ts() ? QString::fromUtf8(log->ts()->c_str()) : "";
+                    QDateTime origDt = QDateTime::fromString(rawTs, Qt::ISODate);
+                    QDateTime dt = origDt.isValid() ? origDt.toLocalTime() : origDt;
+                    
+                    if (dt.isValid() && (dt < startDate || dt > endDate)) continue;
+                    QString tsStr = dt.isValid() ? dt.toString("yyyy-MM-dd HH:mm:ss") : rawTs;
 
-        QString msg = m_model->item(i, 4)->text();
-        // Remove invalid XML control characters which can corrupt sharedStrings.xml
-        msg.remove(QRegularExpression("[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F]"));
-        
-        if (!topic.isEmpty() && !msg.contains(topic, Qt::CaseInsensitive)) continue;
+                    QString comp = log->component() ? QString::fromUtf8(log->component()->c_str()) : "";
+                    if (!jobName.isEmpty() && !comp.contains(jobName, Qt::CaseInsensitive)) continue;
 
-        // Excel cell character limit is 32,767. Truncate to prevent sharedStrings.xml corruption.
-        QString excelMsg = msg;
-        if (excelMsg.length() > 32700) {
-            excelMsg = excelMsg.left(32700) + "... (truncated)";
+                    QString msg = log->message() ? QString::fromUtf8(log->message()->c_str()) : "";
+                    msg.remove(QRegularExpression("[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F]"));
+                    
+                    if (!topic.isEmpty() && !msg.contains(topic, Qt::CaseInsensitive)) continue;
+
+                    QString excelMsg = msg;
+                    if (excelMsg.length() > 32700) {
+                        excelMsg = excelMsg.left(32700) + "... (truncated)";
+                    }
+
+                    xlsx.selectSheet("Batch-Uploads");
+                    xlsx.write(row1, 1, tsStr);
+                    xlsx.write(row1, 2, excelMsg);
+                    row1++;
+                    
+                    QRegularExpression totalRe("Records Total\\s*[:=]\\s*(\\d+)", QRegularExpression::CaseInsensitiveOption);
+                    QRegularExpression addedRe("Records Added\\s*[:=]\\s*(\\d+)", QRegularExpression::CaseInsensitiveOption);
+                    QRegularExpression updatedRe("Records Updated\\s*[:=]\\s*(\\d+)", QRegularExpression::CaseInsensitiveOption);
+                    QRegularExpression skippedRe("Records Skipped\\s*[:=]\\s*(\\d+)", QRegularExpression::CaseInsensitiveOption);
+                    QRegularExpression rejectedRe("Records Rejected\\s*[:=]\\s*(\\d+)", QRegularExpression::CaseInsensitiveOption);
+                    QRegularExpression errorsRe("Errors\\s*[:=]\\s*(\\d+)", QRegularExpression::CaseInsensitiveOption);
+                    
+                    auto matchTotal = totalRe.match(msg);
+                    auto matchAdded = addedRe.match(msg);
+                    auto matchUpdated = updatedRe.match(msg);
+                    auto matchSkipped = skippedRe.match(msg);
+                    auto matchRejected = rejectedRe.match(msg);
+                    auto matchErrors = errorsRe.match(msg);
+                    
+                    bool isRawResponse = msg.contains("Response:", Qt::CaseInsensitive) && 
+                                         (msg.contains("Upload | Target:", Qt::CaseInsensitive) || msg.contains("CORITY_SAAS", Qt::CaseInsensitive));
+                    
+                    if (!isRawResponse && (matchTotal.hasMatch() || matchAdded.hasMatch() || matchUpdated.hasMatch() || matchSkipped.hasMatch() || matchRejected.hasMatch() || matchErrors.hasMatch())) {
+                        xlsx.selectSheet("Upload-Report");
+                        xlsx.write(row2, 1, tsStr);
+
+                        int added = matchAdded.hasMatch() ? matchAdded.captured(1).toInt() : 0;
+                        int updated = matchUpdated.hasMatch() ? matchUpdated.captured(1).toInt() : 0;
+                        int skipped = matchSkipped.hasMatch() ? matchSkipped.captured(1).toInt() : 0;
+                        int rejected = matchRejected.hasMatch() ? matchRejected.captured(1).toInt() : 0;
+                        int errors = matchErrors.hasMatch() ? matchErrors.captured(1).toInt() : 0;
+                        
+                        sumAdded += added;
+                        sumUpdated += updated;
+                        sumSkipped += skipped;
+                        sumRejected += rejected;
+                        sumErrors += errors;
+
+                        int total = matchTotal.hasMatch() ? matchTotal.captured(1).toInt() : (added + updated + skipped + rejected + errors);
+                        
+                        xlsx.write(row2, 2, total);
+                        if (matchAdded.hasMatch()) xlsx.write(row2, 3, added);
+                        if (matchUpdated.hasMatch()) xlsx.write(row2, 4, updated);
+                        if (matchSkipped.hasMatch()) xlsx.write(row2, 5, skipped);
+                        if (matchRejected.hasMatch()) xlsx.write(row2, 6, rejected);
+                        if (matchErrors.hasMatch()) xlsx.write(row2, 7, errors);
+                        
+                        row2++;
+                    }
+                }
+            }
         }
-
-        xlsx.selectSheet("Batch-Uploads");
-        xlsx.write(row1, 1, tsStr);
-        xlsx.write(row1, 2, excelMsg);
-        row1++;
-        
-        QRegularExpression totalRe("Records Total\\s*[:=]\\s*(\\d+)", QRegularExpression::CaseInsensitiveOption);
-        QRegularExpression addedRe("Records Added\\s*[:=]\\s*(\\d+)", QRegularExpression::CaseInsensitiveOption);
-        QRegularExpression updatedRe("Records Updated\\s*[:=]\\s*(\\d+)", QRegularExpression::CaseInsensitiveOption);
-        QRegularExpression skippedRe("Records Skipped\\s*[:=]\\s*(\\d+)", QRegularExpression::CaseInsensitiveOption);
-        QRegularExpression rejectedRe("Records Rejected\\s*[:=]\\s*(\\d+)", QRegularExpression::CaseInsensitiveOption);
-        QRegularExpression errorsRe("Errors\\s*[:=]\\s*(\\d+)", QRegularExpression::CaseInsensitiveOption);
-        
-        auto matchTotal = totalRe.match(msg);
-        auto matchAdded = addedRe.match(msg);
-        auto matchUpdated = updatedRe.match(msg);
-        auto matchSkipped = skippedRe.match(msg);
-        auto matchRejected = rejectedRe.match(msg);
-        auto matchErrors = errorsRe.match(msg);
-        
-        bool isRawResponse = msg.contains("Response:", Qt::CaseInsensitive) && 
-                             (msg.contains("Upload | Target:", Qt::CaseInsensitive) || msg.contains("CORITY_SAAS", Qt::CaseInsensitive));
-        
-        if (!isRawResponse && (matchTotal.hasMatch() || matchAdded.hasMatch() || matchUpdated.hasMatch() || matchSkipped.hasMatch() || matchRejected.hasMatch() || matchErrors.hasMatch())) {
-            xlsx.selectSheet("Upload-Report");
-            xlsx.write(row2, 1, tsStr);
-
-            int added = matchAdded.hasMatch() ? matchAdded.captured(1).toInt() : 0;
-            int updated = matchUpdated.hasMatch() ? matchUpdated.captured(1).toInt() : 0;
-            int skipped = matchSkipped.hasMatch() ? matchSkipped.captured(1).toInt() : 0;
-            int rejected = matchRejected.hasMatch() ? matchRejected.captured(1).toInt() : 0;
-            int errors = matchErrors.hasMatch() ? matchErrors.captured(1).toInt() : 0;
-            
-            sumAdded += added;
-            sumUpdated += updated;
-            sumSkipped += skipped;
-            sumRejected += rejected;
-            sumErrors += errors;
-
-            int total = matchTotal.hasMatch() ? matchTotal.captured(1).toInt() : (added + updated + skipped + rejected + errors);
-            
-            xlsx.write(row2, 2, total);
-            if (matchAdded.hasMatch()) xlsx.write(row2, 3, added);
-            if (matchUpdated.hasMatch()) xlsx.write(row2, 4, updated);
-            if (matchSkipped.hasMatch()) xlsx.write(row2, 5, skipped);
-            if (matchRejected.hasMatch()) xlsx.write(row2, 6, rejected);
-            if (matchErrors.hasMatch()) xlsx.write(row2, 7, errors);
-            
-            row2++;
-        }
+    } catch (...) {
+        QMessageBox::warning(this, "Parse Error", "Failed to parse API data.");
     }
-    
-    // Write sum formulas in Upload-Report starting at I3 horizontally
+
     xlsx.selectSheet("Upload-Report");
     int lastDataRow = row2 > 4 ? row2 - 1 : 4;
     
