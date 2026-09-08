@@ -20,6 +20,8 @@
 #include <QWidget>
 #include <QLineEdit>
 #include <QPushButton>
+#include <QLabel>
+#include "SecureString.h"
 
 class SettingsWidget : public QWidget {
     Q_OBJECT
@@ -30,8 +32,15 @@ public:
 
 private slots:
     void onUnlockVault();
+    void onLockVault();
 
 private:
     QLineEdit* m_masterKeyInput;
     QPushButton* m_unlockButton;
+    QPushButton* m_lockButton;
+    QLabel* m_statusLabel;
+    
+    mitm::crypto::SecureString m_vaultKey;
+    
+    void updateUI();
 };

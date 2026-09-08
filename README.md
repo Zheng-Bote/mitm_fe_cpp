@@ -35,6 +35,7 @@
 * **Encrypted Configuration**: Master configuration (`config.enc`) and user-specific configurations (`<username>_config.enc`) are protected via AES-256-GCM and Argon2id (libsodium). At startup, the application prompts for a master password.
 * **Configuration Profiles**: Switch seamlessly between multiple encrypted environments directly from the UI. The active configuration is persisted and displayed in the status bar.
 * **Automatic Version Check**: Uses `gh-update-checker` to asynchronously verify if a new release of the frontend is available on GitHub and displays the status in the "About" dialog.
+* **Data Decryptor & Key Vault**: Safely decrypt Envelope-Encrypted JSON payloads securely in the browser. The "Settings & Key Vault" securely stores the `MASTER_KEY` (KEK) in memory (protected by `libsodium`) for Zero-Knowledge operations.
 * **Dynamic RBAC & Read-Only Mode**: Dynamically fetches the OS user's roles from the backend on startup. Modifies the UI to restrict or allow access (e.g. read-only "Viewer" mode disables all edits, full access for "Admin").
 * **Manual File Upload**: Allows authorized users (UPLOADER/ADMIN) to securely upload and process `.csv` and `.xlsx` raw data files on the fly.
 * **Windows Hello Authentication**: Implements seamless biometric authentication via WinRT for accessing sensitive areas like the Settings & Key Vault and authenticating the user.

@@ -20,7 +20,6 @@ Please confirm that this feature respects the global `mitm-2` constraints define
 
 - [ ] **Architecture:** The layered architecture is maintained (no direct bypass from Frontend to DB nor others components, excepts defined API endpoints).
 - [ ] **Architecture:** Feature affects architecture: SpecKit feature forces update of the SpecDD .sdd
-- [ ] **Architecture:** Feature affects architecture: SpecKit feature forces update of the SpecDD .sdd
 - [ ] **Security:** Envelope Encryption (AES-GCM) is NOT bypassed for PII data.
 - [ ] **Data Model:** Core PostgreSQL schemas remain intact (feature-specific tables are allowed).
 - [ ] **Standards:** SPDX headers, English documentation, and independent `go.mod` per layer will be maintained.

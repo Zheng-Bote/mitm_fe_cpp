@@ -28,6 +28,9 @@ SettingsWidget::SettingsWidget(QWidget *parent) : QWidget(parent) {
     auto title = new QLabel("<b>Settings & Key Vault</b>", this);
     title->setStyleSheet("font-size: 18px; margin-bottom: 20px;");
     mainLayout->addWidget(title);
+    
+    m_statusLabel = new QLabel("Vault Status: <b>Locked</b>", this);
+    mainLayout->addWidget(m_statusLabel);
 
     auto formLayout = new QFormLayout();
     
@@ -37,13 +40,40 @@ SettingsWidget::SettingsWidget(QWidget *parent) : QWidget(parent) {
     
     formLayout->addRow("Master Key (KEK):", m_masterKeyInput);
     
+    auto buttonLayout = new QHBoxLayout();
     m_unlockButton = new QPushButton("Unlock Vault", this);
-    formLayout->addRow("", m_unlockButton);
+    m_lockButton = new QPushButton("Lock the vault", this);
+    buttonLayout->addWidget(m_unlockButton);
+    buttonLayout->addWidget(m_lockButton);
+    buttonLayout->addStretch();
+    
+    formLayout->addRow("", buttonLayout);
 
     mainLayout->addLayout(formLayout);
     mainLayout->addStretch();
 
     connect(m_unlockButton, &QPushButton::clicked, this, &SettingsWidget::onUnlockVault);
+    connect(m_lockButton, &QPushButton::clicked, this, &SettingsWidget::onLockVault);
+    
+    updateUI();
+}
+
+void SettingsWidget::updateUI() {
+    bool isUnlocked = !m_vaultKey.empty();
+    
+    m_masterKeyInput->setEnabled(!isUnlocked);
+    m_unlockButton->setEnabled(!isUnlocked);
+    m_lockButton->setEnabled(isUnlocked);
+    
+    if (isUnlocked) {
+        m_statusLabel->setText("Vault Status: <b style='color: green;'>Unlocked</b>");
+        m_masterKeyInput->clear();
+        m_masterKeyInput->setPlaceholderText("Vault is unlocked.");
+    } else {
+        m_statusLabel->setText("Vault Status: <b style='color: red;'>Locked</b>");
+        m_masterKeyInput->clear();
+        m_masterKeyInput->setPlaceholderText("Enter MASTER_KEY or use Windows Hello to unlock...");
+    }
 }
 
 void SettingsWidget::onUnlockVault() {
@@ -52,7 +82,23 @@ void SettingsWidget::onUnlockVault() {
         return;
     }
     
-    spdlog::info("Master Key provided. Vault unlocked. (Concept)");
-    QMessageBox::information(this, "Key Vault", "Vault unlocked successfully!\nIn a real implementation, this would establish the secure context.");
+    // In a real implementation, we would validate the key here against a known test payload
+    // before accepting it into the vault. For now, we simply store it.
+    std::string keyStr = m_masterKeyInput->text().toStdString();
+    m_vaultKey = mitm::crypto::SecureString(keyStr.begin(), keyStr.end());
+    
+    // Clear the string from regular memory
+    // Note: QString/std::string might leave traces, but we do our best here
     m_masterKeyInput->clear();
+    
+    spdlog::info("Master Key provided. Vault unlocked in memory.");
+    updateUI();
+}
+
+void SettingsWidget::onLockVault() {
+    // Securely clear the vault key
+    m_vaultKey.clear();
+    
+    spdlog::info("Vault locked. Master Key securely wiped from memory.");
+    updateUI();
 }

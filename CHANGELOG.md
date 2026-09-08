@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **UI**: Added a new "Data Decryptor" tab under "System / Settings" allowing administrators to decrypt Envelope-Encrypted JSON payloads securely in the browser (Zero-Knowledge Architecture).
 - **Crypto**: Natively implemented AES-GCM Envelope Decryption in C++ via libsodium to unwrap DEKs using the MASTER_KEY.
+- **Key Vault**: Implemented core memory state and UI controls (Unlock/Lock) for the "Settings & Key Vault" tab to securely store and wipe the `MASTER_KEY` (KEK) using `SecureString` and `libsodium` (Issue #6).
 
 ## [v0.29.0] - 2026-09-02
 
