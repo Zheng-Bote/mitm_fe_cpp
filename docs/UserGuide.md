@@ -92,6 +92,18 @@ Allows users with `BACKUP-RESTORE` or `ADMIN` roles to seamlessly export and imp
 - **Configuration Profiles**: Switch between different encrypted environment configurations (`*.enc`). The active profile is displayed in the status bar.
 - **Network Proxy**: Configure HTTP/HTTPS proxies securely. Proxies are stored using libsodium (AES-GCM) encryption in the `configs/` directory.
 
+### 🔓 Data Decryptor
+
+*(Requires `ADMIN` role)*
+
+Allows administrators to securely decrypt envelope-encrypted data payloads (e.g., from logs or the DLQ) directly within the frontend.
+- **Zero-Knowledge Architecture:** The `MASTER_KEY` (KEK) is never transmitted over the network.
+- **Usage:**
+  1. Paste your 32-byte `MASTER_KEY`.
+  2. Paste the encrypted JSON payload (must contain base64 encoded `nonce` and `ciphertext` fields).
+  3. Click **Decrypt**.
+  4. The frontend will fetch the latest wrapped storage keys from the backend and unwrap the payload natively in your browser/desktop environment.
+
 ---
 
 ## 3. Keyboard Shortcuts and Tips
