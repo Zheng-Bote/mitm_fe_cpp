@@ -268,3 +268,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **DLQ & Cursors Tab:** UI concept with mock data for the Dead Letter Queue.
 - **Settings & Key Vault Tab:** UI Konzept for safely injecting the Envelope Encryption `MASTER_KEY` via Windows Hello / Password.
 - Transparent dynamic authentication using the `USER`/`USERNAME` OS variable to parse tokens directly from `config.json`.
+## [0.3.0] - 2026-09-08
+### Added
+- **Key Rotation UI**: Added "Create Master-Key" and "Change Master-Key" capabilities to the Settings tab, securely generating and passing an AES-GCM encrypted new key to the Scheduler backend for native key rotation.
+
