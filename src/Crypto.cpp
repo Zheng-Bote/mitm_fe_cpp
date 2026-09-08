@@ -22,19 +22,23 @@ namespace mitm::crypto {
 
 std::vector<uint8_t> EnvelopeDecrypt(const std::vector<uint8_t>& kek, const std::vector<uint8_t>& wrappedKey, const std::vector<uint8_t>& payloadNonce, const std::vector<uint8_t>& payload) {
     if (sodium_init() < 0) {
-        throw std::runtime_error("Failed to initialize libsodium");
+        return {};
     }
 
     if (crypto_aead_aes256gcm_is_available() == 0) {
-        throw std::runtime_error("Hardware AES-GCM is not available on this platform");
+        return {};
     }
 
     std::vector<uint8_t> adjustedKek(32, 0);
     size_t copyLen = kek.size() < 32 ? kek.size() : 32;
     std::copy(kek.begin(), kek.begin() + copyLen, adjustedKek.begin());
 
-    if (wrappedKey.size() < 12) {
-        throw std::runtime_error("wrapped DEK too short");
+    if (wrappedKey.size() < 28) {
+        return {};
+    }
+    
+    if (payloadNonce.size() != 12) {
+        return {};
     }
 
     const uint8_t* dekNonce = wrappedKey.data();
@@ -49,13 +53,17 @@ std::vector<uint8_t> EnvelopeDecrypt(const std::vector<uint8_t>& kek, const std:
                                       wrappedCipher, wrappedCipherLen,
                                       nullptr, 0,
                                       dekNonce, adjustedKek.data()) != 0) {
-        throw std::runtime_error("failed to decrypt DEK");
+        return {};
     }
     dek.resize(dekLenActual);
+    
+    if (dek.size() != 32) {
+        return {};
+    }
 
     // Decrypt Payload
     if (payload.size() < 16) {
-        throw std::runtime_error("payload too short");
+        return {};
     }
     std::vector<uint8_t> plaintext(payload.size() - 16);
     unsigned long long plaintextLenActual = 0;
@@ -64,7 +72,7 @@ std::vector<uint8_t> EnvelopeDecrypt(const std::vector<uint8_t>& kek, const std:
                                       payload.data(), payload.size(),
                                       nullptr, 0,
                                       payloadNonce.data(), dek.data()) != 0) {
-        throw std::runtime_error("failed to decrypt payload");
+        return {};
     }
     plaintext.resize(plaintextLenActual);
     return plaintext;

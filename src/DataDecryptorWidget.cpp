@@ -90,7 +90,7 @@ void DataDecryptorWidget::onDecryptClicked()
             QJsonParseError parseErr;
             QJsonDocument doc = QJsonDocument::fromJson(response, &parseErr);
             if (parseErr.error != QJsonParseError::NoError || !doc.isArray()) {
-                QMessageBox::critical(this, tr("API Error"), tr("Invalid response from server for storage keys."));
+                m_decryptedOutput->setPlainText(tr("API Error: Invalid response from server for storage keys."));
                 return;
             }
 
@@ -98,7 +98,7 @@ void DataDecryptorWidget::onDecryptClicked()
         },
         [this](int statusCode, const QString& errorStr) {
             m_decryptButton->setEnabled(true);
-            QMessageBox::critical(this, tr("API Error"), tr("Failed to fetch storage keys:\n") + errorStr);
+            m_decryptedOutput->setPlainText(tr("API Error: Failed to fetch storage keys:\n") + errorStr);
         }
     );
 }
@@ -108,12 +108,12 @@ void DataDecryptorWidget::performDecryption(const QString& encryptedJsonText, co
     QJsonParseError parseErr;
     QJsonDocument inputDoc = QJsonDocument::fromJson(encryptedJsonText.toUtf8(), &parseErr);
     if (parseErr.error != QJsonParseError::NoError || !inputDoc.isObject()) {
-        QMessageBox::warning(this, tr("Error"), tr("Input is not valid JSON object."));
+        m_decryptedOutput->setPlainText(tr("Error: Input is not a valid JSON object."));
         return;
     }
     QJsonObject inputObj = inputDoc.object();
     if (!inputObj.contains("nonce") || !inputObj.contains("ciphertext")) {
-        QMessageBox::warning(this, tr("Error"), tr("JSON payload missing expected 'nonce' or 'ciphertext' structure."));
+        m_decryptedOutput->setPlainText(tr("Error: JSON payload missing expected 'nonce' or 'ciphertext' structure."));
         return;
     }
 
@@ -142,6 +142,9 @@ void DataDecryptorWidget::performDecryption(const QString& encryptedJsonText, co
 
         try {
             std::vector<uint8_t> plaintext = mitm::crypto::EnvelopeDecrypt(kekVec, wKeyVec, pNonceVec, pVec);
+            if (plaintext.empty()) {
+                continue;
+            }
             
             // Decryption succeeded
             QByteArray plainBytes(reinterpret_cast<const char*>(plaintext.data()), plaintext.size());
@@ -158,7 +161,7 @@ void DataDecryptorWidget::performDecryption(const QString& encryptedJsonText, co
         }
     }
 
-    QMessageBox::critical(this, tr("Decryption failed"), tr("Decryption failed: Invalid MASTER_KEY or wrong data."));
+    m_decryptedOutput->setPlainText(tr("Decryption failed: Invalid MASTER_KEY or wrong data."));
 }
 
 } // namespace mitm::ui
