@@ -65,6 +65,8 @@ set(SOURCES
     src/ApiClient.cpp
     src/Crypto.h
     src/Crypto.cpp
+    src/DataDecryptorWidget.h
+    src/DataDecryptorWidget.cpp
     src/Config.h
     src/Config.cpp
     src/MainWindow.h

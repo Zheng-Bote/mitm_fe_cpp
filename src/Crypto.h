@@ -26,6 +26,17 @@
 namespace mitm::crypto {
 
 /**
+ * @brief Decrypts a payload using a wrapped DEK and a KEK (Envelope Decryption).
+ * @param kek The Key Encryption Key (MASTER_KEY), usually 32 bytes.
+ * @param wrappedKey The wrapped Data Encryption Key (DEK).
+ * @param payloadNonce The nonce used to encrypt the payload.
+ * @param payload The encrypted payload (ciphertext).
+ * @return Decrypted plaintext payload.
+ * @throws std::runtime_error on decryption failure.
+ */
+std::vector<uint8_t> EnvelopeDecrypt(const std::vector<uint8_t>& kek, const std::vector<uint8_t>& wrappedKey, const std::vector<uint8_t>& payloadNonce, const std::vector<uint8_t>& payload);
+
+/**
  * @brief Decrypts data using AES-256-GCM and Argon2id derived key.
  * @param encryptedData The encrypted data (salt + nonce + ciphertext).
  * @param password The password for decryption.

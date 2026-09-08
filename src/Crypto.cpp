@@ -20,6 +20,56 @@
 
 namespace mitm::crypto {
 
+std::vector<uint8_t> EnvelopeDecrypt(const std::vector<uint8_t>& kek, const std::vector<uint8_t>& wrappedKey, const std::vector<uint8_t>& payloadNonce, const std::vector<uint8_t>& payload) {
+    if (sodium_init() < 0) {
+        throw std::runtime_error("Failed to initialize libsodium");
+    }
+
+    if (crypto_aead_aes256gcm_is_available() == 0) {
+        throw std::runtime_error("Hardware AES-GCM is not available on this platform");
+    }
+
+    std::vector<uint8_t> adjustedKek(32, 0);
+    size_t copyLen = kek.size() < 32 ? kek.size() : 32;
+    std::copy(kek.begin(), kek.begin() + copyLen, adjustedKek.begin());
+
+    if (wrappedKey.size() < 12) {
+        throw std::runtime_error("wrapped DEK too short");
+    }
+
+    const uint8_t* dekNonce = wrappedKey.data();
+    const uint8_t* wrappedCipher = wrappedKey.data() + 12;
+    size_t wrappedCipherLen = wrappedKey.size() - 12;
+
+    // Unwrap DEK
+    std::vector<uint8_t> dek(wrappedCipherLen - 16); // 16 bytes for MAC
+    unsigned long long dekLenActual = 0;
+    if (crypto_aead_aes256gcm_decrypt(dek.data(), &dekLenActual,
+                                      nullptr,
+                                      wrappedCipher, wrappedCipherLen,
+                                      nullptr, 0,
+                                      dekNonce, adjustedKek.data()) != 0) {
+        throw std::runtime_error("failed to decrypt DEK");
+    }
+    dek.resize(dekLenActual);
+
+    // Decrypt Payload
+    if (payload.size() < 16) {
+        throw std::runtime_error("payload too short");
+    }
+    std::vector<uint8_t> plaintext(payload.size() - 16);
+    unsigned long long plaintextLenActual = 0;
+    if (crypto_aead_aes256gcm_decrypt(plaintext.data(), &plaintextLenActual,
+                                      nullptr,
+                                      payload.data(), payload.size(),
+                                      nullptr, 0,
+                                      payloadNonce.data(), dek.data()) != 0) {
+        throw std::runtime_error("failed to decrypt payload");
+    }
+    plaintext.resize(plaintextLenActual);
+    return plaintext;
+}
+
 std::vector<uint8_t> Decrypt(const std::vector<uint8_t>& encryptedData, const mitm::crypto::SecureString& password) {
     if (sodium_init() < 0) {
         throw std::runtime_error("Failed to initialize libsodium");
