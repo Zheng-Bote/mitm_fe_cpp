@@ -30,6 +30,7 @@
 #include "SystemLogsWidget.h"
 #include "AdminLogsWidget.h"
 #include "RbacWidget.h"
+#include "DataDecryptorWidget.h"
 #include "UploadWidget.h"
 #include "TransformationErrorsWidget.h"
 #include "BackupRestoreWidget.h"
@@ -121,6 +122,7 @@ void MainWindow::setupUi() {
       settingsTabWidget->addTab(new TargetCredentialsWidget(this), "🎯 Target Credentials");
       settingsTabWidget->addTab(new RbacWidget(this), "👥 RBAC");
       settingsTabWidget->addTab(new SettingsWidget(this), "⚙️ Settings & Key Vault");
+      settingsTabWidget->addTab(new mitm::ui::DataDecryptorWidget(this), "🔓 Data Decryptor");
       addSettingsTab = true;
   }
   if (isUploader) {
