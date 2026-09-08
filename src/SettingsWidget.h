@@ -33,12 +33,18 @@ public:
 private slots:
     void onUnlockVault();
     void onLockVault();
+    void onCreateMasterKey();
+    void onChangeMasterKey();
 
 private:
     QLineEdit* m_masterKeyInput;
     QPushButton* m_unlockButton;
     QPushButton* m_lockButton;
     QLabel* m_statusLabel;
+    
+    QLineEdit* m_newKeyInput;
+    QPushButton* m_createKeyButton;
+    QPushButton* m_changeKeyButton;
     
     mitm::crypto::SecureString m_vaultKey;
     

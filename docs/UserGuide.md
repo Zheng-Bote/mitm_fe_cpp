@@ -91,6 +91,12 @@ Allows users with `BACKUP-RESTORE` or `ADMIN` roles to seamlessly export and imp
 
 - **Configuration Profiles**: Switch between different encrypted environment configurations (`*.enc`). The active profile is displayed in the status bar.
 - **Network Proxy**: Configure HTTP/HTTPS proxies securely. Proxies are stored using libsodium (AES-GCM) encryption in the `configs/` directory.
+- **Key Vault Memory State**: Safely "Unlock" the vault by entering the current `MASTER_KEY` (KEK). The key is stored securely in RAM using `libsodium` (Zero-Knowledge Memory Protection) to enable cryptographic operations in the frontend without re-typing the key. Click "Lock the vault" to securely wipe it from memory.
+- **Master-Key Rotation**: 
+  - Allows administrators to securely generate and apply a *new* Master-Key across the entire system with zero downtime.
+  - Requires the Key Vault to be unlocked first.
+  - Click "Create Master-Key" to securely generate a random 32-byte Base64 key.
+  - Click "Change Master-Key" to initiate the rotation. The new key is encrypted in-transit (AES-GCM) using your current vault key. The backend safely pauses jobs, re-encrypts database keys, applies the new KEK, and resumes execution seamlessly.
 
 ### 🔓 Data Decryptor
 
