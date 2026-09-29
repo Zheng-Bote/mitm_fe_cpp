@@ -15,23 +15,7 @@
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 
-<details>
-<summary>Table of Contents</summary>
-
-- [](#)
-- [Features](#features)
-  - [Status](#status)
-- [Requirements](#requirements)
-- [Building the Project](#building-the-project)
-  - [1. Install Conan Dependencies \& Generate Presets](#1-install-conan-dependencies--generate-presets)
-  - [2. Configure with CMake](#2-configure-with-cmake)
-  - [3. Build](#3-build)
-  - [4. Configuration Setup](#4-configuration-setup)
-  - [5. Run](#5-run)
-
-</details>
-
-## <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 ## Features
 
@@ -54,7 +38,7 @@
 - **Backup & Restore**: Easily export and import the complete system configuration (Jobs, Sources, Targets, Transformation Rules) directly from the UI. Backups are saved locally and safely restored to any environment via the backend API. Controlled by the `BACKUP-RESTORE` role.
 - **Modern C++26 Stack**: Built with Qt6, FlatBuffers, nlohmann_json, spdlog, libsodium, and cpp-httplib.
 
-* **Spec Driven Development** for manual development or **AI Engineering** for AI Driven Specification and Development using [SpecDD](https://specdd.ai) and [Github Spec-Kit](https://github.github.com/spec-kit/) supported.
+- **Spec Driven Development** for manual development or **AI Engineering** for AI Driven Specification and Development using [SpecDD](https://specdd.ai) and [Github Spec-Kit](https://github.github.com/spec-kit/) supported.
 
 See [AI_Workflow_DE.md](https://github.com/Zheng-Bote/mitm-2/docs/AI_Workflow_DE.md) or [AI_Workflow_EN.md](https://github.com/Zheng-Bote/mitm-2/docs/AI_Workflow_EN.md).
 
