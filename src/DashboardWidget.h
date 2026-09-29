@@ -20,6 +20,8 @@
 #include <QWidget>
 #include <QPushButton>
 #include <QLabel>
+#include <QCheckBox>
+#include <QTimer>
 
 class DashboardWidget : public QWidget {
     Q_OBJECT
