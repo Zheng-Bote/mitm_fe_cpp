@@ -41,6 +41,7 @@
 * **Windows Hello Authentication**: Implements seamless biometric authentication via WinRT for accessing sensitive areas like the Settings & Key Vault and authenticating the user.
 * **Network Proxy Settings**: Configurable per-user network proxy settings that override defaults and support authenticated HTTP/HTTPS proxies.
 * **Advanced Logging & Dashboard**: Interactive dashboard with real-time stats and comprehensive data grids for Admin, System, Job, and Transformation logs.
+* **Auto-Refresh**: Background periodic auto-refresh (5s interval) for Dashboard, Scheduler, and Log grids, configurable per user without UI flickering.
 * **Dynamic API & Auth**: Derives the Scheduler host and authentication header directly from the decrypted config.
 * **HTTPS Support**: Configurable HTTPS connectivity (`scheduler_use_https`) to securely interface with FQDNs.
 * **Local Timezone Formatting**: Seamlessly translates UTC timestamps to the user's local timezone directly within data grids.

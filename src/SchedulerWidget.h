@@ -33,6 +33,8 @@ public:
 
 private slots:
     void onRefreshClicked();
+    void refreshData();
+    void onAutoRefreshToggled(bool checked);
     // New action slots
     void onAddJob();
     void onEditJob();
@@ -51,4 +53,6 @@ private:
     QPushButton* m_deleteButton;
     QPushButton* m_stopButton;
     QPushButton* m_executeButton;
-    };
+    QCheckBox* m_autoRefreshCheckbox;
+    QTimer* m_timer;
+};

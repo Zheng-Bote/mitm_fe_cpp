@@ -28,7 +28,7 @@ Please confirm that this feature respects the global `mitm-2` constraints define
 - [ ] **Architecture:** Feature affects architecture: SpecKit feature forces update of the SpecDD .sdd
 - [ ] **Security:** Envelope Encryption (AES-GCM) is NOT bypassed for PII data.
 - [ ] **Data Model:** Core PostgreSQL schemas remain intact (feature-specific tables are allowed).
-- [ ] **Standards:** SPDX headers, English documentation, and independent `go.mod` per layer will be maintained.
+- [ ] **Standards:** SPDX headers and English documentation will be maintained.
 
 ## Acceptance Criteria
 

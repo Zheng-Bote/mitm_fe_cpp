@@ -30,6 +30,8 @@ public:
 
 private slots:
     void onRefreshClicked();
+    void refreshData();
+    void onAutoRefreshToggled(bool checked);
 
 private:
     void fetchInfo();
@@ -50,4 +52,6 @@ private:
     QLabel* m_jobLogsLabel;
     QLabel* m_transformErrorsLabel;
     QPushButton* m_refreshButton;
-    };
+    QCheckBox* m_autoRefreshCheckbox;
+    QTimer* m_timer;
+};

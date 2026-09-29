@@ -26,6 +26,10 @@
 #include <QProcessEnvironment>
 #include <QProcessEnvironment>
 #include <QMessageBox>
+#include <QTimer>
+#include <QCheckBox>
+#include <QSettings>
+#include <QScrollBar>
 #include <spdlog/spdlog.h>
 #include <nlohmann/json.hpp>
 #include <QTimeZone>
@@ -47,8 +51,13 @@ SchedulerWidget::SchedulerWidget(QWidget *parent)
     m_deleteButton = new QPushButton("Delete Selected", this);
     m_stopButton = new QPushButton("⏹ Stop Selected", this);
     m_executeButton = new QPushButton("▶ Execute Selected", this);
+    m_autoRefreshCheckbox = new QCheckBox("Auto-Refresh (5s)", this);
+
+    QSettings settings;
+    m_autoRefreshCheckbox->setChecked(settings.value("AutoRefresh/Scheduler", false).toBool());
     
     headerLayout->addWidget(m_refreshButton);
+    headerLayout->addWidget(m_autoRefreshCheckbox);
     headerLayout->addWidget(m_addButton);
     headerLayout->addWidget(m_editButton);
     headerLayout->addWidget(m_deleteButton);
@@ -79,14 +88,47 @@ SchedulerWidget::SchedulerWidget(QWidget *parent)
     connect(m_deleteButton, &QPushButton::clicked, this, &SchedulerWidget::onDeleteJob);
     connect(m_stopButton, &QPushButton::clicked, this, &SchedulerWidget::onStopJob);
     connect(m_executeButton, &QPushButton::clicked, this, &SchedulerWidget::onExecuteJob);
+
+    m_timer = new QTimer(this);
+    connect(m_timer, &QTimer::timeout, this, &SchedulerWidget::refreshData);
+    connect(m_autoRefreshCheckbox, &QCheckBox::toggled, this, &SchedulerWidget::onAutoRefreshToggled);
+    
+    if (m_autoRefreshCheckbox->isChecked()) {
+        m_timer->start(5000);
     }
+}
+
+void SchedulerWidget::onAutoRefreshToggled(bool checked) {
+    QSettings settings;
+    settings.setValue("AutoRefresh/Scheduler", checked);
+    if (checked) {
+        m_timer->start(5000);
+        refreshData();
+    } else {
+        m_timer->stop();
+    }
+}
 
 void SchedulerWidget::onRefreshClicked() {
+    refreshData();
+}
+
+void SchedulerWidget::refreshData() {
+    if (!this->isVisible()) return;
+
     m_refreshButton->setEnabled(false);
     
     mitm::api::ApiClient::instance().get("/admin/jobs",
         [this](const QByteArray& data, QNetworkReply* reply) {
             m_refreshButton->setEnabled(true);
+            
+            QString selectedId = "";
+            auto selection = m_tableView->selectionModel()->selectedRows();
+            if (!selection.isEmpty()) {
+                selectedId = m_model->item(selection.first().row(), 0)->text();
+            }
+            int scrollPos = m_tableView->verticalScrollBar()->value();
+
             m_model->setRowCount(0); // clear existing rows
             try {
                 m_currentJobs = json::parse(data.toStdString());
@@ -134,6 +176,17 @@ void SchedulerWidget::onRefreshClicked() {
                 spdlog::error("JSON parsing error: {}", e.what());
             }
             m_tableView->resizeColumnsToContents();
+            m_tableView->sortByColumn(5, Qt::AscendingOrder);
+            
+            if (!selectedId.isEmpty()) {
+                for (int row = 0; row < m_model->rowCount(); ++row) {
+                    if (m_model->item(row, 0)->text() == selectedId) {
+                        m_tableView->selectRow(row);
+                        break;
+                    }
+                }
+            }
+            m_tableView->verticalScrollBar()->setValue(scrollPos);
         },
         [this](int statusCode, const QString& errorString) {
             m_refreshButton->setEnabled(true);

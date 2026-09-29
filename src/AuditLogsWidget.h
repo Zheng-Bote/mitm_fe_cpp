@@ -35,6 +35,8 @@ private slots:
     void onRefresh();
     void onExportCsv();
     void onExportReport();
+    void refreshData();
+    void onAutoRefreshToggled(bool checked);
 
 private:
     void generateExcelReport(const QByteArray& data, const QString& fileName, const QString& jobName, const QString& topic, const QDateTime& startDate, const QDateTime& endDate);
@@ -46,4 +48,6 @@ private:
     QCheckBox* m_useDateRangeCheckbox;
     QDateEdit* m_startDateEdit;
     QDateEdit* m_endDateEdit;
+    QCheckBox* m_autoRefreshCheckbox;
+    QTimer* m_timer;
 };

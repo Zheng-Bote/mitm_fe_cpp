@@ -23,6 +23,8 @@
 #include <QFileInfo>
 #include "xlsxdocument.h"
 #include "xlsxchart.h"
+#include <QTimer>
+#include <QScrollBar>
 
 AuditLogsWidget::AuditLogsWidget(QWidget *parent)
     : QWidget(parent)
@@ -43,10 +45,15 @@ AuditLogsWidget::AuditLogsWidget(QWidget *parent)
     m_endDateEdit->setCalendarPopup(true);
     m_endDateEdit->setEnabled(false);
     
+    m_autoRefreshCheckbox = new QCheckBox("Auto-Refresh (5s)", this);
+    QSettings settings;
+    m_autoRefreshCheckbox->setChecked(settings.value("AutoRefresh/AuditLogs", false).toBool());
+    
     connect(m_useDateRangeCheckbox, &QCheckBox::toggled, m_startDateEdit, &QWidget::setEnabled);
     connect(m_useDateRangeCheckbox, &QCheckBox::toggled, m_endDateEdit, &QWidget::setEnabled);
 
     headerLayout->addWidget(m_refreshButton);
+    headerLayout->addWidget(m_autoRefreshCheckbox);
     headerLayout->addWidget(m_useDateRangeCheckbox);
     headerLayout->addWidget(m_startDateEdit);
     headerLayout->addWidget(m_endDateEdit);
@@ -75,9 +82,34 @@ AuditLogsWidget::AuditLogsWidget(QWidget *parent)
     connect(m_refreshButton, &QPushButton::clicked, this, &AuditLogsWidget::onRefresh);
     connect(m_exportButton, &QPushButton::clicked, this, &AuditLogsWidget::onExportCsv);
     connect(m_exportReportButton, &QPushButton::clicked, this, &AuditLogsWidget::onExportReport);
+
+    m_timer = new QTimer(this);
+    connect(m_timer, &QTimer::timeout, this, &AuditLogsWidget::refreshData);
+    connect(m_autoRefreshCheckbox, &QCheckBox::toggled, this, &AuditLogsWidget::onAutoRefreshToggled);
+    
+    if (m_autoRefreshCheckbox->isChecked()) {
+        m_timer->start(5000);
+    }
+}
+
+void AuditLogsWidget::onAutoRefreshToggled(bool checked) {
+    QSettings settings;
+    settings.setValue("AutoRefresh/AuditLogs", checked);
+    if (checked) {
+        m_timer->start(5000);
+        refreshData();
+    } else {
+        m_timer->stop();
+    }
 }
 
 void AuditLogsWidget::onRefresh() {
+    refreshData();
+}
+
+void AuditLogsWidget::refreshData() {
+    if (!this->isVisible()) return;
+
     m_refreshButton->setEnabled(false);
     
     QString url = "/admin/logs/job-audit_bin";
@@ -92,6 +124,12 @@ void AuditLogsWidget::onRefresh() {
 
         m_refreshButton->setEnabled(true);
 
+            QString selectedId = "";
+            auto selection = m_tableView->selectionModel()->selectedRows();
+            if (!selection.isEmpty()) {
+                selectedId = m_model->item(selection.first().row(), 0)->text();
+            }
+            int scrollPos = m_tableView->verticalScrollBar()->value();
         
             m_model->setRowCount(0);
             try {
@@ -131,6 +169,15 @@ void AuditLogsWidget::onRefresh() {
         
         m_tableView->resizeColumnsToContents();
         
+            if (!selectedId.isEmpty()) {
+                for (int row = 0; row < m_model->rowCount(); ++row) {
+                    if (m_model->item(row, 0)->text() == selectedId) {
+                        m_tableView->selectRow(row);
+                        break;
+                    }
+                }
+            }
+            m_tableView->verticalScrollBar()->setValue(scrollPos);
             },
         [this](int statusCode, const QString& errorString) {
 

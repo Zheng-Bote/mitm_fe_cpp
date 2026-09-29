@@ -1,3 +1,7 @@
+## [v0.31.0] - 2026-09-29
+### Added
+- Added "Auto-Refresh" checkbox for Dashboard, Scheduler, Audit Logs, and System Logs to periodically refresh data every 5 seconds without UI flicker. Preferences are stored per-user via QSettings.
+
 # Changelog
 
 All notable changes to this project will be documented in this file.

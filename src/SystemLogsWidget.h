@@ -32,10 +32,14 @@ public:
 private slots:
     void onRefresh();
     void onExportCsv();
+    void refreshData();
+    void onAutoRefreshToggled(bool checked);
 
 private:
     QTableView* m_tableView;
     QStandardItemModel* m_model;
     QPushButton* m_refreshButton;
     QPushButton* m_exportButton;
+    QCheckBox* m_autoRefreshCheckbox;
+    QTimer* m_timer;
 };

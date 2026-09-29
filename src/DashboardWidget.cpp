@@ -26,6 +26,9 @@
 #include <QFile>
 #include <QProcessEnvironment>
 #include <QDateTime>
+#include <QTimer>
+#include <QSettings>
+#include <QCheckBox>
 #include <spdlog/spdlog.h>
 #include <nlohmann/json.hpp>
 #include "Config.h"
@@ -43,7 +46,13 @@ DashboardWidget::DashboardWidget(QWidget *parent)
 
     auto headerLayout = new QHBoxLayout();
     m_refreshButton = new QPushButton("Refresh Dashboard", this);
+    m_autoRefreshCheckbox = new QCheckBox("Auto-Refresh (5s)", this);
+    
+    QSettings settings;
+    m_autoRefreshCheckbox->setChecked(settings.value("AutoRefresh/Dashboard", false).toBool());
+    
     headerLayout->addWidget(m_refreshButton);
+    headerLayout->addWidget(m_autoRefreshCheckbox);
     headerLayout->addStretch();
     mainLayout->addLayout(headerLayout);
 
@@ -101,10 +110,29 @@ DashboardWidget::DashboardWidget(QWidget *parent)
     mainLayout->addStretch(); // Push elements to the top
 
     connect(m_refreshButton, &QPushButton::clicked, this, &DashboardWidget::onRefreshClicked);
+
+    m_timer = new QTimer(this);
+    connect(m_timer, &QTimer::timeout, this, &DashboardWidget::refreshData);
+    connect(m_autoRefreshCheckbox, &QCheckBox::toggled, this, &DashboardWidget::onAutoRefreshToggled);
+    
+    if (m_autoRefreshCheckbox->isChecked()) {
+        m_timer->start(5000);
+    }
+}
+
+void DashboardWidget::onAutoRefreshToggled(bool checked) {
+    QSettings settings;
+    settings.setValue("AutoRefresh/Dashboard", checked);
+    if (checked) {
+        m_timer->start(5000);
+        refreshData();
+    } else {
+        m_timer->stop();
+    }
 }
 
 void DashboardWidget::onRefreshClicked() {
-    spdlog::info("Refreshing Dashboard Widgets...");
+    spdlog::info("Manually refreshing Dashboard Widgets...");
     m_healthLabel->setText("System Health: Loading...");
     m_engineLabel->setText("Engine Info: Loading...");
     m_jobsLabel->setText("Total Scheduled Jobs: Loading...");
@@ -114,6 +142,12 @@ void DashboardWidget::onRefreshClicked() {
     m_transformErrorsLabel->setText("Transformation Errors: Loading...");
     m_dbInfoLabel->setText("DB Info: Loading...");
     m_dlqCursorLabel->setText("DLQ Cursors: Loading...");
+
+    refreshData();
+}
+
+void DashboardWidget::refreshData() {
+    if (!this->isVisible()) return;
 
     fetchHealth();
     fetchInfo();
@@ -141,9 +175,17 @@ void DashboardWidget::fetchInfo() {
         [this](const QByteArray& data, QNetworkReply* reply) {
             try {
                 json j = json::parse(data.toStdString());
-                QString text = QString("Engine: %1\nVersion: %2")
-                    .arg(QString::fromStdString(j.value("name", "Unknown")))
-                    .arg(QString::fromStdString(j.value("version", "Unknown")));
+                QString text = QString("Engine: %1")
+                    .arg(QString::fromStdString(j.value("name", "Unknown")));
+                
+                if (j.contains("core_components") && j["core_components"].is_array()) {
+                    for (const auto& comp : j["core_components"]) {
+                        QString compName = QString::fromStdString(comp.value("name", "Unknown"));
+                        QString compVer = QString::fromStdString(comp.value("version", "Unknown"));
+                        text += QString("\n%1 v%2").arg(compName).arg(compVer);
+                    }
+                }
+                
                 m_engineLabel->setText(text);
             } catch (...) {
                 m_engineLabel->setText("Engine Info: Parse Error");
