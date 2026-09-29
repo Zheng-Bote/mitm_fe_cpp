@@ -15,6 +15,21 @@
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 
+<details>
+<summary>Table of Contents</summary>
+
+- [Features](#features)
+  - [Status](#status)
+- [Requirements](#requirements)
+- [Building the Project](#building-the-project)
+  - [1. Install Conan Dependencies & Generate Presets](#1-install-conan-dependencies-generate-presets)
+  - [2. Configure with CMake](#2-configure-with-cmake)
+  - [3. Build](#3-build)
+  - [4. Configuration Setup](#4-configuration-setup)
+  - [5. Run](#5-run)
+
+</details>
+
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 ## Features
