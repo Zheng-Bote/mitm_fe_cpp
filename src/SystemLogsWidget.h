@@ -21,6 +21,8 @@
 #include <QTableView>
 #include <QStandardItemModel>
 #include <QPushButton>
+#include <QCheckBox>
+#include <QTimer>
 
 class SystemLogsWidget : public QWidget {
     Q_OBJECT

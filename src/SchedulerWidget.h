@@ -23,6 +23,8 @@
 #include <QPushButton>
 #include <QNetworkReply>
 #include <nlohmann/json.hpp>
+#include <QCheckBox>
+#include <QTimer>
 
 class SchedulerWidget : public QWidget {
     Q_OBJECT
