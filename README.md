@@ -40,7 +40,7 @@
 
 - **Spec Driven Development** for manual development or **AI Engineering** for AI Driven Specification and Development using [SpecDD](https://specdd.ai) and [Github Spec-Kit](https://github.github.com/spec-kit/) supported.
 
-See [AI_Workflow_DE.md](https://github.com/Zheng-Bote/mitm-2/docs/AI_Workflow_DE.md) or [AI_Workflow_EN.md](https://github.com/Zheng-Bote/mitm-2/docs/AI_Workflow_EN.md).
+See [AI_Workflow_DE.md](https://github.com/Zheng-Bote/mitm-2/blob/main/docs/AI_Workflow_DE.md) or [AI_Workflow_EN.md](https://github.com/Zheng-Bote/mitm-2/blob/main/docs/AI_Workflow_EN.md).
 
 ### Status
 
