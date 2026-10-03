@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.0.0] - 2026-10-03
+
+### Changed
+
+- **Authentication**: Migrated the frontend authentication flow from legacy API `v0` (Basic Auth) to the new `v1` REST API (Session-Based Auth).
+- **Security**: The session token is now securely stored exclusively in volatile memory (`SecureString` in RAM) and is no longer persisted to disk, fully complying with the `admin-frontend.sdd` constraints.
+- **Architecture**: `ApiClient` now automatically handles API v1 Content Negotiation via `Accept: application/json` and injects the dynamic session token as a Bearer header.
+- **Error Handling**: The application now gracefully handles `401/403` Unauthorized events (e.g. idle timeouts) by immediately triggering the Windows Hello re-authentication flow, closing the UI safely if re-authentication fails.
+
 ## [v0.32.0] - 2026-10-03
 
 ### Added

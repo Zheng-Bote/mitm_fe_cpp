@@ -18,6 +18,7 @@
  */
 
 #include "MainWindow.h"
+#include <QApplication>
 #include "AuditLogsWidget.h"
 #include "Config.h"
 #include "DashboardWidget.h"
@@ -55,6 +56,7 @@
 #include <QCoreApplication>
 #include <QMessageBox>
 #include "ExportReportDialog.h"
+#include "AuthManager.h"
 
 #include <sstream>
 #include <vector>
@@ -207,8 +209,16 @@ void MainWindow::setupUi() {
   connect(&mitm::api::ApiClient::instance(), &mitm::api::ApiClient::unauthorized, this, [this]() {
       if (!m_unauthorizedShown) {
           m_unauthorizedShown = true;
-          QMessageBox::critical(this, "Authentication Failed", 
-              "Your session is unauthorized (401/403). Please verify your roles and credentials, or restart to log in again.");
+          QMessageBox::warning(this, "Session Expired", 
+              "Your session has expired (e.g. idle timeout). Please log in again to continue.");
+          
+          if (mitm::auth::AuthManager::instance().performLogin(false)) {
+              m_unauthorizedShown = false;
+              spdlog::info("Re-authentication successful.");
+          } else {
+              spdlog::error("Re-authentication failed. Exiting application to protect sensitive views.");
+              QApplication::quit();
+          }
       }
   });
 

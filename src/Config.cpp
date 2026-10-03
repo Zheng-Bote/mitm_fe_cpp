@@ -92,21 +92,7 @@ bool ConfigManager::IsAdmin(const std::string& username) const {
     return false;
 }
 
-QString ConfigManager::GetAuthHeader() const {
-    auto env = QProcessEnvironment::systemEnvironment();
-    QString osUser = env.value("USER", env.value("USERNAME", "unknown"));
-    QString token = "";
-    
-    for (const auto& admin : m_config.admin_users) {
-        if (admin.username == osUser.toStdString() && !admin.token.empty()) {
-            token = QString::fromStdString(admin.token);
-            break;
-        }
-    }
-    
-    QString credentials = osUser + ":" + token;
-    return "Basic " + credentials.toLocal8Bit().toBase64();
-}
+
 
 QString ConfigManager::GetHostUrl() const {
     QString protocol = m_config.scheduler_use_https ? "https://" : "http://";

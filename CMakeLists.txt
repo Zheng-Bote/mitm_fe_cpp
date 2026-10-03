@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.25)
 project(mitm_fe_cpp
-VERSION 0.31.0
+VERSION 1.0.0
 DESCRIPTION "Admin frontend for the MitM project"
 HOMEPAGE_URL "https://github.com/Zheng-Bote/mitm_fe_cpp"
 LANGUAGES CXX)
@@ -8,7 +8,7 @@ LANGUAGES CXX)
 if(MSVC)
     # Use c++latest for MSVC to enable C++26 features
     add_compile_options(/std:c++latest)
-    set(CMAKE_CXX_STANDARD 23)
+    set(CMAKE_CXX_STANDARD 26)
 else()
     # Require C++26 for GCC/Clang
     set(CMAKE_CXX_STANDARD 26)
@@ -61,6 +61,8 @@ add_subdirectory(configure)
 # Source files
 set(SOURCES
     src/main.cpp
+    src/AuthManager.h
+    src/AuthManager.cpp
     src/ApiClient.h
     src/ApiClient.cpp
     src/Crypto.h

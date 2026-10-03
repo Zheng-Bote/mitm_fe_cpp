@@ -62,7 +62,8 @@ public:
     const ConfigData& GetConfig() const { return m_config; }
     
     bool IsAdmin(const std::string& username) const;
-    QString GetAuthHeader() const;
+    void SetSessionToken(const mitm::crypto::SecureString& token) { m_sessionToken = token; }
+    mitm::crypto::SecureString GetSessionToken() const { return m_sessionToken; }
     QString GetHostUrl() const;
     
     void SetCurrentUserRoles(const std::vector<std::string>& roles) { m_userRoles = roles; }
@@ -81,6 +82,7 @@ private:
 
     ConfigData m_config;
     mitm::crypto::SecureString m_password;
+    mitm::crypto::SecureString m_sessionToken;
     std::string m_globalConfigPath;
     std::vector<std::string> m_userRoles;
 };

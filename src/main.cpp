@@ -40,6 +40,7 @@
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QProcessEnvironment>
+#include "AuthManager.h"
 
 int main(int argc, char *argv[]) {
     // Setup spdlog (default before config loads)
@@ -113,99 +114,12 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-#ifdef _WIN32
-    {
-        spdlog::info("Requesting Windows Hello authentication via WinRT...");
-        bool authSuccess = false;
-        bool authError = false;
-        std::string errorMsg;
-
-        std::thread([&]() {
-            try {
-                winrt::init_apartment(winrt::apartment_type::multi_threaded);
-                
-                auto availability = winrt::Windows::Security::Credentials::UI::UserConsentVerifier::CheckAvailabilityAsync().get();
-                if (availability == winrt::Windows::Security::Credentials::UI::UserConsentVerifierAvailability::Available) {
-                    
-                    auto factory = winrt::get_activation_factory<winrt::Windows::Security::Credentials::UI::UserConsentVerifier>();
-                    auto interop = factory.as<IUserConsentVerifierInterop>();
-                    
-                    winrt::Windows::Foundation::IAsyncOperation<winrt::Windows::Security::Credentials::UI::UserConsentVerificationResult> asyncOp{ nullptr };
-                    winrt::hstring message = L"Please authenticate (Windows Hello) to access the MitM Admin Frontend.";
-                    
-                    HWND hwnd = GetActiveWindow();
-                    if (!hwnd) hwnd = GetForegroundWindow();
-                    if (!hwnd) hwnd = GetDesktopWindow();
-
-                    winrt::check_hresult(interop->RequestVerificationForWindowAsync(
-                        hwnd, 
-                        (HSTRING)winrt::get_abi(message), 
-                        winrt::guid_of<winrt::Windows::Foundation::IAsyncOperation<winrt::Windows::Security::Credentials::UI::UserConsentVerificationResult>>(), 
-                        winrt::put_abi(asyncOp)
-                    ));
-
-                    auto result = asyncOp.get();
-
-                    if (result == winrt::Windows::Security::Credentials::UI::UserConsentVerificationResult::Verified) {
-                        authSuccess = true;
-                    }
-                } else {
-                    authSuccess = true; 
-                    spdlog::warn("Windows Hello is not available. Bypassing...");
-                }
-            } catch (const winrt::hresult_error& e) {
-                authError = true;
-                errorMsg = winrt::to_string(e.message());
-            } catch (const std::exception& e) {
-                authError = true;
-                errorMsg = e.what();
-            }
-        }).join();
-
-        if (authError) {
-            spdlog::error("Windows Hello Error: {}", errorMsg);
-            QMessageBox::critical(nullptr, "Hello-Failed", 
-                                  QString::fromStdString("The Windows Hello authentication could not be started:\n" + errorMsg));
-            return 1;
-        }
-
-        if (!authSuccess) {
-            spdlog::warn("Windows Hello authentication failed or cancelled.");
-            QMessageBox::critical(nullptr, "Hello-Failed", 
-                                  "The Windows Hello authentication failed or was cancelled.");
-            return 1;
-        }
-        spdlog::info("Windows Hello authentication successful.");
-    }
-#endif
-
     // Optional: Set a dark style if supported by OS, or force fusion
     app.setStyle("Fusion");
 
-    // Fetch user roles from Backend
-    {
-        QString osUser = QProcessEnvironment::systemEnvironment().value("USER", QProcessEnvironment::systemEnvironment().value("USERNAME", "unknown"));
-        QNetworkAccessManager manager;
-        QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
-        QString auth = mitm::config::ConfigManager::GetInstance().GetAuthHeader();
-
-        QNetworkRequest req(QUrl(host + "/admin/rbac/os_user_roles?os_user=" + osUser));
-        req.setRawHeader("Authorization", auth.toLocal8Bit());
-
-        QNetworkReply* reply = manager.get(req);
-        QEventLoop loop;
-        QObject::connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
-        loop.exec();
-
-        std::vector<std::string> userRoles;
-        if (reply->error() == QNetworkReply::NoError) {
-            auto doc = QJsonDocument::fromJson(reply->readAll());
-            for (const auto& v : doc.array()) {
-                userRoles.push_back(v.toString().toStdString());
-            }
-        }
-        reply->deleteLater();
-        mitm::config::ConfigManager::GetInstance().SetCurrentUserRoles(userRoles);
+    if (!mitm::auth::AuthManager::instance().performLogin(true)) {
+        spdlog::error("Initial authentication failed. Exiting.");
+        return 1;
     }
 
     MainWindow window;

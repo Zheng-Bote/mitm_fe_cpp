@@ -26,8 +26,16 @@ QNetworkRequest ApiClient::createRequest(const QString& path) const {
     auto& config = mitm::config::ConfigManager::GetInstance();
     QUrl url(config.GetHostUrl() + path);
     QNetworkRequest request(url);
-    request.setRawHeader("Authorization", config.GetAuthHeader().toUtf8());
+    
+    mitm::crypto::SecureString secureToken = config.GetSessionToken();
+    std::string token(secureToken.begin(), secureToken.end());
+    if (!token.empty()) {
+        // Use Bearer token for the established session
+        request.setRawHeader("Authorization", ("Bearer " + QString::fromStdString(token)).toUtf8());
+    }
+    
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    request.setRawHeader("Accept", "application/json"); // API v1 content negotiation
     request.setTransferTimeout(10000);
     return request;
 }
