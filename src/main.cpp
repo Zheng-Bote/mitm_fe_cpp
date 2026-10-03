@@ -79,8 +79,13 @@ int main(int argc, char *argv[]) {
 
     // Prompt for password
     bool ok;
+    QString lastConfigName = settings.value("LastConfigName", "").toString();
+    QString promptText = lastConfigName.isEmpty() 
+                            ? "Enter password to decrypt configuration:"
+                            : QString("Enter password to decrypt configuration (%1):").arg(lastConfigName);
+
     QString password = QInputDialog::getText(nullptr, "MitM Admin",
-                                             "Enter password to decrypt configuration:",
+                                             promptText,
                                              QLineEdit::Password,
                                              "", &ok);
     if (!ok) {
@@ -126,7 +131,7 @@ int main(int argc, char *argv[]) {
                     auto interop = factory.as<IUserConsentVerifierInterop>();
                     
                     winrt::Windows::Foundation::IAsyncOperation<winrt::Windows::Security::Credentials::UI::UserConsentVerificationResult> asyncOp{ nullptr };
-                    winrt::hstring message = L"Bitte authentifizieren Sie sich (Windows Hello), um auf das MitM Admin Frontend zuzugreifen.";
+                    winrt::hstring message = L"Please authenticate (Windows Hello) to access the MitM Admin Frontend.";
                     
                     HWND hwnd = GetActiveWindow();
                     if (!hwnd) hwnd = GetForegroundWindow();
@@ -159,15 +164,15 @@ int main(int argc, char *argv[]) {
 
         if (authError) {
             spdlog::error("Windows Hello Error: {}", errorMsg);
-            QMessageBox::critical(nullptr, "Hello-Fehler", 
-                                  QString::fromStdString("Die Windows Hello Authentifizierung konnte nicht gestartet werden:\n" + errorMsg));
+            QMessageBox::critical(nullptr, "Hello-Failed", 
+                                  QString::fromStdString("The Windows Hello authentication could not be started:\n" + errorMsg));
             return 1;
         }
 
         if (!authSuccess) {
             spdlog::warn("Windows Hello authentication failed or cancelled.");
-            QMessageBox::critical(nullptr, "Authentifizierung fehlgeschlagen", 
-                                  "Die Windows Hello Authentifizierung wurde abgebrochen, eine falsche PIN eingegeben oder ist anderweitig fehlgeschlagen.");
+            QMessageBox::critical(nullptr, "Hello-Failed", 
+                                  "The Windows Hello authentication failed or was cancelled.");
             return 1;
         }
         spdlog::info("Windows Hello authentication successful.");
