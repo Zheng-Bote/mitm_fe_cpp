@@ -26,6 +26,7 @@
 #include <QByteArray>
 #include <QCoreApplication>
 #include <QDir>
+#include <QSettings>
 
 namespace mitm::config {
 
@@ -55,6 +56,9 @@ void ConfigManager::LoadEncryptedConfig(const std::string& filepath, const mitm:
     m_config.scheduler_use_https = j.value("scheduler_use_https", false);
     m_config.log_level = j.value("log_level", "info");
     m_config.name = j.value("name", "Default Config");
+
+    QSettings settings;
+    settings.setValue("LastConfigName", QString::fromStdString(m_config.name));
 
     if (j.contains("networking") && j["networking"].contains("proxy")) {
         auto p = j["networking"]["proxy"];
