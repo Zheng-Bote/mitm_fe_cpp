@@ -238,7 +238,7 @@ void DashboardWidget::fetchDashboardStats() {
                     return QString("%1: %2 %3 (Oldest: %4)").arg(prefix).arg(count).arg(icon).arg(oldest);
                 };
                 
-                m_dbInfoLabel->setText(QString("DB: %1 %2\\nSize: %3").arg(dbName).arg(dbVersion).arg(dbSize));
+                m_dbInfoLabel->setText(QString("DB: %1 %2<br/>Size: %3").arg(dbName).arg(dbVersion).arg(dbSize));
                 
                 m_dlqCursorLabel->setText(parseMetric(stats.value("dlq", json::object()), "DLQ Cursors", "📦"));
                 m_transformErrorsLabel->setText(parseMetric(stats.value("transformation_errors", json::object()), "Transformation Errors", "🔴"));
