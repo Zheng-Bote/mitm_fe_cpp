@@ -106,7 +106,8 @@ void DlqWidget::onRefresh() {
     [this](int statusCode, const QString& errorString) {
             spdlog::error("Failed to fetch DLQ: {}", errorString.toStdString());
             return;
-    });
+    },
+    "application/x-flatbuffers");
 }
 
 void DlqWidget::onRequeue() {

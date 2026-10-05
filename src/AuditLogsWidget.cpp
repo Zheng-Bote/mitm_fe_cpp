@@ -190,7 +190,8 @@ void AuditLogsWidget::refreshData() {
         
         m_tableView->resizeColumnsToContents();
         
-            }
+            },
+        "application/x-flatbuffers"
     );
 }
 
@@ -264,7 +265,8 @@ void AuditLogsWidget::onExportReport() {
         [this](int statusCode, const QString& errorString) {
             m_exportReportButton->setEnabled(true);
             QMessageBox::critical(this, "Export Error", "Failed to fetch audit logs for the specified date range:\n" + errorString);
-        }
+        },
+        "application/x-flatbuffers"
     );
 }
 
