@@ -219,17 +219,16 @@ void DashboardWidget::fetchDashboardStats() {
             try {
                 auto j = json::parse(data.toStdString());
                 
-                auto db = j.value("database", json::object());
-                QString dbName = QString::fromStdString(db.value("db_name", "Unknown"));
-                QString dbVersion = QString::fromStdString(db.value("db_version", "Unknown"));
-                QString dbSize = QString::fromStdString(db.value("db_size", "Unknown"));
+                QString dbName = QString::fromStdString(j.value("db_name", "Unknown"));
+                QString dbVersion = QString::fromStdString(j.value("db_version", "Unknown"));
+                QString dbSize = QString::fromStdString(j.value("db_size", "Unknown"));
                 
-                auto metrics = j.value("metrics", json::object());
+                auto stats = j.value("stats", json::object());
                 
                 auto parseMetric = [](const json& m, const QString& prefix, const QString& icon) -> QString {
                     int count = m.value("count", 0);
                     QString oldest = "N/A";
-                    if (!m["oldest"].is_null()) {
+                    if (m.contains("oldest") && !m["oldest"].is_null()) {
                         oldest = QString::fromStdString(m.value("oldest", ""));
                         QDateTime dt = QDateTime::fromString(oldest, Qt::ISODate);
                         if (dt.isValid()) {
@@ -238,14 +237,16 @@ void DashboardWidget::fetchDashboardStats() {
                     }
                     return QString("%1: %2 %3 (Oldest: %4)").arg(prefix).arg(count).arg(icon).arg(oldest);
                 };
+                
                 m_dbInfoLabel->setText(QString("DB: %1 %2\\nSize: %3").arg(dbName).arg(dbVersion).arg(dbSize));
                 
-                m_dlqCursorLabel->setText(parseMetric(metrics.value("total_dlq", json::object()), "DLQ Cursors", "📦"));
-                m_transformErrorsLabel->setText(parseMetric(metrics.value("total_transformation_errors", json::object()), "Transformation Errors", "🔴"));
-                m_systemLogsLabel->setText(parseMetric(metrics.value("total_system_logs", json::object()), "System Logs", "📋"));
-                m_adminLogsLabel->setText(parseMetric(metrics.value("total_audit_logs", json::object()), "Admin Audit Logs", "🛡️"));
+                m_dlqCursorLabel->setText(parseMetric(stats.value("dlq", json::object()), "DLQ Cursors", "📦"));
+                m_transformErrorsLabel->setText(parseMetric(stats.value("transformation_errors", json::object()), "Transformation Errors", "🔴"));
+                m_systemLogsLabel->setText(parseMetric(stats.value("system_logs", json::object()), "System Logs", "📋"));
+                m_adminLogsLabel->setText(parseMetric(stats.value("admin_audit_logs", json::object()), "Admin Audit Logs", "🛡️"));
+                m_jobLogsLabel->setText(parseMetric(stats.value("job_audit_logs", json::object()), "Job Audit Logs", "📋"));
                 
-                int jobsCount = metrics.value("total_jobs", json::object()).value("count", 0);
+                int jobsCount = stats.value("total_scheduled_jobs", 0);
                 m_jobsLabel->setText(QString("Total Scheduled Jobs: %1").arg(jobsCount));
                 
                 fetchHealth();
