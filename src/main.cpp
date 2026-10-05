@@ -119,6 +119,8 @@ int main(int argc, char *argv[]) {
 
     if (!mitm::auth::AuthManager::instance().performLogin(true)) {
         spdlog::error("Initial authentication failed. Exiting.");
+        QMessageBox::critical(nullptr, "Connection Error",
+                              "Could not connect to the Backend or authentication failed.\nPlease check if the server is reachable.");
         return 1;
     }
 
