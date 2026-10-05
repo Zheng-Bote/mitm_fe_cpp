@@ -118,10 +118,10 @@ int main(int argc, char *argv[]) {
     app.setStyle("Fusion");
 
     if (!mitm::auth::AuthManager::instance().performLogin(true)) {
-        spdlog::error("Initial authentication failed. Exiting.");
-        QMessageBox::critical(nullptr, "Connection Error",
-                              "Could not connect to the Backend or authentication failed.\nPlease check if the server is reachable.");
-        return 1;
+        spdlog::warn("Initial authentication failed, but proceeding to launch.");
+        QMessageBox::warning(nullptr, "Connection Error",
+                              "Could not connect to the Backend or authentication failed.\n"
+                              "The application will start, but you may need to update your Settings and try again.");
     }
 
     MainWindow window;
