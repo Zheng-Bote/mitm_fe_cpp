@@ -23,7 +23,7 @@ public:
     using SuccessCallback = std::function<void(const QByteArray&, QNetworkReply*)>;
     using ErrorCallback = std::function<void(int statusCode, const QString& errorString)>;
 
-    void get(const QString& path, const SuccessCallback& onSuccess, const ErrorCallback& onError = nullptr);
+    void get(const QString& path, const SuccessCallback& onSuccess, const ErrorCallback& onError = nullptr, const QString& acceptType = "application/json");
     void post(const QString& path, const QByteArray& data, const SuccessCallback& onSuccess, const ErrorCallback& onError = nullptr);
     void post(const QString& path, QHttpMultiPart* multiPart, const SuccessCallback& onSuccess, const ErrorCallback& onError = nullptr);
     void put(const QString& path, const QByteArray& data, const SuccessCallback& onSuccess, const ErrorCallback& onError = nullptr);
@@ -39,7 +39,7 @@ private:
     ApiClient(const ApiClient&) = delete;
     ApiClient& operator=(const ApiClient&) = delete;
 
-    QNetworkRequest createRequest(const QString& path) const;
+    QNetworkRequest createRequest(const QString& path, const QString& acceptType = "application/json") const;
     void handleReply(QNetworkReply* reply, const SuccessCallback& onSuccess, const ErrorCallback& onError);
 
     QNetworkAccessManager* m_manager;

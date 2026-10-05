@@ -122,7 +122,7 @@ bool AuthManager::establishSession(const QString& osUser) {
     QNetworkAccessManager manager;
     QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
     
-    QNetworkRequest req(QUrl(host + "/api/user/v1/session"));
+    QNetworkRequest req(QUrl(host + "/api/v1/auth/session"));
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     req.setRawHeader("Accept", "application/json");
     req.setTransferTimeout(10000);
@@ -178,7 +178,7 @@ bool AuthManager::fetchUserRoles() {
     QNetworkAccessManager manager;
     QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
     
-    QNetworkRequest req(QUrl(host + "/api/user/v1/roles"));
+    QNetworkRequest req(QUrl(host + "/api/v1/auth/me"));
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     req.setRawHeader("Accept", "application/json");
     req.setTransferTimeout(10000);

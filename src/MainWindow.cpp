@@ -285,13 +285,18 @@ void MainWindow::showAboutDialog() {
               "%2<br/><br/>"
               "<b>Version:</b> %3<br/>"
               "<b>License:</b> %4<br/>"
-              "<b>Copyright:</b> %5<br/><br/>")
+              "<b>Copyright:</b> %5<br/><br/>"
+              "<b>NI GENERATED</b> with %6/Qt v%7<br/><br/>"
+            )
           .arg(QString::fromStdString(std::string(rz::config::PROJECT_NAME)),
                QString::fromStdString(
                    std::string(rz::config::PROJECT_DESCRIPTION)),
                QString::fromStdString(std::string(rz::config::VERSION)),
                QString::fromStdString(std::string(rz::config::LICENSE)),
-               QString::fromStdString(std::string(rz::config::COPYRIGHT)));
+               QString::fromStdString(std::string(rz::config::COPYRIGHT)),
+               QString::fromStdString(std::string(rz::config::CMAKE_CXX_STANDARD)),
+               QString::fromStdString(std::string(rz::config::QT_VERSION_BUILD))
+            );
 
   auto *hLayout = new QHBoxLayout();
   layout->addLayout(hLayout);

@@ -107,7 +107,7 @@ void SystemLogsWidget::refreshData() {
 
     m_refreshButton->setEnabled(false);
     
-    mitm::api::ApiClient::instance().get("/admin/logs/system_bin",
+    mitm::api::ApiClient::instance().get("/api/v1/logs/system",
         [this](const QByteArray& data, QNetworkReply*) {
             m_refreshButton->setEnabled(true);
 
@@ -170,7 +170,8 @@ void SystemLogsWidget::refreshData() {
             m_model->setRowCount(0);
             m_model->appendRow({new QStandardItem("Error"), new QStandardItem(errorString)});
             m_tableView->resizeColumnsToContents();
-        }
+        },
+        "application/x-flatbuffers"
     );
 }
 

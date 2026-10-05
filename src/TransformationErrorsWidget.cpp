@@ -61,7 +61,7 @@ TransformationErrorsWidget::TransformationErrorsWidget(QWidget *parent)
 void TransformationErrorsWidget::onRefresh() {
     m_refreshButton->setEnabled(false);
     
-    mitm::api::ApiClient::instance().get("/admin/transformation/errors_bin",
+    mitm::api::ApiClient::instance().get("/api/v1/logs/transformation-errors",
         [this](const QByteArray& data, QNetworkReply*) {
             m_refreshButton->setEnabled(true);
             m_tableView->setSortingEnabled(false);
@@ -110,7 +110,8 @@ void TransformationErrorsWidget::onRefresh() {
             m_model->appendRow({new QStandardItem("Error"), new QStandardItem(errorString)});
             m_tableView->setSortingEnabled(true);
             m_tableView->resizeColumnsToContents();
-        }
+        },
+        "application/x-flatbuffers"
     );
 }
 

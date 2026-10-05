@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.1.0] - 2026-10-05
+
+### Changed
+
+- **API V1 Refactor**: Fully updated all API calls across the frontend to align with the backend's new resource-oriented REST architecture (e.g., `/api/v1/system/dashboard`, `/api/v1/jobs`, `/api/v1/logs/system`).
+- **Dashboard Widget**: Migrated Dashboard stats to consume the unified JSON from `/api/v1/system/dashboard`, rendering the old FlatBuffer counting logic obsolete.
+- **Content Negotiation**: Added conditional `Accept: application/x-flatbuffers` headers specifically to log extraction GET requests, restoring compatibility with the refactored endpoints.
+
 ## [v1.0.0] - 2026-10-03
 
 ### Changed

@@ -112,7 +112,7 @@ void AuditLogsWidget::refreshData() {
 
     m_refreshButton->setEnabled(false);
     
-    QString url = "/admin/logs/job-audit_bin";
+    QString url = "/api/v1/logs/audit";
     if (m_useDateRangeCheckbox->isChecked()) {
         QString from = m_startDateEdit->date().toString("yyyy-MM-dd");
         QString to = m_endDateEdit->date().toString("yyyy-MM-dd");

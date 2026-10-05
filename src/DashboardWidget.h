@@ -39,10 +39,10 @@ private:
     void fetchInfo();
     void fetchHealth();
     void fetchJobs();
-    void fetchAdminLogsStats();
-    void fetchSystemLogsStats();
-    void fetchJobLogsStats();
-    void fetchTransformErrorsStats();
+    
+    
+    
+    
     void fetchDashboardStats();
     QLabel* m_healthLabel;
     QLabel* m_engineLabel;

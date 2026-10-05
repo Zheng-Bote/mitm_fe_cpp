@@ -194,7 +194,7 @@ void SettingsWidget::onChangeMasterKey() {
 
     m_changeKeyButton->setEnabled(false);
 
-    mitm::api::ApiClient::instance().post("/admin/key-rotation", data,
+    mitm::api::ApiClient::instance().post("/api/v1/system/key-rotation", data,
         [this](const QByteArray& response, QNetworkReply*) {
             spdlog::info("Master-Key rotated successfully.");
             QMessageBox::information(this, "Success", "Master-Key rotated successfully.");

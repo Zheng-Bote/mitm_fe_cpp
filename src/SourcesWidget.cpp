@@ -79,7 +79,7 @@ void SourcesWidget::onRefresh() {
 }
 
 void SourcesWidget::fetchSources() {
-    mitm::api::ApiClient::instance().get("/admin/credentials",
+    mitm::api::ApiClient::instance().get("/api/v1/config/credentials",
         [this](const QByteArray& data, QNetworkReply*) {
             try {
                 m_table->setRowCount(0);
@@ -161,7 +161,7 @@ void SourcesWidget::onAddSource() {
         j["config_payload"] = configEdit->toPlainText().toStdString();
         j["is_active"] = activeCheck->isChecked();
 
-        mitm::api::ApiClient::instance().post("/admin/credentials", QString::fromStdString(j.dump()).toUtf8(),
+        mitm::api::ApiClient::instance().post("/api/v1/config/credentials", QString::fromStdString(j.dump()).toUtf8(),
             [this](const QByteArray&, QNetworkReply*) {
                 QMessageBox::information(this, "Success", "Source added.");
                 onRefresh();
@@ -220,7 +220,7 @@ void SourcesWidget::onEditSource() {
         j["config_payload"] = configEdit->toPlainText().toStdString();
         j["is_active"] = activeCheck->isChecked();
 
-        mitm::api::ApiClient::instance().post("/admin/credentials", QString::fromStdString(j.dump()).toUtf8(),
+        mitm::api::ApiClient::instance().post("/api/v1/config/credentials", QString::fromStdString(j.dump()).toUtf8(),
             [this](const QByteArray&, QNetworkReply*) {
                 QMessageBox::information(this, "Success", "Source updated.");
                 onRefresh();

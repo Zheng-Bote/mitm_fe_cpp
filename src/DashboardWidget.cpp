@@ -147,15 +147,6 @@ void DashboardWidget::onRefreshClicked() {
 }
 
 void DashboardWidget::refreshData() {
-    if (!this->isVisible()) return;
-
-    fetchHealth();
-    fetchInfo();
-    fetchJobs();
-    fetchAdminLogsStats();
-    fetchSystemLogsStats();
-    fetchJobLogsStats();
-    fetchTransformErrorsStats();
     fetchDashboardStats();
 }
 
@@ -198,7 +189,7 @@ void DashboardWidget::fetchInfo() {
 }
 
 void DashboardWidget::fetchJobs() {
-    mitm::api::ApiClient::instance().get("/admin/jobs",
+    mitm::api::ApiClient::instance().get("/api/v1/jobs",
         [this](const QByteArray& data, QNetworkReply* reply) {
             try {
                 json j = json::parse(data.toStdString());
@@ -217,179 +208,55 @@ void DashboardWidget::fetchJobs() {
     );
 }
 
-void DashboardWidget::fetchAdminLogsStats() {
-    mitm::api::ApiClient::instance().get("/admin/logs/admin-audit_bin",
-        [this](const QByteArray& data, QNetworkReply* reply) {
-            try {
-                flatbuffers::Verifier verifier(reinterpret_cast<const uint8_t*>(data.constData()), data.size());
-                if (!schematas::VerifyAdminAuditLogListBuffer(verifier)) {
-                    m_adminLogsLabel->setText("Admin Audit Logs: Parse Error");
-                } else {
-                    auto list = schematas::GetAdminAuditLogList(data.constData());
-                    if (list && list->logs()) {
-                        auto arr = list->logs();
-                        std::string oldestTs = "";
-                        for (int i = 0; i < arr->size(); ++i) {
-                            auto log = arr->Get(i);
-                            if (!log || !log->ts()) continue;
-                            std::string ts = log->ts()->c_str();
-                            if (oldestTs.empty() || ts < oldestTs) oldestTs = ts;
-                        }
-                        QString displayTs = "N/A";
-                        if (!oldestTs.empty()) {
-                            QDateTime dt = QDateTime::fromString(QString::fromStdString(oldestTs), Qt::ISODate);
-                            displayTs = dt.isValid() ? dt.toString("yyyy-MM-dd HH:mm:ss") : QString::fromStdString(oldestTs);
-                        }
-                        m_adminLogsLabel->setText(QString("Admin Audit Logs: %1 📋 (Oldest: %2)").arg(arr->size()).arg(displayTs));
-                    } else {
-                        m_adminLogsLabel->setText("Admin Audit Logs: 0");
-                    }
-                }
-            } catch (...) {
-                m_adminLogsLabel->setText("Admin Audit Logs: Parse Error");
-            }
-        },
-        [this](int statusCode, const QString& errorString) {
-            m_adminLogsLabel->setText("Admin Audit Logs: Error 🔴");
-        }
-    );
-}
 
-void DashboardWidget::fetchSystemLogsStats() {
-    mitm::api::ApiClient::instance().get("/admin/logs/system_bin",
-        [this](const QByteArray& data, QNetworkReply* reply) {
-            try {
-                flatbuffers::Verifier verifier(reinterpret_cast<const uint8_t*>(data.constData()), data.size());
-                if (!schematas::VerifySystemLogListBuffer(verifier)) {
-                    m_systemLogsLabel->setText("System Logs: Parse Error");
-                } else {
-                    auto list = schematas::GetSystemLogList(data.constData());
-                    if (list && list->logs()) {
-                        auto arr = list->logs();
-                        std::string oldestTs = "";
-                        for (int i = 0; i < arr->size(); ++i) {
-                            auto log = arr->Get(i);
-                            if (!log || !log->ts()) continue;
-                            std::string ts = log->ts()->c_str();
-                            if (oldestTs.empty() || ts < oldestTs) oldestTs = ts;
-                        }
-                        QString displayTs = "N/A";
-                        if (!oldestTs.empty()) {
-                            QDateTime dt = QDateTime::fromString(QString::fromStdString(oldestTs), Qt::ISODate);
-                            displayTs = dt.isValid() ? dt.toString("yyyy-MM-dd HH:mm:ss") : QString::fromStdString(oldestTs);
-                        }
-                        m_systemLogsLabel->setText(QString("System Logs: %1 📋 (Oldest: %2)").arg(arr->size()).arg(displayTs));
-                    } else {
-                        m_systemLogsLabel->setText("System Logs: 0");
-                    }
-                }
-            } catch (...) {
-                m_systemLogsLabel->setText("System Logs: Parse Error");
-            }
-        },
-        [this](int statusCode, const QString& errorString) {
-            m_systemLogsLabel->setText("System Logs: Error 🔴");
-        }
-    );
-}
 
-void DashboardWidget::fetchJobLogsStats() {
-    mitm::api::ApiClient::instance().get("/admin/logs/job-audit_bin",
-        [this](const QByteArray& data, QNetworkReply* reply) {
-            try {
-                flatbuffers::Verifier verifier(reinterpret_cast<const uint8_t*>(data.constData()), data.size());
-                if (!schematas::VerifyJobAuditLogListBuffer(verifier)) {
-                    m_jobLogsLabel->setText("Job Audit Logs: Parse Error");
-                } else {
-                    auto list = schematas::GetJobAuditLogList(data.constData());
-                    if (list && list->logs()) {
-                        auto arr = list->logs();
-                        std::string oldestTs = "";
-                        for (int i = 0; i < arr->size(); ++i) {
-                            auto log = arr->Get(i);
-                            if (!log || !log->ts()) continue;
-                            std::string ts = log->ts()->c_str();
-                            if (oldestTs.empty() || ts < oldestTs) oldestTs = ts;
-                        }
-                        QString displayTs = "N/A";
-                        if (!oldestTs.empty()) {
-                            QDateTime dt = QDateTime::fromString(QString::fromStdString(oldestTs), Qt::ISODate);
-                            displayTs = dt.isValid() ? dt.toString("yyyy-MM-dd HH:mm:ss") : QString::fromStdString(oldestTs);
-                        }
-                        m_jobLogsLabel->setText(QString("Job Audit Logs: %1 📋 (Oldest: %2)").arg(arr->size()).arg(displayTs));
-                    } else {
-                        m_jobLogsLabel->setText("Job Audit Logs: 0");
-                    }
-                }
-            } catch (...) {
-                m_jobLogsLabel->setText("Job Audit Logs: Parse Error");
-            }
-        },
-        [this](int statusCode, const QString& errorString) {
-            m_jobLogsLabel->setText("Job Audit Logs: Error 🔴");
-        }
-    );
-}
 
-void DashboardWidget::fetchTransformErrorsStats() {
-    mitm::api::ApiClient::instance().get("/admin/transformation/errors_bin",
-        [this](const QByteArray& data, QNetworkReply* reply) {
-            try {
-                flatbuffers::Verifier verifier(reinterpret_cast<const uint8_t*>(data.constData()), data.size());
-                if (!schematas::VerifyTransformationErrorListBuffer(verifier)) {
-                    m_transformErrorsLabel->setText("Transformation Errors: Parse Error");
-                } else {
-                    auto list = schematas::GetTransformationErrorList(data.constData());
-                    if (list && list->errors()) {
-                        auto arr = list->errors();
-                        std::string oldestTs = "";
-                        for (int i = 0; i < arr->size(); ++i) {
-                            auto log = arr->Get(i);
-                            if (!log || !log->created_at()) continue;
-                            std::string ts = log->created_at()->c_str();
-                            if (oldestTs.empty() || ts < oldestTs) oldestTs = ts;
-                        }
-                        QString displayTs = "N/A";
-                        if (!oldestTs.empty()) {
-                            QDateTime dt = QDateTime::fromString(QString::fromStdString(oldestTs), Qt::ISODate);
-                            displayTs = dt.isValid() ? dt.toString("yyyy-MM-dd HH:mm:ss") : QString::fromStdString(oldestTs);
-                        }
-                        m_transformErrorsLabel->setText(QString("Transformation Errors: %1 📋 (Oldest: %2)").arg(arr->size()).arg(displayTs));
-                    } else {
-                        m_transformErrorsLabel->setText("Transformation Errors: 0");
-                    }
-                }
-            } catch (...) {
-                m_transformErrorsLabel->setText("Transformation Errors: Parse Error");
-            }
-        },
-        [this](int statusCode, const QString& errorString) {
-            m_transformErrorsLabel->setText("Transformation Errors: Error 🔴");
-        }
-    );
-}
 
 
 void DashboardWidget::fetchDashboardStats() {
-    mitm::api::ApiClient::instance().get("/admin/dashboard/stats",
+    mitm::api::ApiClient::instance().get("/api/v1/system/dashboard",
         [this](const QByteArray& data, QNetworkReply* reply) {
             try {
                 auto j = json::parse(data.toStdString());
-                QString dbName = QString::fromStdString(j.value("db_name", "Unknown"));
-                QString dbVersion = QString::fromStdString(j.value("db_version", "Unknown"));
-                QString dbSize = QString::fromStdString(j.value("db_size", "Unknown"));
-                int dlqCount = j.value("dlq_count", 0);
                 
-                m_dbInfoLabel->setText(QString("DB: %1 %2\nSize: %3").arg(dbName).arg(dbVersion).arg(dbSize));
-                m_dlqCursorLabel->setText(QString("DLQ Cursors: %1").arg(dlqCount));
-            } catch (...) {
-                m_dbInfoLabel->setText("DB Info: Parse Error");
-                m_dlqCursorLabel->setText("DLQ Cursors: Parse Error");
+                auto db = j.value("database", json::object());
+                QString dbName = QString::fromStdString(db.value("db_name", "Unknown"));
+                QString dbVersion = QString::fromStdString(db.value("db_version", "Unknown"));
+                QString dbSize = QString::fromStdString(db.value("db_size", "Unknown"));
+                
+                auto metrics = j.value("metrics", json::object());
+                
+                auto parseMetric = [](const json& m, const QString& prefix, const QString& icon) -> QString {
+                    int count = m.value("count", 0);
+                    QString oldest = "N/A";
+                    if (!m["oldest"].is_null()) {
+                        oldest = QString::fromStdString(m.value("oldest", ""));
+                        QDateTime dt = QDateTime::fromString(oldest, Qt::ISODate);
+                        if (dt.isValid()) {
+                            oldest = dt.toString("yyyy-MM-dd HH:mm:ss");
+                        }
+                    }
+                    return QString("%1: %2 %3 (Oldest: %4)").arg(prefix).arg(count).arg(icon).arg(oldest);
+                };
+                m_dbInfoLabel->setText(QString("DB: %1 %2\\nSize: %3").arg(dbName).arg(dbVersion).arg(dbSize));
+                
+                m_dlqCursorLabel->setText(parseMetric(metrics.value("total_dlq", json::object()), "DLQ Cursors", "📦"));
+                m_transformErrorsLabel->setText(parseMetric(metrics.value("total_transformation_errors", json::object()), "Transformation Errors", "🔴"));
+                m_systemLogsLabel->setText(parseMetric(metrics.value("total_system_logs", json::object()), "System Logs", "📋"));
+                m_adminLogsLabel->setText(parseMetric(metrics.value("total_audit_logs", json::object()), "Admin Audit Logs", "🛡️"));
+                
+                int jobsCount = metrics.value("total_jobs", json::object()).value("count", 0);
+                m_jobsLabel->setText(QString("Total Scheduled Jobs: %1").arg(jobsCount));
+                
+                fetchHealth();
+                fetchInfo();
+                
+            } catch (const std::exception& e) {
+                m_dbInfoLabel->setText(QString("DB Info: Parse Error (%1)").arg(e.what()));
             }
         },
         [this](int statusCode, const QString& errorString) {
             m_dbInfoLabel->setText("DB Info: Error 🔴");
-            m_dlqCursorLabel->setText("DLQ Cursors: Error 🔴");
         }
     );
 }

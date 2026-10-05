@@ -79,7 +79,7 @@ void TargetCredentialsWidget::onRefresh() {
 }
 
 void TargetCredentialsWidget::fetchTargets() {
-    mitm::api::ApiClient::instance().get("/admin/delivery_targets",
+    mitm::api::ApiClient::instance().get("/api/v1/config/targets",
         [this](const QByteArray& data, QNetworkReply*) {
             try {
                 m_table->setRowCount(0);
@@ -161,7 +161,7 @@ void TargetCredentialsWidget::onAddTarget() {
         j["config_payload"] = configEdit->toPlainText().toStdString();
         j["is_active"] = activeCheck->isChecked();
 
-        mitm::api::ApiClient::instance().post("/admin/delivery_targets", QString::fromStdString(j.dump()).toUtf8(),
+        mitm::api::ApiClient::instance().post("/api/v1/config/targets", QString::fromStdString(j.dump()).toUtf8(),
             [this](const QByteArray&, QNetworkReply*) {
                 QMessageBox::information(this, "Success", "Source added.");
                 onRefresh();
@@ -220,7 +220,7 @@ void TargetCredentialsWidget::onEditTarget() {
         j["config_payload"] = configEdit->toPlainText().toStdString();
         j["is_active"] = activeCheck->isChecked();
 
-        mitm::api::ApiClient::instance().post("/admin/delivery_targets", QString::fromStdString(j.dump()).toUtf8(),
+        mitm::api::ApiClient::instance().post("/api/v1/config/targets", QString::fromStdString(j.dump()).toUtf8(),
             [this](const QByteArray&, QNetworkReply*) {
                 QMessageBox::information(this, "Success", "Source updated.");
                 onRefresh();
