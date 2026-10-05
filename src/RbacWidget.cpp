@@ -75,7 +75,7 @@ void RbacWidget::setupUi() {
 
 void RbacWidget::fetchUsersAndRoles() {
     // Fetch Roles
-    mitm::api::ApiClient::instance().get("/admin/rbac/roles",
+    mitm::api::ApiClient::instance().get("/api/v1/iam/roles",
         [this](const QByteArray& data, QNetworkReply* reply) {
             rolesList->clear();
             auto doc = QJsonDocument::fromJson(data);
@@ -92,7 +92,7 @@ void RbacWidget::fetchUsersAndRoles() {
     );
 
     // Fetch Users
-    mitm::api::ApiClient::instance().get("/admin/rbac/users",
+    mitm::api::ApiClient::instance().get("/api/v1/iam/users",
         [this](const QByteArray& data, QNetworkReply* reply) {
             usersTable->setSortingEnabled(false);
             usersTable->setRowCount(0);
@@ -129,7 +129,7 @@ void RbacWidget::onUserSelected() {
     int row = ranges.first().topRow();
     currentUserId = usersTable->item(row, 0)->text().toInt();
 
-    mitm::api::ApiClient::instance().get("/admin/rbac/user_roles?user_id=" + QString::number(currentUserId),
+    mitm::api::ApiClient::instance().get("/api/v1/iam/users/" + QString::number(currentUserId),
         [this](const QByteArray& data, QNetworkReply* reply) {
             auto doc = QJsonDocument::fromJson(data);
             auto roleIdsArray = doc.array();
@@ -170,7 +170,7 @@ void RbacWidget::saveRoleAssignments() {
     payload["user_id"] = currentUserId;
     payload["role_ids"] = roleIds;
 
-    mitm::api::ApiClient::instance().post("/admin/rbac/assign", QJsonDocument(payload).toJson(),
+    mitm::api::ApiClient::instance().post("/api/v1/iam/assign-role", QJsonDocument(payload).toJson(),
         [this](const QByteArray& data, QNetworkReply* reply) {
             QMessageBox::information(this, "Success", "Roles assigned successfully.");
         },
@@ -212,7 +212,7 @@ void RbacWidget::onAddUserClicked() {
         payload["username"] = username;
         payload["password"] = password;
 
-        mitm::api::ApiClient::instance().post("/admin/rbac/user/create", QJsonDocument(payload).toJson(),
+        mitm::api::ApiClient::instance().post("/api/v1/iam/users", QJsonDocument(payload).toJson(),
             [this](const QByteArray& data, QNetworkReply* reply) {
                 QMessageBox::information(this, "Success", "User added successfully.");
                 fetchUsersAndRoles();
@@ -235,7 +235,7 @@ void RbacWidget::onRemoveUserClicked() {
         return;
     }
 
-    mitm::api::ApiClient::instance().deleteResource("/admin/rbac/user/delete?id=" + QString::number(currentUserId),
+    mitm::api::ApiClient::instance().deleteResource("/api/v1/iam/users/" + QString::number(currentUserId),
         [this](const QByteArray& data, QNetworkReply* reply) {
             QMessageBox::information(this, "Success", "User removed successfully.");
             currentUserId = -1;

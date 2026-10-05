@@ -64,7 +64,7 @@ TopicDependenciesWidget::TopicDependenciesWidget(QWidget *parent)
 void TopicDependenciesWidget::onRefresh() {
     m_refreshButton->setEnabled(false);
     
-    mitm::api::ApiClient::instance().get("/admin/transformation/topic-dependencies",
+    mitm::api::ApiClient::instance().get("/api/v1/config/transformations/topic-dependencies",
         [this](const QByteArray& data, QNetworkReply*) {
             m_refreshButton->setEnabled(true);
             m_model->setRowCount(0);
@@ -117,7 +117,7 @@ void TopicDependenciesWidget::onAdd() {
     payload["topic"] = topic;
     payload["required_sources"] = sourcesArray;
 
-    mitm::api::ApiClient::instance().post("/admin/transformation/topic-dependencies", QJsonDocument(payload).toJson(),
+    mitm::api::ApiClient::instance().post("/api/v1/config/transformations/topic-dependencies", QJsonDocument(payload).toJson(),
         [this](const QByteArray&, QNetworkReply*) {
             onRefresh();
         },

@@ -71,7 +71,7 @@ AdminLogsWidget::AdminLogsWidget(QWidget *parent)
 void AdminLogsWidget::onRefresh() {
     m_refreshButton->setEnabled(false);
     
-    mitm::api::ApiClient::instance().get("/admin/logs/admin-audit_bin",
+    mitm::api::ApiClient::instance().get("/api/v1/logs/admin-audit",
         [this](const QByteArray& data, QNetworkReply* reply) {
 
         m_refreshButton->setEnabled(true);
@@ -128,7 +128,8 @@ void AdminLogsWidget::onRefresh() {
         
         m_tableView->resizeColumnsToContents();
         
-            }
+            },
+        "application/x-flatbuffers"
     );
 }
 

@@ -40,7 +40,7 @@ void BackupRestoreWidget::logMessage(const QString& msg) {
 void BackupRestoreWidget::onBackupClicked() {
     logMessage("Requesting backup from server...");
     
-    mitm::api::ApiClient::instance().get("/admin/backup",
+    mitm::api::ApiClient::instance().get("/api/v1/system/backup",
         [this](const QByteArray& data, QNetworkReply* reply) {
         
         QString binFolder = QCoreApplication::applicationDirPath();
@@ -96,7 +96,7 @@ void BackupRestoreWidget::onRestoreClicked() {
     
     logMessage("Sending restore request to server...");
     
-    mitm::api::ApiClient::instance().post("/admin/restore", data,
+    mitm::api::ApiClient::instance().post("/api/v1/system/restore", data,
         [this](const QByteArray& data, QNetworkReply* reply) {
         
         logMessage("Restore completed successfully.");

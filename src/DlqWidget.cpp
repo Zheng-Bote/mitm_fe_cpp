@@ -58,7 +58,7 @@ DlqWidget::DlqWidget(QWidget *parent) : QWidget(parent) {
 void DlqWidget::onRefresh() {
     m_dlqTable->setRowCount(0);
     
-    mitm::api::ApiClient::instance().get("/admin/dlq_bin",
+    mitm::api::ApiClient::instance().get("/api/v1/dlq",
         [this](const QByteArray& data, QNetworkReply* reply) {
         flatbuffers::Verifier verifier(reinterpret_cast<const uint8_t*>(data.constData()), data.size());
         if (!schematas::VerifyDLQEntryListBuffer(verifier)) {
@@ -106,7 +106,8 @@ void DlqWidget::onRefresh() {
     [this](int statusCode, const QString& errorString) {
             spdlog::error("Failed to fetch DLQ: {}", errorString.toStdString());
             return;
-    });
+    },
+    "application/x-flatbuffers");
 }
 
 void DlqWidget::onRequeue() {
@@ -124,7 +125,7 @@ void DlqWidget::onRequeue() {
         return;
     }
     
-    mitm::api::ApiClient::instance().post("/admin/dlq/requeue?id=" + idStr, QByteArray(),
+    mitm::api::ApiClient::instance().post("/api/v1/dlq/requeue?id=" + idStr, QByteArray(),
         [this](const QByteArray& data, QNetworkReply* reply) {
             QMessageBox::information(this, "Success", "DLQ item requeued.");
             onRefresh();

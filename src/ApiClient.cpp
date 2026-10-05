@@ -22,7 +22,7 @@ ApiClient::ApiClient(QObject* parent)
 {
 }
 
-QNetworkRequest ApiClient::createRequest(const QString& path) const {
+QNetworkRequest ApiClient::createRequest(const QString& path, const QString& acceptType) const {
     auto& config = mitm::config::ConfigManager::GetInstance();
     QUrl url(config.GetHostUrl() + path);
     QNetworkRequest request(url);
@@ -35,7 +35,7 @@ QNetworkRequest ApiClient::createRequest(const QString& path) const {
     }
     
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-    request.setRawHeader("Accept", "application/json"); // API v1 content negotiation
+    request.setRawHeader("Accept", acceptType.toUtf8());
     request.setTransferTimeout(10000);
     return request;
 }
@@ -82,8 +82,8 @@ void ApiClient::handleReply(QNetworkReply* reply, const SuccessCallback& onSucce
     });
 }
 
-void ApiClient::get(const QString& path, const SuccessCallback& onSuccess, const ErrorCallback& onError) {
-    QNetworkRequest request = createRequest(path);
+void ApiClient::get(const QString& path, const SuccessCallback& onSuccess, const ErrorCallback& onError, const QString& acceptType) {
+    QNetworkRequest request = createRequest(path, acceptType);
     QNetworkReply* reply = m_manager->get(request);
     handleReply(reply, onSuccess, onError);
 }

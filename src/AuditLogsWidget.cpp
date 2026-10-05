@@ -112,7 +112,7 @@ void AuditLogsWidget::refreshData() {
 
     m_refreshButton->setEnabled(false);
     
-    QString url = "/admin/logs/job-audit_bin";
+    QString url = "/api/v1/logs/audit";
     if (m_useDateRangeCheckbox->isChecked()) {
         QString from = m_startDateEdit->date().toString("yyyy-MM-dd");
         QString to = m_endDateEdit->date().toString("yyyy-MM-dd");
@@ -190,7 +190,8 @@ void AuditLogsWidget::refreshData() {
         
         m_tableView->resizeColumnsToContents();
         
-            }
+            },
+        "application/x-flatbuffers"
     );
 }
 
@@ -264,7 +265,8 @@ void AuditLogsWidget::onExportReport() {
         [this](int statusCode, const QString& errorString) {
             m_exportReportButton->setEnabled(true);
             QMessageBox::critical(this, "Export Error", "Failed to fetch audit logs for the specified date range:\n" + errorString);
-        }
+        },
+        "application/x-flatbuffers"
     );
 }
 

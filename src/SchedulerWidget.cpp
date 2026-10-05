@@ -118,7 +118,7 @@ void SchedulerWidget::refreshData() {
 
     m_refreshButton->setEnabled(false);
     
-    mitm::api::ApiClient::instance().get("/admin/jobs",
+    mitm::api::ApiClient::instance().get("/api/v1/jobs",
         [this](const QByteArray& data, QNetworkReply* reply) {
             m_refreshButton->setEnabled(true);
             
@@ -208,7 +208,7 @@ void SchedulerWidget::onAddJob() {
         json newJob = dlg.getJob();
         json payload = json::array({newJob});
         
-        mitm::api::ApiClient::instance().post("/admin/update-jobs", QByteArray::fromStdString(payload.dump()),
+        mitm::api::ApiClient::instance().post("/api/v1/jobs", QByteArray::fromStdString(payload.dump()),
             [this](const QByteArray& data, QNetworkReply* reply) { onRefreshClicked(); },
             [this](int statusCode, const QString& errorString) { QMessageBox::critical(this, "Error", "Failed to add job:\n" + errorString); }
         );
@@ -240,7 +240,7 @@ void SchedulerWidget::onEditJob() {
         json updatedJob = dlg.getJob();
         json payload = json::array({updatedJob});
         
-        mitm::api::ApiClient::instance().post("/admin/update-jobs", QByteArray::fromStdString(payload.dump()),
+        mitm::api::ApiClient::instance().post("/api/v1/jobs", QByteArray::fromStdString(payload.dump()),
             [this](const QByteArray& data, QNetworkReply* reply) { onRefreshClicked(); },
             [this](int statusCode, const QString& errorString) { QMessageBox::critical(this, "Error", "Failed to update job:\n" + errorString); }
         );
@@ -261,7 +261,7 @@ void SchedulerWidget::onDeleteJob() {
         return;
     }
     
-    mitm::api::ApiClient::instance().deleteResource("/admin/delete-job?name=" + jobName,
+    mitm::api::ApiClient::instance().deleteResource("/api/v1/jobs/" + jobName,
         [this](const QByteArray& data, QNetworkReply* reply) { onRefreshClicked(); },
         [this](int statusCode, const QString& errorString) { QMessageBox::critical(this, "Error", "Failed to delete job:\n" + errorString); }
     );
@@ -282,7 +282,7 @@ void SchedulerWidget::onStopJob() {
         return;
     }
     
-    mitm::api::ApiClient::instance().post("/admin/stop-job?name=" + jobName, QByteArray(),
+    mitm::api::ApiClient::instance().post("/api/v1/jobs/" + jobName + "/stop", QByteArray(),
         [this](const QByteArray& data, QNetworkReply* reply) {
             QMessageBox::information(this, "Success", "Stop signal sent to job.");
             onRefreshClicked();
@@ -308,7 +308,7 @@ void SchedulerWidget::onExecuteJob() {
         return;
     }
     
-    mitm::api::ApiClient::instance().post("/admin/execute-job?name=" + jobName, QByteArray(),
+    mitm::api::ApiClient::instance().post("/api/v1/jobs/" + jobName + "/execute", QByteArray(),
         [this](const QByteArray& data, QNetworkReply* reply) {
             QMessageBox::information(this, "Success", "Job execution triggered.");
             onRefreshClicked();

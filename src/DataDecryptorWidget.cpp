@@ -84,7 +84,7 @@ void DataDecryptorWidget::onDecryptClicked()
     m_decryptButton->setEnabled(false);
 
     // Fetch storage keys
-    mitm::api::ApiClient::instance().get("/admin/storage-keys",
+    mitm::api::ApiClient::instance().get("/api/v1/system/storage-keys",
         [this, encryptedText, masterKey](const QByteArray& response, QNetworkReply*) {
             m_decryptButton->setEnabled(true);
             QJsonParseError parseErr;

@@ -213,7 +213,7 @@ void TransformationWidget::setupRulesTab(QWidget* tab) {
             j["source_fields"].push_back(f.trimmed().toStdString());
         }
 
-        postEntity("/admin/transformation/auto-map", j, [this](){
+        postEntity("/api/v1/config/transformations/auto-map", j, [this](){
             QMessageBox::information(this, "Auto-Map", "Auto-Map completed successfully!");
             onRefreshRules();
         });
@@ -287,7 +287,7 @@ void TransformationWidget::setupValidationsTab(QWidget* tab) {
 // ---------------------------------------------------------
 
 void TransformationWidget::onRefreshSources() {
-    mitm::api::ApiClient::instance().get("/admin/transformation/sources",
+    mitm::api::ApiClient::instance().get("/api/v1/config/transformations/sources",
         [this](const QByteArray& data, QNetworkReply*) {
             m_sourcesTable->setSortingEnabled(false);
             m_sourcesTable->setRowCount(0);
@@ -322,7 +322,7 @@ void TransformationWidget::onRefreshSources() {
 }
 
 void TransformationWidget::onRefreshTargets() {
-    mitm::api::ApiClient::instance().get("/admin/transformation/targets",
+    mitm::api::ApiClient::instance().get("/api/v1/config/transformations/targets",
         [this](const QByteArray& data, QNetworkReply*) {
             m_targetsTable->setSortingEnabled(false);
             m_targetsTable->setRowCount(0);
@@ -354,7 +354,7 @@ void TransformationWidget::onRefreshTargets() {
 }
 
 void TransformationWidget::onRefreshRules() {
-    mitm::api::ApiClient::instance().get("/admin/transformation/rules",
+    mitm::api::ApiClient::instance().get("/api/v1/config/transformations/rules",
         [this](const QByteArray& data, QNetworkReply*) {
             m_rulesTable->setSortingEnabled(false);
             m_rulesTable->setRowCount(0);
@@ -411,7 +411,7 @@ void TransformationWidget::onRefreshRules() {
 }
 
 void TransformationWidget::onRefreshTransformations() {
-    mitm::api::ApiClient::instance().get("/admin/transformation/transformations",
+    mitm::api::ApiClient::instance().get("/api/v1/config/transformations",
         [this](const QByteArray& data, QNetworkReply*) {
             m_transformTable->setSortingEnabled(false);
             m_transformTable->setRowCount(0);
@@ -446,7 +446,7 @@ void TransformationWidget::onRefreshTransformations() {
 }
 
 void TransformationWidget::onRefreshValidations() {
-    mitm::api::ApiClient::instance().get("/admin/transformation/validations",
+    mitm::api::ApiClient::instance().get("/api/v1/config/transformations/validations",
         [this](const QByteArray& data, QNetworkReply*) {
             m_validTable->setSortingEnabled(false);
             m_validTable->setRowCount(0);
@@ -517,13 +517,13 @@ void TransformationWidget::onEditSource() {
         j["name"] = eName->text().toStdString();
         j["type"] = eType->text().toStdString();
         j["topic"] = eTopic->text().toStdString();
-        postEntity("/admin/transformation/sources", j, [this](){ onRefreshSources(); });
+        postEntity("/api/v1/config/transformations/sources", j, [this](){ onRefreshSources(); });
     }
 }
 void TransformationWidget::onDeleteSource() {
     QString id = getSelectedId(m_sourcesTable);
     if (!id.isEmpty() && QMessageBox::question(this, "Confirm", "Delete this source?") == QMessageBox::Yes)
-        deleteEntity("/admin/transformation/sources", id, [this](){ onRefreshSources(); });
+        deleteEntity("/api/v1/config/transformations/sources", id, [this](){ onRefreshSources(); });
 }
 
 // Targets
@@ -561,13 +561,13 @@ void TransformationWidget::onEditTarget() {
         j["data_type"] = eTyp->text().toStdString();
         j["is_required"] = eReq->isChecked();
         j["encrypted"] = eEnc->isChecked();
-        postEntity("/admin/transformation/targets", j, [this](){ onRefreshTargets(); });
+        postEntity("/api/v1/config/transformations/targets", j, [this](){ onRefreshTargets(); });
     }
 }
 void TransformationWidget::onDeleteTarget() {
     QString id = getSelectedId(m_targetsTable);
     if (!id.isEmpty() && QMessageBox::question(this, "Confirm", "Delete this target?") == QMessageBox::Yes)
-        deleteEntity("/admin/transformation/targets", id, [this](){ onRefreshTargets(); });
+        deleteEntity("/api/v1/config/transformations/targets", id, [this](){ onRefreshTargets(); });
 }
 
 // Rules
@@ -588,13 +588,13 @@ void TransformationWidget::onEditRule() {
     
     RuleEditorDialog dlg(m_sourcesTable, m_targetsTable, id, srcId, tgtId, srcFld, prio, tCh, vCh, this);
     if (dlg.exec() == QDialog::Accepted) {
-        postEntity("/admin/transformation/rules", dlg.getRuleJson(), [this](){ onRefreshRules(); });
+        postEntity("/api/v1/config/transformations/rules", dlg.getRuleJson(), [this](){ onRefreshRules(); });
     }
 }
 void TransformationWidget::onDeleteRule() {
     QString id = getSelectedId(m_rulesTable);
     if (!id.isEmpty() && QMessageBox::question(this, "Confirm", "Delete this rule?") == QMessageBox::Yes)
-        deleteEntity("/admin/transformation/rules", id, [this](){ onRefreshRules(); });
+        deleteEntity("/api/v1/config/transformations/rules", id, [this](){ onRefreshRules(); });
 }
 
 // Transformations
@@ -625,13 +625,13 @@ void TransformationWidget::onEditTransformation() {
         j["name"] = eName->text().toStdString();
         j["description"] = eDesc->text().toStdString();
         try { j["parameters"] = json::parse(ePar->toPlainText().toStdString()); } catch(...) { j["parameters"] = json::object(); }
-        postEntity("/admin/transformation/transformations", j, [this](){ onRefreshTransformations(); });
+        postEntity("/api/v1/config/transformations", j, [this](){ onRefreshTransformations(); });
     }
 }
 void TransformationWidget::onDeleteTransformation() {
     QString id = getSelectedId(m_transformTable);
     if (!id.isEmpty() && QMessageBox::question(this, "Confirm", "Delete this transformation?") == QMessageBox::Yes)
-        deleteEntity("/admin/transformation/transformations", id, [this](){ onRefreshTransformations(); });
+        deleteEntity("/api/v1/config/transformations", id, [this](){ onRefreshTransformations(); });
 }
 
 // Validations
@@ -662,11 +662,11 @@ void TransformationWidget::onEditValidation() {
         j["name"] = eName->text().toStdString();
         j["description"] = eDesc->text().toStdString();
         try { j["parameters"] = json::parse(ePar->toPlainText().toStdString()); } catch(...) { j["parameters"] = json::object(); }
-        postEntity("/admin/transformation/validations", j, [this](){ onRefreshValidations(); });
+        postEntity("/api/v1/config/transformations/validations", j, [this](){ onRefreshValidations(); });
     }
 }
 void TransformationWidget::onDeleteValidation() {
     QString id = getSelectedId(m_validTable);
     if (!id.isEmpty() && QMessageBox::question(this, "Confirm", "Delete this validation?") == QMessageBox::Yes)
-        deleteEntity("/admin/transformation/validations", id, [this](){ onRefreshValidations(); });
+        deleteEntity("/api/v1/config/transformations/validations", id, [this](){ onRefreshValidations(); });
 }
