@@ -131,19 +131,7 @@ bool AuthManager::establishSession(const QString& osUser) {
     QJsonObject payload;
     payload["os_user"] = osUser;
     
-    // We send the admin token (if configured) as part of the payload or basic auth just to authenticate the session request
-    // Since we removed GetAuthHeader(), we can just send the token from config if needed.
-    // Wait, the API spec says "POST /api/user/v1/session (Creates a new session for the OS user.)"
-    // Let's assume we pass the configured admin token here to prove identity.
-    QString configuredToken = "";
-    auto& config = mitm::config::ConfigManager::GetInstance().GetConfig();
-    for (const auto& admin : config.admin_users) {
-        if (admin.username == osUser.toStdString() && !admin.token.empty()) {
-            configuredToken = QString::fromStdString(admin.token);
-            break;
-        }
-    }
-    payload["token"] = configuredToken;
+    // Backend API v1 utilizes "Trust Proxy" (Option A), so no token is needed.
 
     QNetworkReply* reply = manager.post(req, QJsonDocument(payload).toJson());
     QEventLoop loop;
