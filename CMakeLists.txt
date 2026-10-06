@@ -8,7 +8,7 @@ LANGUAGES CXX)
 if(MSVC)
     # Use c++latest for MSVC to enable C++26 features
     add_compile_options(/std:c++latest)
-    set(CMAKE_CXX_STANDARD 26)
+    set(CMAKE_CXX_STANDARD 23)
 else()
     # Require C++26 for GCC/Clang
     set(CMAKE_CXX_STANDARD 26)
