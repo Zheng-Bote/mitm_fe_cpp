@@ -4,16 +4,6 @@
   "scheduler_port": 8080,
   "scheduler_use_https": false,
   "log_level": "info",
-  "admin_users": [
-    {
-      "username": "admin",
-      "token": "admin_secret_token"
-    },
-    {
-      "username": "zb_bamboo",
-      "token": "bamboo_secret_token"
-    }
-  ],
   "networking": {
     "proxy": {
       "proxy_host": "https://proxy.example.com",
