@@ -25,11 +25,6 @@
 #include "SecureString.h"
 namespace mitm::config {
 
-struct AdminUser {
-    std::string username;
-    std::string token;
-};
-
 struct ProxyConfig {
     std::string proxy_host;
     int proxy_port{8080};
@@ -43,7 +38,6 @@ struct ConfigData {
     int scheduler_port{8080};
     bool scheduler_use_https{false};
     std::string log_level{"info"};
-    std::vector<AdminUser> admin_users;
     ProxyConfig proxy;
     std::string name;
 };
@@ -61,7 +55,6 @@ public:
     
     const ConfigData& GetConfig() const { return m_config; }
     
-    bool IsAdmin(const std::string& username) const;
     void SetSessionToken(const mitm::crypto::SecureString& token) { m_sessionToken = token; }
     mitm::crypto::SecureString GetSessionToken() const { return m_sessionToken; }
     QString GetHostUrl() const;

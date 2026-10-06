@@ -66,30 +66,7 @@ void ConfigManager::LoadEncryptedConfig(const std::string& filepath, const mitm:
         m_config.proxy.proxy_port = p.value("proxy_port", 8080);
     }
     
-    // Support either "admins" or "admin_users" as array
-    auto adminsKey = j.contains("admins") ? "admins" : (j.contains("admin_users") ? "admin_users" : "");
-    if (!std::string(adminsKey).empty() && j[adminsKey].is_array()) {
-        for (const auto& user : j[adminsKey]) {
-            AdminUser au;
-            if (user.is_object()) {
-                au.username = user.value("Username", user.value("username", ""));
-                au.token = user.value("AuthToken", user.value("token", ""));
-                if (!au.username.empty()) m_config.admin_users.push_back(au);
-            } else if (user.is_string()) {
-                au.username = user.get<std::string>();
-                m_config.admin_users.push_back(au);
-            }
-        }
-    }
-
     LoadUserConfig();
-}
-
-bool ConfigManager::IsAdmin(const std::string& username) const {
-    for (const auto& admin : m_config.admin_users) {
-        if (admin.username == username) return true;
-    }
-    return false;
 }
 
 

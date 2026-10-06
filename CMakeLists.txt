@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.25)
 project(mitm_fe_cpp
-VERSION 1.1.0
+VERSION 1.2.0
 DESCRIPTION "Admin frontend for the MitM project"
 HOMEPAGE_URL "https://github.com/Zheng-Bote/mitm_fe_cpp"
 LANGUAGES CXX)
@@ -8,7 +8,7 @@ LANGUAGES CXX)
 if(MSVC)
     # Use c++latest for MSVC to enable C++26 features
     add_compile_options(/std:c++latest)
-    set(CMAKE_CXX_STANDARD 26)
+    set(CMAKE_CXX_STANDARD 23)
 else()
     # Require C++26 for GCC/Clang
     set(CMAKE_CXX_STANDARD 26)
