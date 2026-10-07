@@ -138,7 +138,7 @@ void TopicDependenciesWidget::onDelete() {
         return;
     }
 
-    mitm::api::ApiClient::instance().deleteResource("/admin/transformation/topic-dependencies?topic=" + topic,
+    mitm::api::ApiClient::instance().deleteResource("/api/v1/config/transformations/topic-dependencies?topic=" + topic,
         [this](const QByteArray&, QNetworkReply*) {
             onRefresh();
         },

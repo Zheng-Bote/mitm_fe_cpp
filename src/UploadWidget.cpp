@@ -107,7 +107,7 @@ void UploadWidget::uploadFile() {
   file->setParent(multiPart); // File deleted when multiPart is deleted
   multiPart->append(filePart);
 
-  mitm::api::ApiClient::instance().post("/admin/upload/source_file", multiPart,
+  mitm::api::ApiClient::instance().post("/api/v1/jobs/upload/source_file", multiPart,
   [this](const QByteArray& data, QNetworkReply* reply) {
       m_uploadBtn->setEnabled(true);
       m_statusLabel->setText("<font color='green'>Upload successful! The collector has been triggered.</font>");

@@ -254,7 +254,7 @@ void AuditLogsWidget::onExportReport() {
 
     m_exportReportButton->setEnabled(false);
     
-    QString url = QString("/admin/logs/job-audit_bin?from=%1&to=%2")
+    QString url = QString("/api/v1/logs/audit?from=%1&to=%2")
         .arg(startDate.toString("yyyy-MM-dd"), endDate.toString("yyyy-MM-dd"));
 
     mitm::api::ApiClient::instance().get(url,
