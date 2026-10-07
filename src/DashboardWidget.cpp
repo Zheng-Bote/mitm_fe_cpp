@@ -162,7 +162,7 @@ void DashboardWidget::fetchHealth() {
 }
 
 void DashboardWidget::fetchInfo() {
-    mitm::api::ApiClient::instance().get("/info",
+    mitm::api::ApiClient::instance().get("/api/v1/system/info",
         [this](const QByteArray& data, QNetworkReply* reply) {
             try {
                 json j = json::parse(data.toStdString());
