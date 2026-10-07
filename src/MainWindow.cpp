@@ -195,7 +195,7 @@ void MainWindow::setupUi() {
           {"computer", compName.toStdString()}
       };
       
-      mitm::api::ApiClient::instance().post("/admin/action", QString::fromStdString(j.dump()).toUtf8(),
+      mitm::api::ApiClient::instance().post("/api/v1/system/action", QString::fromStdString(j.dump()).toUtf8(),
           [](const QByteArray& data, QNetworkReply* reply) {
               // Success
           },
