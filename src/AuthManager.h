@@ -9,6 +9,7 @@
 
 #include <QObject>
 #include <QString>
+#include <QTimer>
 
 namespace mitm::auth {
 
@@ -31,13 +32,19 @@ signals:
     void authSuccess();
     void authFailed(const QString& errorMsg);
 
+private slots:
+    void onRenewSession();
+
 private:
+    void startSessionRenewal();
+    void stopSessionRenewal();
     explicit AuthManager(QObject* parent = nullptr) : QObject(parent) {}
     ~AuthManager() override = default;
 
     bool runWindowsHello();
     bool establishSession(const QString& osUser);
     bool fetchUserRoles();
+    QTimer* renewalTimer{nullptr};
 };
 
 } // namespace mitm::auth
