@@ -16,6 +16,8 @@
  */
 
 #include "TargetCredentialsWidget.h"
+#include "JsonValidator.h"
+#include <QMessageBox>
 #include "Config.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -23,7 +25,6 @@
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QUrl>
-#include <QMessageBox>
 #include <QFormLayout>
 #include <QLineEdit>
 #include <QTextEdit>
@@ -150,7 +151,14 @@ void TargetCredentialsWidget::onAddTarget() {
 
     auto buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
     layout->addRow(buttonBox);
-    connect(buttonBox, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    connect(buttonBox, &QDialogButtonBox::accepted, &dialog, [&](){
+        QString errMsg;
+        if (!JsonValidator::validate(configEdit->toPlainText(), errMsg)) {
+            QMessageBox::critical(&dialog, "Validation Error", "Config Payload must be valid JSON:\n\n" + errMsg);
+            return;
+        }
+        dialog.accept();
+    });
     connect(buttonBox, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
 
     if (dialog.exec() == QDialog::Accepted) {
@@ -208,7 +216,14 @@ void TargetCredentialsWidget::onEditTarget() {
 
     auto buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
     layout->addRow(buttonBox);
-    connect(buttonBox, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    connect(buttonBox, &QDialogButtonBox::accepted, &dialog, [&](){
+        QString errMsg;
+        if (!JsonValidator::validate(configEdit->toPlainText(), errMsg)) {
+            QMessageBox::critical(&dialog, "Validation Error", "Config Payload must be valid JSON:\n\n" + errMsg);
+            return;
+        }
+        dialog.accept();
+    });
     connect(buttonBox, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
 
     if (dialog.exec() == QDialog::Accepted) {

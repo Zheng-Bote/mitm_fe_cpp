@@ -29,6 +29,9 @@ public:
     void setJob(const nlohmann::json& job);
     nlohmann::json getJob() const;
 
+public slots:
+    void accept() override;
+
 private:
     QLineEdit* m_nameEdit;
     QLineEdit* m_commandEdit;

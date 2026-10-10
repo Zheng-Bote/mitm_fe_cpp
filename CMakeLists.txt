@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.25)
 project(mitm_fe_cpp
-VERSION 1.2.1
+VERSION 1.3.0
 DESCRIPTION "Admin frontend for the MitM project"
 HOMEPAGE_URL "https://github.com/Zheng-Bote/mitm_fe_cpp"
 LANGUAGES CXX)
@@ -110,6 +110,8 @@ set(SOURCES
     src/UploadWidget.cpp
     src/BackupRestoreWidget.h
     src/BackupRestoreWidget.cpp
+    src/JsonValidator.h
+    src/JsonValidator.cpp
 )
 
 # Create executable

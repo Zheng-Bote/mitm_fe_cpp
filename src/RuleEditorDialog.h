@@ -27,6 +27,9 @@ public:
 
     nlohmann::json getRuleJson() const;
 
+public slots:
+    void accept() override;
+
 private slots:
     void onBuildTransformChain();
     void onBuildValidationChain();
