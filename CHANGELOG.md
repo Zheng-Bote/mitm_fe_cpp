@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [v1.3.0] - 2026-10-10
 
 ### Added
+- **RBAC Enhancements (Issue #19)**: Expanded the User Management table to display First Name and Last Name. Added a new "Edit User" dialog allowing modification of user details and their `is_active` status. Added "is_active", "First Name" and "Last Name" to the "Add User" dialog. Implemented a "Terminate Session" action for admins to kill active user sessions remotely.
+- **Authentication & Session Renewal (Issue #19)**: The frontend now sends the local `client_ip` during the authentication phase. Added an automatic background `QTimer` that silently renews the user session every 30 minutes to prevent unexpected idle timeouts. Explicitly handles inactive account rejections during login.
 - **JSON Pre-Validation**: Introduced a global `JsonValidator` and integrated it into all UI dialogs (Rules, Transformations, Validations, Jobs) to validate JSON input before saving. This prevents silent data loss of malformed JSON strings and provides direct visual error feedback to the user.
 - **UI Actions**: Added a "Delete Selected" button to the Source Credentials and Target Credentials widgets to easily remove configurations via the UI.
 

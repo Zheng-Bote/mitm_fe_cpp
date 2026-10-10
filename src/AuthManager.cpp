@@ -17,7 +17,10 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QProcessEnvironment>
+#include <QNetworkInterface>
+#include <QAbstractSocket>
 #include <QMessageBox>
+#include <QTimer>
 #include <thread>
 
 #ifdef _WIN32
@@ -54,6 +57,7 @@ bool AuthManager::performLogin(bool isInitialStartup) {
         return false;
     }
 
+    startSessionRenewal();
     emit authSuccess();
     return true;
 }
@@ -127,11 +131,18 @@ bool AuthManager::establishSession(const QString& osUser) {
     req.setRawHeader("Accept", "application/json");
     req.setTransferTimeout(10000);
 
-    // Construct the payload. Depending on the backend spec, we send the OS user or we just POST.
     QJsonObject payload;
     payload["os_user"] = osUser;
     
-    // Backend API v1 utilizes "Trust Proxy" (Option A), so no token is needed.
+    // Resolve local IP address (best effort)
+    QString localIp = "127.0.0.1";
+    for (const auto& address : QNetworkInterface::allAddresses()) {
+        if (!address.isLoopback() && (address.protocol() == QAbstractSocket::IPv4Protocol || address.protocol() == QAbstractSocket::IPv6Protocol)) {
+            localIp = address.toString();
+            break; // take first non-loopback
+        }
+    }
+    payload["client_ip"] = localIp;
 
     QNetworkReply* reply = manager.post(req, QJsonDocument(payload).toJson());
     QEventLoop loop;
@@ -140,7 +151,6 @@ bool AuthManager::establishSession(const QString& osUser) {
 
     bool success = false;
     if (reply->error() == QNetworkReply::NoError) {
-        // Parse session token from response
         auto doc = QJsonDocument::fromJson(reply->readAll());
         if (doc.isObject()) {
             QString sessionToken = doc.object().value("session_token").toString();
@@ -150,13 +160,29 @@ bool AuthManager::establishSession(const QString& osUser) {
                 mitm::config::ConfigManager::GetInstance().SetSessionToken(secureToken);
                 success = true;
             }
-        } else {
-            // Fallback if backend returns plain token or sets a Cookie. 
-            // If it sets a Cookie, we should extract it from headers or let QNetworkCookieJar handle it.
-            // Assuming the token is in the JSON payload as per typical REST APIs:
         }
     } else {
-        spdlog::error("Failed to establish session: {} - {}", reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt(), reply->errorString().toStdString());
+        int statusCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        QString errorMsg = reply->errorString();
+        
+        QByteArray responseBody = reply->readAll();
+        auto doc = QJsonDocument::fromJson(responseBody);
+        if (doc.isObject() && doc.object().contains("errors")) {
+            auto errors = doc.object().value("errors").toArray();
+            if (!errors.isEmpty()) {
+                QString detail = errors[0].toObject().value("detail").toString();
+                if (!detail.isEmpty()) {
+                    errorMsg = detail;
+                }
+            }
+        }
+
+        spdlog::error("Failed to establish session: {} - {}", statusCode, errorMsg.toStdString());
+        emit authFailed("Login rejected: " + errorMsg);
+        
+        if (errorMsg.contains("inactive", Qt::CaseInsensitive)) {
+            QMessageBox::critical(nullptr, "Login Rejected", "User account is inactive.");
+        }
     }
     reply->deleteLater();
     return success;
@@ -203,6 +229,38 @@ bool AuthManager::fetchUserRoles() {
     }
     reply->deleteLater();
     return success;
+}
+
+void AuthManager::startSessionRenewal() {
+    if (!renewalTimer) {
+        renewalTimer = new QTimer(this);
+        connect(renewalTimer, &QTimer::timeout, this, &AuthManager::onRenewSession);
+    }
+    // Ping every 30 minutes (1800000 ms) to keep the 2-hour idle timeout alive
+    renewalTimer->start(1800000);
+}
+
+void AuthManager::stopSessionRenewal() {
+    if (renewalTimer) {
+        renewalTimer->stop();
+    }
+}
+
+void AuthManager::onRenewSession() {
+    spdlog::info("Attempting session renewal ping...");
+    // A simple GET to /me extends the idle timeout if it succeeds
+    if (!fetchUserRoles()) {
+        spdlog::warn("Session renewal ping failed. Attempting full re-authentication.");
+        if (performLogin(false)) {
+            spdlog::info("Session re-authentication successful.");
+        } else {
+            spdlog::error("Session re-authentication failed. Session is lost.");
+            stopSessionRenewal();
+            // Could emit a signal here to log out the user entirely
+        }
+    } else {
+        spdlog::info("Session successfully renewed/kept alive.");
+    }
 }
 
 } // namespace mitm::auth
