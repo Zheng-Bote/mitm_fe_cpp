@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **JSON Pre-Validation**: Introduced a global `JsonValidator` and integrated it into all UI dialogs (Rules, Transformations, Validations, Jobs) to validate JSON input before saving. This prevents silent data loss of malformed JSON strings and provides direct visual error feedback to the user.
+- **UI Actions**: Added a "Delete Selected" button to the Source Credentials and Target Credentials widgets to easily remove configurations via the UI.
 
 ## [v1.2.1] - 2026-10-07
 

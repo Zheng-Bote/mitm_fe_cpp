@@ -51,10 +51,12 @@ void SourcesWidget::setupUi() {
     m_refreshBtn = new QPushButton("Refresh", this);
     m_addBtn = new QPushButton("Add Source", this);
     m_editBtn = new QPushButton("Edit Source", this);
+    m_deleteBtn = new QPushButton("Delete Selected", this);
     
     toolbarLayout->addWidget(m_refreshBtn);
     toolbarLayout->addWidget(m_addBtn);
     toolbarLayout->addWidget(m_editBtn);
+    toolbarLayout->addWidget(m_deleteBtn);
     toolbarLayout->addStretch();
     
     mainLayout->addLayout(toolbarLayout);
@@ -72,6 +74,34 @@ void SourcesWidget::setupUi() {
     connect(m_refreshBtn, &QPushButton::clicked, this, &SourcesWidget::onRefresh);
     connect(m_addBtn, &QPushButton::clicked, this, &SourcesWidget::onAddSource);
     connect(m_editBtn, &QPushButton::clicked, this, &SourcesWidget::onEditSource);
+    connect(m_deleteBtn, &QPushButton::clicked, this, &SourcesWidget::onDeleteSource);
+}
+
+void SourcesWidget::onDeleteSource() {
+    int row = m_table->currentRow();
+    if (row < 0) {
+        QMessageBox::warning(this, "Select", "Please select a source to delete.");
+        return;
+    }
+
+    QString id = m_table->item(row, 0)->text();
+    QString name = m_table->item(row, 1)->text();
+
+    auto reply = QMessageBox::question(this, "Confirm Deletion",
+                                       "Are you sure you want to delete the source '" + name + "'?",
+                                       QMessageBox::Yes | QMessageBox::No);
+
+    if (reply == QMessageBox::Yes) {
+        mitm::api::ApiClient::instance().deleteResource("/api/v1/config/credentials/" + id,
+            [this](const QByteArray&, QNetworkReply*) {
+                QMessageBox::information(this, "Success", "Source deleted.");
+                onRefresh();
+            },
+            [this](int /*statusCode*/, const QString& errorString) {
+                QMessageBox::critical(this, "Error", "Failed to delete source: " + errorString);
+            }
+        );
+    }
 }
 
 void SourcesWidget::onRefresh() {
