@@ -51,10 +51,12 @@ void TargetCredentialsWidget::setupUi() {
     m_refreshBtn = new QPushButton("Refresh", this);
     m_addBtn = new QPushButton("Add Target", this);
     m_editBtn = new QPushButton("Edit Target", this);
+    m_deleteBtn = new QPushButton("Delete Selected", this);
     
     toolbarLayout->addWidget(m_refreshBtn);
     toolbarLayout->addWidget(m_addBtn);
     toolbarLayout->addWidget(m_editBtn);
+    toolbarLayout->addWidget(m_deleteBtn);
     toolbarLayout->addStretch();
     
     mainLayout->addLayout(toolbarLayout);
@@ -72,6 +74,34 @@ void TargetCredentialsWidget::setupUi() {
     connect(m_refreshBtn, &QPushButton::clicked, this, &TargetCredentialsWidget::onRefresh);
     connect(m_addBtn, &QPushButton::clicked, this, &TargetCredentialsWidget::onAddTarget);
     connect(m_editBtn, &QPushButton::clicked, this, &TargetCredentialsWidget::onEditTarget);
+    connect(m_deleteBtn, &QPushButton::clicked, this, &TargetCredentialsWidget::onDeleteTarget);
+}
+
+void TargetCredentialsWidget::onDeleteTarget() {
+    int row = m_table->currentRow();
+    if (row < 0) {
+        QMessageBox::warning(this, "Select", "Please select a target to delete.");
+        return;
+    }
+
+    QString id = m_table->item(row, 0)->text();
+    QString topic = m_table->item(row, 1)->text();
+
+    auto reply = QMessageBox::question(this, "Confirm Deletion",
+                                       "Are you sure you want to delete the target for topic '" + topic + "'?",
+                                       QMessageBox::Yes | QMessageBox::No);
+
+    if (reply == QMessageBox::Yes) {
+        mitm::api::ApiClient::instance().deleteResource("/api/v1/config/targets/" + id,
+            [this](const QByteArray&, QNetworkReply*) {
+                QMessageBox::information(this, "Success", "Target deleted.");
+                onRefresh();
+            },
+            [this](int /*statusCode*/, const QString& errorString) {
+                QMessageBox::critical(this, "Error", "Failed to delete target: " + errorString);
+            }
+        );
+    }
 }
 
 void TargetCredentialsWidget::onRefresh() {
