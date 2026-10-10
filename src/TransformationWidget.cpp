@@ -7,6 +7,7 @@
  */
 
 #include "TransformationWidget.h"
+#include "JsonValidator.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QHeaderView>
@@ -617,14 +618,21 @@ void TransformationWidget::onEditTransformation() {
     auto ePar = new QTextEdit(param); l->addRow("Parameters (JSON):", ePar);
     auto bb = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
     l->addRow(bb);
-    connect(bb, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
+    connect(bb, &QDialogButtonBox::accepted, &dlg, [&](){
+        QString errMsg;
+        if (!JsonValidator::validate(ePar->toPlainText(), errMsg)) {
+            QMessageBox::critical(&dlg, "Validation Error", "Parameters must be valid JSON:\n\n" + errMsg);
+            return;
+        }
+        dlg.accept();
+    });
     connect(bb, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
     
     if (dlg.exec() == QDialog::Accepted) {
         json j; if(!id.isEmpty()) j["id"] = id.toStdString();
         j["name"] = eName->text().toStdString();
         j["description"] = eDesc->text().toStdString();
-        try { j["parameters"] = json::parse(ePar->toPlainText().toStdString()); } catch(...) { j["parameters"] = json::object(); }
+        j["parameters"] = json::parse(ePar->toPlainText().toStdString());
         postEntity("/api/v1/config/transformations", j, [this](){ onRefreshTransformations(); });
     }
 }
@@ -654,14 +662,21 @@ void TransformationWidget::onEditValidation() {
     auto ePar = new QTextEdit(param); l->addRow("Parameters (JSON):", ePar);
     auto bb = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
     l->addRow(bb);
-    connect(bb, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
+    connect(bb, &QDialogButtonBox::accepted, &dlg, [&](){
+        QString errMsg;
+        if (!JsonValidator::validate(ePar->toPlainText(), errMsg)) {
+            QMessageBox::critical(&dlg, "Validation Error", "Parameters must be valid JSON:\n\n" + errMsg);
+            return;
+        }
+        dlg.accept();
+    });
     connect(bb, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
     
     if (dlg.exec() == QDialog::Accepted) {
         json j; if(!id.isEmpty()) j["id"] = id.toStdString();
         j["name"] = eName->text().toStdString();
         j["description"] = eDesc->text().toStdString();
-        try { j["parameters"] = json::parse(ePar->toPlainText().toStdString()); } catch(...) { j["parameters"] = json::object(); }
+        j["parameters"] = json::parse(ePar->toPlainText().toStdString());
         postEntity("/api/v1/config/transformations/validations", j, [this](){ onRefreshValidations(); });
     }
 }

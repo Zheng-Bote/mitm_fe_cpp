@@ -110,6 +110,8 @@ set(SOURCES
     src/UploadWidget.cpp
     src/BackupRestoreWidget.h
     src/BackupRestoreWidget.cpp
+    src/JsonValidator.h
+    src/JsonValidator.cpp
 )
 
 # Create executable

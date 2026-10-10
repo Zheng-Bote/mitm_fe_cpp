@@ -16,6 +16,8 @@
  */
 
 #include "JobEditorDialog.h"
+#include "JsonValidator.h"
+#include <QMessageBox>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QFormLayout>
@@ -137,4 +139,13 @@ nlohmann::json JobEditorDialog::getJob() const {
     
     job["cron_expr"] = cronExpr.toStdString();
     return job;
+}
+
+void JobEditorDialog::accept() {
+    QString errMsg;
+    if (!JsonValidator::validate(m_argsEdit->text(), errMsg)) {
+        QMessageBox::critical(this, "Validation Error", "Arguments must be valid JSON:\n\n" + errMsg);
+        return;
+    }
+    QDialog::accept();
 }
