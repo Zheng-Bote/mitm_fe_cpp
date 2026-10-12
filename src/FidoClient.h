@@ -36,12 +36,23 @@ struct FidoAssertResult {
     std::optional<QString> userHandleBase64;
 };
 
+struct FidoDeviceInfo {
+    bool hasDevice{false};
+    bool pinSet{false};
+    bool pinBlocked{false};
+    bool uvSet{false};
+    bool uvBlocked{false};
+};
+
 class FidoClient {
 public:
     static FidoClient& instance();
 
     // Check if at least one FIDO2 token/authenticator is physically attached
     bool hasDeviceAttached();
+
+    // Inspect first attached device properties (PIN set, PIN blocked, etc.)
+    FidoDeviceInfo getDeviceInfo();
 
     // Perform FIDO2 Registration (Make Credential)
     std::optional<FidoRegisterResult> registerCredential(

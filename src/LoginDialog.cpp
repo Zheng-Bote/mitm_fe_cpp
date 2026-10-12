@@ -18,6 +18,7 @@
 #include <QFormLayout>
 #include <QGroupBox>
 #include <QMessageBox>
+#include <QInputDialog>
 #include <QProcessEnvironment>
 #include <QNetworkAccessManager>
 #include <QNetworkRequest>
@@ -279,6 +280,31 @@ void LoginDialog::loadUserProfile(const QString& username) {
     );
 }
 
+std::optional<QString> LoginDialog::promptForPinIfNeeded(QWidget* parentWidget, const QString& existingPin, bool isRetry) {
+    if (!existingPin.isEmpty() && !isRetry) {
+        return existingPin;
+    }
+
+    bool ok = false;
+    QString promptText = isRetry 
+        ? "⚠️ Invalid PIN. Please enter your Security Key FIDO2 PIN:" 
+        : "🔑 Please enter your Security Key FIDO2 PIN:";
+
+    QString pin = QInputDialog::getText(
+        parentWidget,
+        "FIDO2 Security Key PIN",
+        promptText,
+        QLineEdit::Password,
+        "",
+        &ok
+    );
+
+    if (!ok) {
+        return std::nullopt; // Cancelled by user
+    }
+    return pin;
+}
+
 void LoginDialog::onSignInWithPasskey() {
     QString username = loginIdInput_->text().trimmed();
     if (username.isEmpty()) {
@@ -342,10 +368,44 @@ void LoginDialog::onSignInWithPasskey() {
         allowCreds.push_back(c.toObject().value("id").toString());
     }
 
-    setStatus("Touch your FIDO2 Security Key / Authenticator...", false);
+    // Pre-check FIDO2 device status
+    auto devInfo = FidoClient::instance().getDeviceInfo();
+    if (!devInfo.hasDevice) {
+        progressBar_->setVisible(false);
+        setStatus("⚠️ No FIDO2 Security Key detected. Please insert your YubiKey / Security Key.", true);
+        return;
+    }
+    if (devInfo.pinBlocked) {
+        progressBar_->setVisible(false);
+        setStatus("⛔ Security Key PIN is blocked (too many wrong attempts). Please reset the key with 'ykman fido reset'.", true);
+        return;
+    }
 
     std::optional<QString> pin = pinInput_->text().isEmpty() ? std::nullopt : std::optional<QString>(pinInput_->text());
+    if (devInfo.pinSet && !pin) {
+        pin = promptForPinIfNeeded(this, "");
+        if (!pin) {
+            progressBar_->setVisible(false);
+            setStatus("Authentication cancelled: PIN required.", true);
+            return;
+        }
+        pinInput_->setText(*pin);
+    }
+
+    setStatus("👉 Touch your flashing Security Key now...", false);
+
     auto assertRes = FidoClient::instance().assertCredential(rpId, challenge, allowCreds, pin);
+
+    // If PIN was required or invalid, prompt user interactively
+    if (!assertRes && (FidoClient::instance().lastErrorCode() == 54 || FidoClient::instance().lastErrorCode() == 49)) { // FIDO_ERR_PIN_REQUIRED / FIDO_ERR_PIN_INVALID
+        bool isRetry = (FidoClient::instance().lastErrorCode() == 49);
+        pin = promptForPinIfNeeded(this, "", isRetry);
+        if (pin) {
+            pinInput_->setText(*pin);
+            setStatus("👉 Touch your flashing Security Key now...", false);
+            assertRes = FidoClient::instance().assertCredential(rpId, challenge, allowCreds, pin);
+        }
+    }
 
     if (!assertRes) {
         progressBar_->setVisible(false);
@@ -470,14 +530,52 @@ void LoginDialog::onRegisterPasskey() {
     QString rpName = rpObj.value("name").toString();
     if (rpName.isEmpty()) rpName = "MitM Aggregator";
 
-    setStatus("Please insert and touch your Security Key...", false);
+    // Pre-check FIDO2 device status
+    auto devInfo = FidoClient::instance().getDeviceInfo();
+    if (!devInfo.hasDevice) {
+        progressBar_->setVisible(false);
+        setStatus("⚠️ No FIDO2 Security Key detected. Please insert your YubiKey / Security Key.", true);
+        return;
+    }
+    if (devInfo.pinBlocked) {
+        progressBar_->setVisible(false);
+        setStatus("⛔ Security Key PIN is blocked (too many wrong attempts). Please reset the key with 'ykman fido reset'.", true);
+        return;
+    }
 
     std::optional<QString> pin = regPinInput_->text().isEmpty() ? std::nullopt : std::optional<QString>(regPinInput_->text());
+    if (devInfo.pinSet && !pin) {
+        pin = promptForPinIfNeeded(this, "");
+        if (!pin) {
+            progressBar_->setVisible(false);
+            setStatus("Registration cancelled: PIN required.", true);
+            return;
+        }
+        regPinInput_->setText(*pin);
+    }
+
+    setStatus("👉 Touch your flashing Security Key now to register...", false);
+
     auto regRes = FidoClient::instance().registerCredential(
         rpId, rpName, challenge, username,
         firstNameInput_->text().trimmed() + " " + lastNameInput_->text().trimmed(),
         pin
     );
+
+    // If PIN was required or invalid, prompt user interactively
+    if (!regRes && (FidoClient::instance().lastErrorCode() == 54 || FidoClient::instance().lastErrorCode() == 49)) { // FIDO_ERR_PIN_REQUIRED / FIDO_ERR_PIN_INVALID
+        bool isRetry = (FidoClient::instance().lastErrorCode() == 49);
+        pin = promptForPinIfNeeded(this, "", isRetry);
+        if (pin) {
+            regPinInput_->setText(*pin);
+            setStatus("👉 Touch your flashing Security Key now to register...", false);
+            regRes = FidoClient::instance().registerCredential(
+                rpId, rpName, challenge, username,
+                firstNameInput_->text().trimmed() + " " + lastNameInput_->text().trimmed(),
+                pin
+            );
+        }
+    }
 
     if (!regRes) {
         progressBar_->setVisible(false);

@@ -38,6 +38,7 @@ private:
     QWidget* createRegisterTab();
     void setStatus(const QString& msg, bool isError = false);
     void loadUserProfile(const QString& username);
+    std::optional<QString> promptForPinIfNeeded(QWidget* parentWidget, const QString& existingPin, bool isRetry = false);
 
     QTabWidget* tabWidget_{nullptr};
     QLabel* statusLabel_{nullptr};
