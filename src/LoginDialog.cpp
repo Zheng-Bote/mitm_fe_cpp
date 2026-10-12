@@ -462,7 +462,16 @@ void LoginDialog::onSignInWithPasskey() {
         if (code == 403) {
             setStatus("⛔ Account is inactive pending administrator approval.", true);
         } else {
-            setStatus("Passkey verification failed.", true);
+            QByteArray resp = finishReply->readAll();
+            auto doc = QJsonDocument::fromJson(resp);
+            QString detail = "Passkey verification failed.";
+            if (doc.isObject() && doc.object().contains("errors")) {
+                auto errs = doc.object().value("errors").toArray();
+                if (!errs.isEmpty()) {
+                    detail = errs[0].toObject().value("detail").toString();
+                }
+            }
+            setStatus(QString("Authentication Failed: %1").arg(detail), true);
         }
     }
     finishReply->deleteLater();
@@ -658,7 +667,16 @@ void LoginDialog::onRegisterPasskey() {
             setStatus("Account pending administrator approval.", false);
         }
     } else {
-        setStatus("Registration Verification Failed.", true);
+        QByteArray resp = finishReply->readAll();
+        auto doc = QJsonDocument::fromJson(resp);
+        QString detail = "Registration Verification Failed.";
+        if (doc.isObject() && doc.object().contains("errors")) {
+            auto errs = doc.object().value("errors").toArray();
+            if (!errs.isEmpty()) {
+                detail = errs[0].toObject().value("detail").toString();
+            }
+        }
+        setStatus(QString("Registration Failed: %1").arg(detail), true);
     }
     finishReply->deleteLater();
 }

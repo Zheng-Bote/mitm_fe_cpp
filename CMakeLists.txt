@@ -154,6 +154,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     openssl::openssl
     flatbuffers::flatbuffers
     QXlsx::QXlsx
+    libcbor::libcbor
     ${FIDO2_LIB}
 )
 
