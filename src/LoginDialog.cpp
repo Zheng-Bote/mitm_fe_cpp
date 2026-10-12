@@ -349,7 +349,9 @@ void LoginDialog::onSignInWithPasskey() {
 
     if (!assertRes) {
         progressBar_->setVisible(false);
-        setStatus("FIDO2 Ceremony failed or was cancelled.", true);
+        QString err = FidoClient::instance().lastErrorMessage();
+        if (err.isEmpty()) err = "FIDO2 Ceremony failed or was cancelled.";
+        setStatus(err, true);
         return;
     }
 
@@ -479,7 +481,9 @@ void LoginDialog::onRegisterPasskey() {
 
     if (!regRes) {
         progressBar_->setVisible(false);
-        setStatus("FIDO2 Passkey creation failed or timed out.", true);
+        QString err = FidoClient::instance().lastErrorMessage();
+        if (err.isEmpty()) err = "FIDO2 Passkey creation failed or timed out.";
+        setStatus(err, true);
         return;
     }
 
