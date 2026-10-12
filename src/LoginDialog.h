@@ -23,7 +23,7 @@ namespace mitm::ui {
 class LoginDialog : public QDialog {
     Q_OBJECT
 public:
-    explicit LoginDialog(QWidget* parent = nullptr);
+    explicit LoginDialog(QWidget* parent = nullptr, bool registerOnly = false, const QString& prefillUsername = QString());
     ~LoginDialog() override = default;
 
 private slots:
@@ -60,6 +60,8 @@ private:
     QPushButton* registerBtn_{nullptr};
 
     bool isBootstrapMode_{false};
+    bool registerOnly_{false};
+    QString prefillUsername_{};
 };
 
 } // namespace mitm::ui

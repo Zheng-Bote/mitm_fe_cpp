@@ -31,11 +31,18 @@ namespace mitm::ui {
 
 using mitm::auth::FidoClient;
 
-LoginDialog::LoginDialog(QWidget* parent) : QDialog(parent) {
-    setWindowTitle("MitM Admin - WebAuth Portal");
+LoginDialog::LoginDialog(QWidget* parent, bool registerOnly, const QString& prefillUsername) 
+    : QDialog(parent), registerOnly_(registerOnly), prefillUsername_(prefillUsername) {
+    if (registerOnly_) {
+        setWindowTitle("MitM Admin - Register YubiKey / Hardware Token");
+    } else {
+        setWindowTitle("MitM Admin - WebAuth Portal");
+    }
     setFixedSize(520, 620);
     setupUi();
-    checkBootstrapStatus();
+    if (!registerOnly_) {
+        checkBootstrapStatus();
+    }
 }
 
 void LoginDialog::setupUi() {
@@ -45,9 +52,9 @@ void LoginDialog::setupUi() {
 
     // Header Title
     auto* headerLayout = new QVBoxLayout();
-    auto* titleLabel = new QLabel("MitM Data Aggregator", this);
+    auto* titleLabel = new QLabel(registerOnly_ ? "Register Security Key" : "MitM Data Aggregator", this);
     titleLabel->setStyleSheet("font-size: 20px; font-weight: bold; color: #4DA6FF;");
-    auto* subTitleLabel = new QLabel("Authentication & Identity Management (WebAuthn / FIDO2)", this);
+    auto* subTitleLabel = new QLabel(registerOnly_ ? "Add a new YubiKey or FIDO2 hardware token to your account" : "Authentication & Identity Management (WebAuthn / FIDO2)", this);
     subTitleLabel->setStyleSheet("font-size: 12px; color: #888888;");
     headerLayout->addWidget(titleLabel);
     headerLayout->addWidget(subTitleLabel);
@@ -61,8 +68,10 @@ void LoginDialog::setupUi() {
         "QTabBar::tab:selected { background: #1E1E1E; color: #4DA6FF; border-bottom: 2px solid #4DA6FF; }"
     );
 
-    tabWidget_->addTab(createSignInTab(), "Sign In");
-    tabWidget_->addTab(createRegisterTab(), "Register Passkey");
+    if (!registerOnly_) {
+        tabWidget_->addTab(createSignInTab(), "Sign In");
+    }
+    tabWidget_->addTab(createRegisterTab(), registerOnly_ ? "Register Token" : "Register Passkey");
     mainLayout->addWidget(tabWidget_);
 
     // Progress Bar
@@ -129,12 +138,15 @@ QWidget* LoginDialog::createRegisterTab() {
     auto* formLayout = new QFormLayout();
     formLayout->setSpacing(10);
 
-    QString defaultUser = QProcessEnvironment::systemEnvironment().value(
+    QString defaultUser = !prefillUsername_.isEmpty() ? prefillUsername_ : QProcessEnvironment::systemEnvironment().value(
         "USER", QProcessEnvironment::systemEnvironment().value("USERNAME", ""));
 
     regLoginIdInput_ = new QLineEdit(defaultUser, widget);
     regLoginIdInput_->setMaxLength(10);
     regLoginIdInput_->setPlaceholderText("e.g. Q1234567");
+    if (registerOnly_ && !prefillUsername_.isEmpty()) {
+        regLoginIdInput_->setReadOnly(true);
+    }
     regLoginIdInput_->setStyleSheet("padding: 6px; border: 1px solid #444; border-radius: 4px; background: #252525; color: #FFF;");
     formLayout->addRow(new QLabel("LoginID (Q-Number):", widget), regLoginIdInput_);
 
@@ -187,7 +199,7 @@ QWidget* LoginDialog::createRegisterTab() {
 
     layout->addLayout(formLayout);
 
-    registerBtn_ = new QPushButton("🛡️ Register Passkey", widget);
+    registerBtn_ = new QPushButton(registerOnly_ ? "🔑 Register Hardware Token" : "🛡️ Register Passkey", widget);
     registerBtn_->setStyleSheet("padding: 12px; background: #2E7D32; color: white; font-weight: bold; font-size: 14px; border-radius: 5px;");
     connect(registerBtn_, &QPushButton::clicked, this, &LoginDialog::onRegisterPasskey);
     layout->addWidget(registerBtn_);
@@ -472,6 +484,16 @@ void LoginDialog::onRegisterPasskey() {
         QString message = finishDoc.object().value("message").toString();
 
         if (status == "active") {
+            if (registerOnly_) {
+                QString successMsg = "Security key registered successfully!";
+                if (regRes->yubikeySerial) {
+                    successMsg += QString("\nYubiKey Serial: %1").arg(*regRes->yubikeySerial);
+                }
+                QMessageBox::information(this, "Key Registered", successMsg);
+                accept();
+                return;
+            }
+
             // Bootstrap Admin
             QString sessionToken = finishDoc.object().value("session_token").toString();
             if (!sessionToken.isEmpty()) {
@@ -483,6 +505,12 @@ void LoginDialog::onRegisterPasskey() {
             QMessageBox::information(this, "Admin Registered", "Bootstrap Administrator successfully registered and activated!");
             accept();
         } else {
+            if (registerOnly_) {
+                QMessageBox::information(this, "Key Registered", "Security key registered successfully and linked to your account.");
+                accept();
+                return;
+            }
+
             // Standard User: is_active = false
             QMessageBox::information(this, "Registration Pending Approval",
                 "Your Passkey registration was received successfully!\n\n"
