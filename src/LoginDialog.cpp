@@ -12,6 +12,7 @@
 #include "FidoClient.h"
 #include "Config.h"
 #include "AuthManager.h"
+#include "ApiClient.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QFormLayout>
@@ -42,6 +43,8 @@ LoginDialog::LoginDialog(QWidget* parent, bool registerOnly, const QString& pref
     setupUi();
     if (!registerOnly_) {
         checkBootstrapStatus();
+    } else if (!prefillUsername_.isEmpty()) {
+        loadUserProfile(prefillUsername_);
     }
 }
 
@@ -242,6 +245,38 @@ void LoginDialog::checkBootstrapStatus() {
         }
     }
     reply->deleteLater();
+}
+
+void LoginDialog::loadUserProfile(const QString& username) {
+    mitm::api::ApiClient::instance().get("/api/v1/iam/users",
+        [this, username](const QByteArray& data, QNetworkReply* reply) {
+            auto doc = QJsonDocument::fromJson(data);
+            if (!doc.isArray()) return;
+            for (const auto& v : doc.array()) {
+                auto obj = v.toObject();
+                if (obj.value("username").toString() == username) {
+                    QString fName = obj.value("first_name").toString();
+                    QString lName = obj.value("last_name").toString();
+                    QString dept = obj.value("department").toString();
+                    
+                    if (!fName.isEmpty()) firstNameInput_->setText(fName);
+                    if (!lName.isEmpty()) lastNameInput_->setText(lName);
+                    if (!dept.isEmpty()) {
+                        int idx = departmentCombo_->findText(dept);
+                        if (idx >= 0) {
+                            departmentCombo_->setCurrentIndex(idx);
+                        } else {
+                            departmentCombo_->setEditText(dept);
+                        }
+                    }
+                    break;
+                }
+            }
+        },
+        [this](int statusCode, const QString& errorString) {
+            spdlog::debug("Could not prefill user profile details: {}", errorString.toStdString());
+        }
+    );
 }
 
 void LoginDialog::onSignInWithPasskey() {

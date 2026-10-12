@@ -37,6 +37,7 @@ private:
     QWidget* createSignInTab();
     QWidget* createRegisterTab();
     void setStatus(const QString& msg, bool isError = false);
+    void loadUserProfile(const QString& username);
 
     QTabWidget* tabWidget_{nullptr};
     QLabel* statusLabel_{nullptr};
