@@ -70,6 +70,61 @@ bool FidoClient::hasDeviceAttached() {
     return (r == FIDO_OK && ndevs > 0);
 }
 
+FidoDeviceInfo FidoClient::getDeviceInfo() {
+    FidoDeviceInfo info;
+    size_t ndevs = 0;
+    fido_dev_info_t* devlist = fido_dev_info_new(64);
+    if (!devlist) return info;
+
+    if (fido_dev_info_manifest(devlist, 64, &ndevs) != FIDO_OK || ndevs == 0) {
+        fido_dev_info_free(&devlist, 64);
+        return info;
+    }
+
+    info.hasDevice = true;
+    const char* path = fido_dev_info_path(fido_dev_info_ptr(devlist, 0));
+    fido_dev_t* dev = fido_dev_new();
+    if (dev && fido_dev_open(dev, path) == FIDO_OK) {
+        fido_cbor_info_t* ci = fido_cbor_info_new();
+        if (ci) {
+            if (fido_dev_get_cbor_info(dev, ci) == FIDO_OK) {
+                char* const* opt_keys = fido_cbor_info_options_name_ptr(ci);
+                const bool* opt_vals = fido_cbor_info_options_value_ptr(ci);
+                size_t opt_len = fido_cbor_info_options_len(ci);
+                for (size_t i = 0; i < opt_len; ++i) {
+                    if (opt_keys[i] && strcmp(opt_keys[i], "clientPin") == 0) {
+                        info.pinSet = opt_vals[i];
+                    } else if (opt_keys[i] && strcmp(opt_keys[i], "uv") == 0) {
+                        info.uvSet = opt_vals[i];
+                    }
+                }
+            }
+            fido_cbor_info_free(&ci);
+        }
+
+        // Check PIN retries to detect PIN Blocked state
+        int retries = 0;
+        int r_pin = fido_dev_get_retry_count(dev, &retries);
+        if (r_pin == FIDO_ERR_PIN_BLOCKED || retries == 0) {
+            info.pinBlocked = true;
+        }
+
+        int uv_retries = 0;
+        int r_uv = fido_dev_get_uv_retry_count(dev, &uv_retries);
+        if (r_uv == FIDO_ERR_UV_BLOCKED || uv_retries == 0) {
+            info.uvBlocked = true;
+        }
+
+        fido_dev_close(dev);
+        fido_dev_free(&dev);
+    } else if (dev) {
+        fido_dev_free(&dev);
+    }
+
+    fido_dev_info_free(&devlist, 64);
+    return info;
+}
+
 std::optional<QString> FidoClient::extractYubikeySerial(const unsigned char* certDer, size_t certLen) {
     if (!certDer || certLen == 0) {
         return std::nullopt;
