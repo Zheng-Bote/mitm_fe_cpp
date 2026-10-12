@@ -39,8 +39,8 @@
 #include <QEventLoop>
 #include <QJsonDocument>
 #include <QJsonArray>
-#include <QProcessEnvironment>
 #include "AuthManager.h"
+#include "LoginDialog.h"
 
 int main(int argc, char *argv[]) {
     // Setup spdlog (default before config loads)
@@ -117,11 +117,10 @@ int main(int argc, char *argv[]) {
     // Optional: Set a dark style if supported by OS, or force fusion
     app.setStyle("Fusion");
 
-    if (!mitm::auth::AuthManager::instance().performLogin(true)) {
-        spdlog::warn("Initial authentication failed, but proceeding to launch.");
-        QMessageBox::warning(nullptr, "Connection Error",
-                              "Could not connect to the Backend or authentication failed.\n"
-                              "The application will start, but you may need to update your Settings and try again.");
+    mitm::ui::LoginDialog loginDialog;
+    if (loginDialog.exec() != QDialog::Accepted) {
+        spdlog::info("Authentication cancelled or not completed. Exiting.");
+        return 0;
     }
 
     MainWindow window;
