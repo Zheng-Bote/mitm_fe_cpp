@@ -30,6 +30,33 @@ FidoClient::FidoClient() {
     fido_init(0);
 }
 
+QString FidoClient::friendlyErrorMessage(int code) {
+    switch (code) {
+        case FIDO_ERR_PIN_REQUIRED:
+            return "A PIN is required by this Security Key. Please enter your FIDO2 PIN.";
+        case FIDO_ERR_PIN_INVALID:
+            return "Invalid PIN entered. Please check your PIN and try again.";
+        case FIDO_ERR_PIN_AUTH_BLOCKED:
+            return "Security Key PIN is temporarily blocked after multiple failed attempts. Please unplug and re-insert the key.";
+        case FIDO_ERR_PIN_BLOCKED:
+            return "Security Key PIN is permanently blocked (too many wrong attempts). You must reset the key using YubiKey Manager.";
+        case FIDO_ERR_PIN_AUTH_INVALID:
+            return "PIN authentication failed. Please re-enter the correct PIN.";
+        case FIDO_ERR_ACTION_TIMEOUT:
+            return "Operation timed out. Please touch the key prompt in time.";
+        case FIDO_ERR_UP_REQUIRED:
+            return "User presence required: Please touch the flashing contact on your Security Key.";
+        case FIDO_ERR_UV_BLOCKED:
+            return "User verification (biometrics) is blocked. Please use your PIN or reset credentials.";
+        case FIDO_ERR_CREDENTIAL_EXCLUDED:
+            return "This Security Key is already registered to your account.";
+        case FIDO_ERR_NO_CREDENTIALS:
+            return "No matching WebAuthn credentials found on this Security Key.";
+        default:
+            return QString("FIDO2 operation failed (%1): %2").arg(code).arg(fido_strerr(code));
+    }
+}
+
 bool FidoClient::hasDeviceAttached() {
     size_t ndevs = 0;
     fido_dev_info_t* devlist = fido_dev_info_new(64);
@@ -146,10 +173,15 @@ std::optional<FidoRegisterResult> FidoClient::registerCredential(
     );
     fido_cred_set_rk(cred, FIDO_OPT_FALSE);
 
+    lastErrorCode_ = 0;
+    lastErrorMessage_.clear();
+
     const char* pinStr = pin && !pin->isEmpty() ? pin->toStdString().c_str() : nullptr;
     int r = fido_dev_make_cred(dev, cred, pinStr);
     if (r != FIDO_OK) {
-        spdlog::error("FidoClient: fido_dev_make_cred failed: {} ({})", fido_strerr(r), r);
+        lastErrorCode_ = r;
+        lastErrorMessage_ = friendlyErrorMessage(r);
+        spdlog::error("FidoClient: fido_dev_make_cred failed: {} ({}) - {}", fido_strerr(r), r, lastErrorMessage_.toStdString());
         fido_cred_free(&cred);
         fido_dev_close(dev);
         fido_dev_free(&dev);
@@ -240,10 +272,15 @@ std::optional<FidoAssertResult> FidoClient::assertCredential(
         }
     }
 
+    lastErrorCode_ = 0;
+    lastErrorMessage_.clear();
+
     const char* pinStr = pin && !pin->isEmpty() ? pin->toStdString().c_str() : nullptr;
     int r = fido_dev_get_assert(dev, assert, pinStr);
     if (r != FIDO_OK) {
-        spdlog::error("FidoClient: fido_dev_get_assert failed: {} ({})", fido_strerr(r), r);
+        lastErrorCode_ = r;
+        lastErrorMessage_ = friendlyErrorMessage(r);
+        spdlog::error("FidoClient: fido_dev_get_assert failed: {} ({}) - {}", fido_strerr(r), r, lastErrorMessage_.toStdString());
         fido_assert_free(&assert);
         fido_dev_close(dev);
         fido_dev_free(&dev);

@@ -64,9 +64,17 @@ public:
     // Extract YubiKey Serial Number from X.509 cert extension (OID 1.3.6.1.4.1.41482.3.9)
     static std::optional<QString> extractYubikeySerial(const unsigned char* certDer, size_t certLen);
 
+    // Error Reporting
+    int lastErrorCode() const { return lastErrorCode_; }
+    QString lastErrorMessage() const { return lastErrorMessage_; }
+    static QString friendlyErrorMessage(int fidoErrCode);
+
 private:
     FidoClient();
     ~FidoClient() = default;
+
+    int lastErrorCode_{0};
+    QString lastErrorMessage_{};
 };
 
 } // namespace mitm::auth

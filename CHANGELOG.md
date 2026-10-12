@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **RBAC Department Field (Issue #23)**: Added Department column to RBAC Users table and integrated Department support into Add User and Edit User dialogs.
 - **Register YubiKey in Settings Menu (Issue #25)**: Added "Register YubiKey / Security Key..." action in the Settings menu to allow logged-in users to register secondary/new hardware tokens via `LoginDialog` in dedicated registration mode.
 - **User Profile Prefill (Issue #27)**: Automatically fetches and populates First Name, Last Name, and Department in the Register Security Key dialog for the active user.
+- **Actionable FIDO Error Feedback (Issue #29)**: Enhanced `FidoClient` to map libfido2 status codes into user-friendly messages for PIN required, invalid PIN, temporarily blocked PIN (re-plug needed), and device timeouts.
 
 ## [v1.3.0] - 2026-10-10
 
