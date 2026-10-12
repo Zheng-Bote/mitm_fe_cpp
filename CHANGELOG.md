@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **User Profile Prefill (Issue #27)**: Automatically fetches and populates First Name, Last Name, and Department in the Register Security Key dialog for the active user.
 - **Actionable FIDO Error Feedback (Issue #29)**: Enhanced `FidoClient` to map libfido2 status codes into user-friendly messages for PIN required, invalid PIN, temporarily blocked PIN (re-plug needed), and device timeouts.
 - **Interactive PIN Prompt & Guidance (Issue #31)**: Added hardware pre-checks for PIN set and PIN blocked states, dynamic modal PIN prompt on demand with retry support, and explicit touch prompts for the security key.
+- **WebAuthn CBOR Attestation Fix (Issue #33)**: Corrected `FidoClient::registerCredential` to package a valid CBOR map containing `fmt`, `authData`, and `attStmt` into `attestationObject` instead of raw `authData`, resolving HTTP 400 Bad Request during registration finish.
 
 ## [v1.3.0] - 2026-10-10
 

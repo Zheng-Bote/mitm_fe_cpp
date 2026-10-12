@@ -10,6 +10,7 @@
  */
 #include "FidoClient.h"
 #include <fido.h>
+#include <cbor.h>
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
 #include <openssl/sha.h>
@@ -256,8 +257,60 @@ std::optional<FidoRegisterResult> FidoClient::registerCredential(
     QByteArray pubKeyBytes(reinterpret_cast<const char*>(fido_cred_pubkey_ptr(cred)), static_cast<int>(fido_cred_pubkey_len(cred)));
     result.publicKeyBase64 = pubKeyBytes.toBase64(QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals);
 
-    QByteArray authDataBytes(reinterpret_cast<const char*>(fido_cred_authdata_raw_ptr(cred)), static_cast<int>(fido_cred_authdata_raw_len(cred)));
-    result.attestationObjectBase64 = authDataBytes.toBase64(QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals);
+    // Build WebAuthn-compliant CBOR attestationObject: { "fmt": string, "authData": bytes, "attStmt": map }
+    cbor_item_t* attMap = cbor_new_definite_map(3);
+    if (attMap) {
+        const char* fmtStr = fido_cred_fmt(cred);
+        if (!fmtStr || strlen(fmtStr) == 0) fmtStr = "none";
+
+        struct cbor_pair fmtPair;
+        fmtPair.key = cbor_build_string("fmt");
+        fmtPair.value = cbor_build_string(fmtStr);
+        (void)cbor_map_add(attMap, fmtPair);
+        cbor_decref(&fmtPair.key);
+        cbor_decref(&fmtPair.value);
+
+        struct cbor_pair authDataPair;
+        authDataPair.key = cbor_build_string("authData");
+        authDataPair.value = cbor_build_bytestring(
+            fido_cred_authdata_raw_ptr(cred),
+            fido_cred_authdata_raw_len(cred)
+        );
+        (void)cbor_map_add(attMap, authDataPair);
+        cbor_decref(&authDataPair.key);
+        cbor_decref(&authDataPair.value);
+
+        struct cbor_pair attStmtPair;
+        attStmtPair.key = cbor_build_string("attStmt");
+        if (fido_cred_attstmt_ptr(cred) && fido_cred_attstmt_len(cred) > 0) {
+            struct cbor_load_result loadRes;
+            attStmtPair.value = cbor_load(fido_cred_attstmt_ptr(cred), fido_cred_attstmt_len(cred), &loadRes);
+            if (!attStmtPair.value) {
+                attStmtPair.value = cbor_new_definite_map(0);
+            }
+        } else {
+            attStmtPair.value = cbor_new_definite_map(0);
+        }
+        (void)cbor_map_add(attMap, attStmtPair);
+        cbor_decref(&attStmtPair.key);
+        cbor_decref(&attStmtPair.value);
+
+        unsigned char* serializedAttObj = nullptr;
+        size_t attObjLen = 0;
+        size_t written = cbor_serialize_alloc(attMap, &serializedAttObj, &attObjLen);
+        if (serializedAttObj && (attObjLen > 0 || written > 0)) {
+            size_t finalLen = attObjLen > 0 ? attObjLen : written;
+            result.attestationObjectBase64 = QByteArray(reinterpret_cast<const char*>(serializedAttObj), static_cast<int>(finalLen))
+                .toBase64(QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals);
+            free(serializedAttObj);
+        }
+        cbor_decref(&attMap);
+    }
+
+    if (result.attestationObjectBase64.isEmpty()) {
+        QByteArray authDataBytes(reinterpret_cast<const char*>(fido_cred_authdata_raw_ptr(cred)), static_cast<int>(fido_cred_authdata_raw_len(cred)));
+        result.attestationObjectBase64 = authDataBytes.toBase64(QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals);
+    }
 
     fido_cred_free(&cred);
     fido_dev_close(dev);
