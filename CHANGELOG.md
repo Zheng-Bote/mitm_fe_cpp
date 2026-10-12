@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Master Password Prompt**: Enforced two-stage authentication flow; prompting for the Master Password to decrypt `config.enc` first before launching the Login/Registration portal.
 - **YubiKey Serial & Metadata Capture**: Automatic extraction of YubiKey serial numbers via OID `1.3.6.1.4.1.41482.3.9` and hardware transport flags.
 - **Pending Activation UI Handling**: Added explicit notification when newly registered accounts are pending administrator approval (`is_active = false`).
+- **RBAC Department Field (Issue #23)**: Added Department column to RBAC Users table and integrated Department support into Add User and Edit User dialogs.
 
 ## [v1.3.0] - 2026-10-10
 

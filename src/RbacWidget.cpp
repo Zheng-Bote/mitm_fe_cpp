@@ -48,8 +48,8 @@ void RbacWidget::setupUi() {
     usersHeaderLayout->addWidget(terminateSessionBtn);
     usersLayout->addLayout(usersHeaderLayout);
     
-    usersTable = new QTableWidget(0, 5, this);
-    usersTable->setHorizontalHeaderLabels({"ID", "Username", "First Name", "Last Name", "Active"});
+    usersTable = new QTableWidget(0, 6, this);
+    usersTable->setHorizontalHeaderLabels({"ID", "Username", "First Name", "Last Name", "Department", "Active"});
     usersTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
     usersTable->setSelectionBehavior(QAbstractItemView::SelectRows);
     usersTable->setSelectionMode(QAbstractItemView::SingleSelection);
@@ -121,8 +121,11 @@ void RbacWidget::fetchUsersAndRoles() {
                 auto* lastNameItem = new QTableWidgetItem(obj["last_name"].toString());
                 usersTable->setItem(i, 3, lastNameItem);
                 
+                auto* departmentItem = new QTableWidgetItem(obj["department"].toString());
+                usersTable->setItem(i, 4, departmentItem);
+
                 auto* activeItem = new QTableWidgetItem(obj["is_active"].toBool() ? "Yes" : "No");
-                usersTable->setItem(i, 4, activeItem);
+                usersTable->setItem(i, 5, activeItem);
             }
             usersTable->setSortingEnabled(true);
         },
@@ -204,6 +207,7 @@ void RbacWidget::onAddUserClicked() {
     passEdit->setEchoMode(QLineEdit::Password);
     auto* firstNameEdit = new QLineEdit(&dialog);
     auto* lastNameEdit = new QLineEdit(&dialog);
+    auto* departmentEdit = new QLineEdit(&dialog);
     auto* isActiveCheck = new QCheckBox("Is Active", &dialog);
     isActiveCheck->setChecked(true);
 
@@ -211,6 +215,7 @@ void RbacWidget::onAddUserClicked() {
     layout->addRow("Password:", passEdit);
     layout->addRow("First Name:", firstNameEdit);
     layout->addRow("Last Name:", lastNameEdit);
+    layout->addRow("Department:", departmentEdit);
     layout->addRow("", isActiveCheck);
 
     auto* buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
@@ -224,6 +229,7 @@ void RbacWidget::onAddUserClicked() {
         QString password = passEdit->text();
         QString firstName = firstNameEdit->text().trimmed();
         QString lastName = lastNameEdit->text().trimmed();
+        QString department = departmentEdit->text().trimmed();
         bool isActive = isActiveCheck->isChecked();
 
         if (username.isEmpty() || password.isEmpty()) {
@@ -236,6 +242,7 @@ void RbacWidget::onAddUserClicked() {
         payload["password"] = password;
         payload["first_name"] = firstName;
         payload["last_name"] = lastName;
+        payload["department"] = department;
         payload["is_active"] = isActive;
 
         mitm::api::ApiClient::instance().post("/api/v1/iam/users", QJsonDocument(payload).toJson(),
@@ -287,7 +294,8 @@ void RbacWidget::onEditUserClicked() {
     QString username = usersTable->item(row, 1)->text();
     QString firstName = usersTable->item(row, 2)->text();
     QString lastName = usersTable->item(row, 3)->text();
-    bool isActive = usersTable->item(row, 4)->text() == "Yes";
+    QString department = usersTable->item(row, 4)->text();
+    bool isActive = usersTable->item(row, 5)->text() == "Yes";
 
     QDialog dialog(this);
     dialog.setWindowTitle("Edit User: " + username);
@@ -298,11 +306,14 @@ void RbacWidget::onEditUserClicked() {
     firstNameEdit->setText(firstName);
     auto* lastNameEdit = new QLineEdit(&dialog);
     lastNameEdit->setText(lastName);
+    auto* departmentEdit = new QLineEdit(&dialog);
+    departmentEdit->setText(department);
     auto* isActiveCheck = new QCheckBox("Is Active", &dialog);
     isActiveCheck->setChecked(isActive);
 
     layout->addRow("First Name:", firstNameEdit);
     layout->addRow("Last Name:", lastNameEdit);
+    layout->addRow("Department:", departmentEdit);
     layout->addRow("", isActiveCheck);
 
     auto* buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
@@ -315,6 +326,7 @@ void RbacWidget::onEditUserClicked() {
         QJsonObject payload;
         payload["first_name"] = firstNameEdit->text().trimmed();
         payload["last_name"] = lastNameEdit->text().trimmed();
+        payload["department"] = departmentEdit->text().trimmed();
         payload["is_active"] = isActiveCheck->isChecked();
 
         mitm::api::ApiClient::instance().put("/api/v1/iam/users/" + QString::number(currentUserId), QJsonDocument(payload).toJson(),
