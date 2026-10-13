@@ -510,8 +510,14 @@ void LoginDialog::onSignInWithPasskey() {
         mitm::crypto::SecureString secureToken(rawStr.begin(), rawStr.end());
         mitm::config::ConfigManager::GetInstance().SetSessionToken(secureToken);
 
-        // Fetch user roles
-        mitm::auth::AuthManager::instance().performLogin(true);
+        // The passkey ceremony already authenticated the user and issued the session;
+        // only roles are missing. performLogin() would prompt Windows Hello again and
+        // replace this session with an OS-user session.
+        if (!mitm::auth::AuthManager::instance().completePasskeyLogin()) {
+            setStatus("Login succeeded, but your roles could not be retrieved. Please try again.", true);
+            finishReply->deleteLater();
+            return;
+        }
 
         setStatus("Login Successful! Welcome.", false);
         accept();
@@ -716,7 +722,7 @@ void LoginDialog::onRegisterPasskey() {
                 std::string rawStr = sessionToken.toStdString();
                 mitm::crypto::SecureString secureToken(rawStr.begin(), rawStr.end());
                 mitm::config::ConfigManager::GetInstance().SetSessionToken(secureToken);
-                mitm::auth::AuthManager::instance().performLogin(true);
+                mitm::auth::AuthManager::instance().completePasskeyLogin();
             }
             QMessageBox::information(this, "Admin Registered", "Bootstrap Administrator successfully registered and activated!");
             accept();

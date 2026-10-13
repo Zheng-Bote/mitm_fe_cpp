@@ -28,6 +28,10 @@ public:
     // Returns true if successful.
     bool performLogin(bool isInitialStartup = false);
 
+    // Finishes a login whose session token was already issued by the WebAuthn ceremony:
+    // fetches roles and starts session renewal. No Windows Hello, no new session.
+    bool completePasskeyLogin();
+
 signals:
     void authSuccess();
     void authFailed(const QString& errorMsg);

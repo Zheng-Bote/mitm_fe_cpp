@@ -21,7 +21,7 @@
 #include <QAbstractSocket>
 #include <QMessageBox>
 #include <QTimer>
-#include <thread>
+#include <QThread>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -62,6 +62,16 @@ bool AuthManager::performLogin(bool isInitialStartup) {
     return true;
 }
 
+bool AuthManager::completePasskeyLogin() {
+    if (!fetchUserRoles()) {
+        return false;
+    }
+
+    startSessionRenewal();
+    emit authSuccess();
+    return true;
+}
+
 bool AuthManager::runWindowsHello() {
 #ifdef _WIN32
     spdlog::info("Requesting Windows Hello authentication via WinRT...");
@@ -69,7 +79,16 @@ bool AuthManager::runWindowsHello() {
     bool authError = false;
     std::string errorMsg;
 
-    std::thread([&]() {
+    // Resolve the owner window on the GUI thread: GetActiveWindow() is per-thread and
+    // returns nullptr on the worker.
+    HWND ownerHwnd = GetActiveWindow();
+    if (!ownerHwnd) ownerHwnd = GetForegroundWindow();
+    if (!ownerHwnd) ownerHwnd = GetDesktopWindow();
+
+    // The consent dialog is owned by a GUI-thread window, so the GUI thread must keep
+    // pumping messages while the worker waits; blocking it (e.g. join()) deadlocks.
+    QEventLoop loop;
+    QThread* worker = QThread::create([&]() {
         try {
             winrt::init_apartment(winrt::apartment_type::multi_threaded);
             
@@ -82,12 +101,8 @@ bool AuthManager::runWindowsHello() {
                 winrt::Windows::Foundation::IAsyncOperation<winrt::Windows::Security::Credentials::UI::UserConsentVerificationResult> asyncOp{ nullptr };
                 winrt::hstring message = L"Please authenticate (Windows Hello) to access the MitM Admin Frontend.";
                 
-                HWND hwnd = GetActiveWindow();
-                if (!hwnd) hwnd = GetForegroundWindow();
-                if (!hwnd) hwnd = GetDesktopWindow();
-
                 winrt::check_hresult(interop->RequestVerificationForWindowAsync(
-                    hwnd, 
+                    ownerHwnd,
                     (HSTRING)winrt::get_abi(message), 
                     winrt::guid_of<winrt::Windows::Foundation::IAsyncOperation<winrt::Windows::Security::Credentials::UI::UserConsentVerificationResult>>(), 
                     winrt::put_abi(asyncOp)
@@ -109,7 +124,12 @@ bool AuthManager::runWindowsHello() {
             authError = true;
             errorMsg = e.what();
         }
-    }).join();
+    });
+    QObject::connect(worker, &QThread::finished, &loop, &QEventLoop::quit);
+    worker->start();
+    loop.exec();
+    worker->wait();
+    delete worker;
 
     if (authError) {
         spdlog::error("Windows Hello Error: {}", errorMsg);
