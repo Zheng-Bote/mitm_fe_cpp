@@ -26,6 +26,10 @@ public:
     explicit LoginDialog(QWidget* parent = nullptr, bool registerOnly = false, const QString& prefillUsername = QString());
     ~LoginDialog() override = default;
 
+public slots:
+    // Ignored while a ceremony is running, so the dialog cannot be closed underneath it.
+    void reject() override;
+
 private slots:
     void onSignInWithPasskey();
     void onRegisterPasskey();
@@ -37,6 +41,7 @@ private:
     QWidget* createSignInTab();
     QWidget* createRegisterTab();
     void setStatus(const QString& msg, bool isError = false);
+    void setBusy(bool busy);
     void loadUserProfile(const QString& username);
     std::optional<QString> promptForPinIfNeeded(QWidget* parentWidget, const QString& existingPin, bool isRetry = false);
 
@@ -63,6 +68,7 @@ private:
 
     bool isBootstrapMode_{false};
     bool registerOnly_{false};
+    bool busy_{false};
     QString prefillUsername_{};
 };
 

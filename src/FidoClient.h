@@ -36,8 +36,18 @@ struct FidoAssertResult {
     std::optional<QString> userHandleBase64;
 };
 
+// Authenticator requested by the user. On Windows, non-elevated processes cannot talk to
+// FIDO HID devices directly, so everything except elevated SecurityKey goes through
+// webauthn.dll ("windows://hello"), which offers security keys and platform authenticators.
+enum class AuthenticatorKind {
+    Any,
+    SecurityKey,
+    Platform
+};
+
 struct FidoDeviceInfo {
     bool hasDevice{false};
+    bool isWinHello{false};
     bool pinSet{false};
     bool pinBlocked{false};
     bool uvSet{false};
@@ -52,7 +62,7 @@ public:
     bool hasDeviceAttached();
 
     // Inspect first attached device properties (PIN set, PIN blocked, etc.)
-    FidoDeviceInfo getDeviceInfo();
+    FidoDeviceInfo getDeviceInfo(AuthenticatorKind kind = AuthenticatorKind::Any);
 
     // Perform FIDO2 Registration (Make Credential)
     std::optional<FidoRegisterResult> registerCredential(
@@ -61,7 +71,9 @@ public:
         const QString& challengeBase64,
         const QString& username,
         const QString& displayName,
-        const std::optional<QString>& pin = std::nullopt
+        const std::optional<QString>& pin = std::nullopt,
+        AuthenticatorKind kind = AuthenticatorKind::Any,
+        const QString& origin = QString()  // clientDataJSON.origin; empty = scheduler host URL
     );
 
     // Perform FIDO2 Authentication (Get Assertion)
@@ -69,7 +81,9 @@ public:
         const QString& rpId,
         const QString& challengeBase64,
         const std::vector<QString>& allowedCredentialIdsBase64,
-        const std::optional<QString>& pin = std::nullopt
+        const std::optional<QString>& pin = std::nullopt,
+        AuthenticatorKind kind = AuthenticatorKind::Any,
+        const QString& origin = QString()  // clientDataJSON.origin; empty = scheduler host URL
     );
 
     // Extract YubiKey Serial Number from X.509 cert extension (OID 1.3.6.1.4.1.41482.3.9)

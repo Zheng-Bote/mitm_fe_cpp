@@ -47,22 +47,35 @@ find_package(flatbuffers CONFIG REQUIRED)
 find_package(libcbor CONFIG REQUIRED)
 
 # libfido2 headers & library
-if(POLICY CMP0169)
-  cmake_policy(SET CMP0169 OLD)
-endif()
-FetchContent_Declare(
-  libfido2_headers
-  GIT_REPOSITORY https://github.com/Yubico/libfido2.git
-  GIT_TAG        1.15.0
-)
-FetchContent_GetProperties(libfido2_headers)
-if(NOT libfido2_headers_POPULATED)
-  FetchContent_Populate(libfido2_headers)
-endif()
-
-find_library(FIDO2_LIB NAMES fido2 libfido2)
-if(NOT FIDO2_LIB)
-  find_file(FIDO2_LIB NAMES libfido2.so.1 libfido2.so.1.16.0 PATHS /usr/lib/x86_64-linux-gnu /usr/lib /usr/lib64 REQUIRED)
+if(WIN32)
+  FetchContent_Declare(
+    libfido2_win
+    URL "https://developers.yubico.com/libfido2/Releases/libfido2-1.15.0-win.zip"
+  )
+  FetchContent_MakeAvailable(libfido2_win)
+  set(FIDO2_LIB "${libfido2_win_SOURCE_DIR}/Win64/Release/v143/dynamic/fido2.lib" CACHE FILEPATH "Path to libfido2 library" FORCE)
+  set(FIDO2_INCLUDE_DIR "${libfido2_win_SOURCE_DIR}/include")
+else()
+  find_library(FIDO2_LIB NAMES fido2 libfido2)
+  if(NOT FIDO2_LIB)
+    find_file(FIDO2_LIB NAMES libfido2.so.1 libfido2.so.1.16.0 PATHS /usr/lib/x86_64-linux-gnu /usr/lib /usr/lib64)
+  endif()
+  if(NOT FIDO2_LIB)
+    message(FATAL_ERROR "Could not find libfido2 library. Please install libfido2 (e.g. sudo apt install libfido2-dev)")
+  endif()
+  if(POLICY CMP0169)
+    cmake_policy(SET CMP0169 OLD)
+  endif()
+  FetchContent_Declare(
+    libfido2_headers
+    GIT_REPOSITORY https://github.com/Yubico/libfido2.git
+    GIT_TAG        1.15.0
+  )
+  FetchContent_GetProperties(libfido2_headers)
+  if(NOT libfido2_headers_POPULATED)
+    FetchContent_Populate(libfido2_headers)
+  endif()
+  set(FIDO2_INCLUDE_DIR "${libfido2_headers_SOURCE_DIR}/src")
 endif()
 
 # --- Configure (für rz_config.hpp) ---
@@ -160,8 +173,20 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${PROJECT_SOURCE_DIR}/include
-    ${libfido2_headers_SOURCE_DIR}/src
+    ${FIDO2_INCLUDE_DIR}
 )
+
+if(WIN32)
+  target_compile_definitions(${PROJECT_NAME} PRIVATE CBOR_STATIC_DEFINE)
+  add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+      "${libfido2_win_SOURCE_DIR}/Win64/Release/v143/dynamic/fido2.dll"
+      "${libfido2_win_SOURCE_DIR}/Win64/Release/v143/dynamic/cbor.dll"
+      "${libfido2_win_SOURCE_DIR}/Win64/Release/v143/dynamic/crypto.dll"
+      "${libfido2_win_SOURCE_DIR}/Win64/Release/v143/dynamic/zlib1.dll"
+      "$<TARGET_FILE_DIR:${PROJECT_NAME}>"
+  )
+endif()
 
 # Set runtime output directory (helps with finding DLLs/SOs if not using layout)
 set_target_properties(${PROJECT_NAME} PROPERTIES

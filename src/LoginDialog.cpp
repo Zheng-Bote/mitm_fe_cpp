@@ -17,6 +17,7 @@
 #include <QHBoxLayout>
 #include <QFormLayout>
 #include <QGroupBox>
+#include <QApplication>
 #include <QMessageBox>
 #include <QInputDialog>
 #include <QProcessEnvironment>
@@ -27,11 +28,41 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
+#include <QThread>
+#include <functional>
 #include <spdlog/spdlog.h>
 
 namespace mitm::ui {
 
+using mitm::auth::AuthenticatorKind;
 using mitm::auth::FidoClient;
+
+namespace {
+
+constexpr int kHttpTimeoutMs = 15000;
+
+// libfido2 / webauthn.dll calls block until the user acts (or the timeout hits).
+// Run them on a worker thread so the dialog keeps painting status and progress.
+template <typename Fn>
+auto runOffGuiThread(Fn fn) -> decltype(fn()) {
+    decltype(fn()) result{};
+    QEventLoop loop;
+    QThread* worker = QThread::create([&result, &fn]() { result = fn(); });
+    QObject::connect(worker, &QThread::finished, &loop, &QEventLoop::quit);
+    worker->start();
+    loop.exec();
+    worker->wait();
+    delete worker;
+    return result;
+}
+
+struct BusyScope {
+    explicit BusyScope(std::function<void(bool)> set) : set_(std::move(set)) { set_(true); }
+    ~BusyScope() { set_(false); }
+    std::function<void(bool)> set_;
+};
+
+} // namespace
 
 LoginDialog::LoginDialog(QWidget* parent, bool registerOnly, const QString& prefillUsername) 
     : QDialog(parent), registerOnly_(registerOnly), prefillUsername_(prefillUsername) {
@@ -222,6 +253,20 @@ void LoginDialog::setStatus(const QString& msg, bool isError) {
         ? "background: #551A1A; color: #FF9999; padding: 8px; border-radius: 4px; font-weight: bold;" 
         : "background: #1A441A; color: #99FF99; padding: 8px; border-radius: 4px;");
     statusLabel_->setVisible(true);
+    qApp->processEvents();
+}
+
+void LoginDialog::setBusy(bool busy) {
+    busy_ = busy;
+    tabWidget_->setEnabled(!busy);
+    progressBar_->setVisible(busy);
+}
+
+void LoginDialog::reject() {
+    if (busy_) {
+        return;
+    }
+    QDialog::reject();
 }
 
 void LoginDialog::checkBootstrapStatus() {
@@ -229,6 +274,7 @@ void LoginDialog::checkBootstrapStatus() {
     QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
     QNetworkRequest req(QUrl(host + "/api/v1/auth/bootstrap/status"));
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    req.setTransferTimeout(kHttpTimeoutMs);
 
     QNetworkReply* reply = manager.get(req);
     QEventLoop loop;
@@ -312,8 +358,8 @@ void LoginDialog::onSignInWithPasskey() {
         return;
     }
 
+    BusyScope busy([this](bool b) { setBusy(b); });
     setStatus("Contacting authentication server...", false);
-    progressBar_->setVisible(true);
 
     QNetworkAccessManager manager;
     QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
@@ -321,6 +367,7 @@ void LoginDialog::onSignInWithPasskey() {
     // 1. Call login/start
     QNetworkRequest startReq(QUrl(host + "/api/v1/auth/webauthn/login/start"));
     startReq.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    startReq.setTransferTimeout(kHttpTimeoutMs);
 
     QJsonObject startPayload;
     startPayload["username"] = username;
@@ -335,7 +382,7 @@ void LoginDialog::onSignInWithPasskey() {
         int code = startReply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
         QByteArray resp = startReply->readAll();
         auto doc = QJsonDocument::fromJson(resp);
-        QString detail = "Authentication failed.";
+        QString detail = "Authentication failed: " + startReply->errorString();
         if (doc.isObject() && doc.object().contains("errors")) {
             auto errs = doc.object().value("errors").toArray();
             if (!errs.isEmpty()) {
@@ -356,6 +403,8 @@ void LoginDialog::onSignInWithPasskey() {
 
     QJsonObject startObj = startDoc.object();
     QString ceremonyId = startObj.value("ceremony_id").toString();
+    // Empty for older backends; FidoClient then falls back to the scheduler host URL.
+    QString rpOrigin = startObj.value("rp_origin").toString();
     QJsonObject pkOptions = startObj.value("public_key_options").toObject();
     QJsonObject pk = pkOptions.value("publicKey").toObject();
     QString challenge = pk.value("challenge").toString();
@@ -369,7 +418,8 @@ void LoginDialog::onSignInWithPasskey() {
     }
 
     // Pre-check FIDO2 device status
-    auto devInfo = FidoClient::instance().getDeviceInfo();
+    setStatus("Detecting FIDO2 authenticator...", false);
+    auto devInfo = runOffGuiThread([] { return FidoClient::instance().getDeviceInfo(); });
     if (!devInfo.hasDevice) {
         progressBar_->setVisible(false);
         setStatus("⚠️ No FIDO2 Security Key detected. Please insert your YubiKey / Security Key.", true);
@@ -382,7 +432,7 @@ void LoginDialog::onSignInWithPasskey() {
     }
 
     std::optional<QString> pin = pinInput_->text().isEmpty() ? std::nullopt : std::optional<QString>(pinInput_->text());
-    if (devInfo.pinSet && !pin) {
+    if (!devInfo.isWinHello && devInfo.pinSet && !pin) {
         pin = promptForPinIfNeeded(this, "");
         if (!pin) {
             progressBar_->setVisible(false);
@@ -392,9 +442,14 @@ void LoginDialog::onSignInWithPasskey() {
         pinInput_->setText(*pin);
     }
 
-    setStatus("👉 Touch your flashing Security Key now...", false);
+    const QString touchPrompt = devInfo.isWinHello
+        ? "👉 Follow the Windows Security prompt (Windows Hello / Security Key)..."
+        : "👉 Touch your flashing Security Key now...";
+    setStatus(touchPrompt, false);
 
-    auto assertRes = FidoClient::instance().assertCredential(rpId, challenge, allowCreds, pin);
+    auto assertRes = runOffGuiThread([&] {
+        return FidoClient::instance().assertCredential(rpId, challenge, allowCreds, pin, AuthenticatorKind::Any, rpOrigin);
+    });
 
     // If PIN was required or invalid, prompt user interactively
     if (!assertRes && (FidoClient::instance().lastErrorCode() == 54 || FidoClient::instance().lastErrorCode() == 49)) { // FIDO_ERR_PIN_REQUIRED / FIDO_ERR_PIN_INVALID
@@ -402,8 +457,10 @@ void LoginDialog::onSignInWithPasskey() {
         pin = promptForPinIfNeeded(this, "", isRetry);
         if (pin) {
             pinInput_->setText(*pin);
-            setStatus("👉 Touch your flashing Security Key now...", false);
-            assertRes = FidoClient::instance().assertCredential(rpId, challenge, allowCreds, pin);
+            setStatus(touchPrompt, false);
+            assertRes = runOffGuiThread([&] {
+                return FidoClient::instance().assertCredential(rpId, challenge, allowCreds, pin, AuthenticatorKind::Any, rpOrigin);
+            });
         }
     }
 
@@ -418,6 +475,7 @@ void LoginDialog::onSignInWithPasskey() {
     // 2. Call login/finish
     QNetworkRequest finishReq(QUrl(host + "/api/v1/auth/webauthn/login/finish"));
     finishReq.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    finishReq.setTransferTimeout(kHttpTimeoutMs);
 
     QJsonObject finishPayload;
     finishPayload["ceremony_id"] = ceremonyId;
@@ -484,8 +542,13 @@ void LoginDialog::onRegisterPasskey() {
         return;
     }
 
+    // Index 1 of the combo box is "Platform (Biometrics / Touch ID / Windows Hello)".
+    const AuthenticatorKind kind = authenticatorTypeCombo_->currentIndex() == 1
+        ? AuthenticatorKind::Platform
+        : AuthenticatorKind::SecurityKey;
+
+    BusyScope busy([this](bool b) { setBusy(b); });
     setStatus("Starting registration ceremony...", false);
-    progressBar_->setVisible(true);
 
     QNetworkAccessManager manager;
     QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
@@ -493,6 +556,7 @@ void LoginDialog::onRegisterPasskey() {
     // 1. Call register/start
     QNetworkRequest startReq(QUrl(host + "/api/v1/auth/webauthn/register/start"));
     startReq.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    startReq.setTransferTimeout(kHttpTimeoutMs);
 
     QJsonObject startPayload;
     startPayload["username"] = username;
@@ -513,7 +577,7 @@ void LoginDialog::onRegisterPasskey() {
         progressBar_->setVisible(false);
         QByteArray resp = startReply->readAll();
         auto doc = QJsonDocument::fromJson(resp);
-        QString detail = "Registration initiation failed.";
+        QString detail = "Registration initiation failed: " + startReply->errorString();
         if (doc.isObject() && doc.object().contains("errors")) {
             auto errs = doc.object().value("errors").toArray();
             if (!errs.isEmpty()) {
@@ -530,6 +594,8 @@ void LoginDialog::onRegisterPasskey() {
 
     QJsonObject startObj = startDoc.object();
     QString ceremonyId = startObj.value("ceremony_id").toString();
+    // Empty for older backends; FidoClient then falls back to the scheduler host URL.
+    QString rpOrigin = startObj.value("rp_origin").toString();
     QJsonObject pkOptions = startObj.value("public_key_options").toObject();
     QJsonObject pk = pkOptions.value("publicKey").toObject();
     QString challenge = pk.value("challenge").toString();
@@ -540,10 +606,13 @@ void LoginDialog::onRegisterPasskey() {
     if (rpName.isEmpty()) rpName = "MitM Aggregator";
 
     // Pre-check FIDO2 device status
-    auto devInfo = FidoClient::instance().getDeviceInfo();
+    setStatus("Detecting FIDO2 authenticator...", false);
+    auto devInfo = runOffGuiThread([kind] { return FidoClient::instance().getDeviceInfo(kind); });
     if (!devInfo.hasDevice) {
         progressBar_->setVisible(false);
-        setStatus("⚠️ No FIDO2 Security Key detected. Please insert your YubiKey / Security Key.", true);
+        setStatus(kind == AuthenticatorKind::Platform
+            ? "⚠️ Windows Hello / platform authenticator is not available on this system."
+            : "⚠️ No FIDO2 Security Key detected. Please insert your YubiKey / Security Key.", true);
         return;
     }
     if (devInfo.pinBlocked) {
@@ -553,7 +622,7 @@ void LoginDialog::onRegisterPasskey() {
     }
 
     std::optional<QString> pin = regPinInput_->text().isEmpty() ? std::nullopt : std::optional<QString>(regPinInput_->text());
-    if (devInfo.pinSet && !pin) {
+    if (!devInfo.isWinHello && devInfo.pinSet && !pin) {
         pin = promptForPinIfNeeded(this, "");
         if (!pin) {
             progressBar_->setVisible(false);
@@ -563,13 +632,15 @@ void LoginDialog::onRegisterPasskey() {
         regPinInput_->setText(*pin);
     }
 
-    setStatus("👉 Touch your flashing Security Key now to register...", false);
+    const QString touchPrompt = devInfo.isWinHello
+        ? "👉 Follow the Windows Security prompt (Windows Hello / Security Key) to register..."
+        : "👉 Touch your flashing Security Key now to register...";
+    setStatus(touchPrompt, false);
 
-    auto regRes = FidoClient::instance().registerCredential(
-        rpId, rpName, challenge, username,
-        firstNameInput_->text().trimmed() + " " + lastNameInput_->text().trimmed(),
-        pin
-    );
+    const QString displayName = firstNameInput_->text().trimmed() + " " + lastNameInput_->text().trimmed();
+    auto regRes = runOffGuiThread([&] {
+        return FidoClient::instance().registerCredential(rpId, rpName, challenge, username, displayName, pin, kind, rpOrigin);
+    });
 
     // If PIN was required or invalid, prompt user interactively
     if (!regRes && (FidoClient::instance().lastErrorCode() == 54 || FidoClient::instance().lastErrorCode() == 49)) { // FIDO_ERR_PIN_REQUIRED / FIDO_ERR_PIN_INVALID
@@ -577,12 +648,10 @@ void LoginDialog::onRegisterPasskey() {
         pin = promptForPinIfNeeded(this, "", isRetry);
         if (pin) {
             regPinInput_->setText(*pin);
-            setStatus("👉 Touch your flashing Security Key now to register...", false);
-            regRes = FidoClient::instance().registerCredential(
-                rpId, rpName, challenge, username,
-                firstNameInput_->text().trimmed() + " " + lastNameInput_->text().trimmed(),
-                pin
-            );
+            setStatus(touchPrompt, false);
+            regRes = runOffGuiThread([&] {
+                return FidoClient::instance().registerCredential(rpId, rpName, challenge, username, displayName, pin, kind, rpOrigin);
+            });
         }
     }
 
@@ -597,6 +666,7 @@ void LoginDialog::onRegisterPasskey() {
     // 2. Call register/finish
     QNetworkRequest finishReq(QUrl(host + "/api/v1/auth/webauthn/register/finish"));
     finishReq.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    finishReq.setTransferTimeout(kHttpTimeoutMs);
 
     QJsonObject finishPayload;
     finishPayload["ceremony_id"] = ceremonyId;

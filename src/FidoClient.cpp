@@ -18,9 +18,67 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QCryptographicHash>
+#include <openssl/crypto.h>
 #include <memory>
+#include "Config.h"
+
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 namespace mitm::auth {
+
+namespace {
+
+// libfido2 waits forever on HID reads by default; bound every transaction.
+constexpr int kDeviceInfoTimeoutMs = 5000;
+constexpr int kCeremonyTimeoutMs = 60000;
+
+bool isWinHelloPath(const char* path) {
+    return path && strncmp(path, "windows://hello", 15) == 0;
+}
+
+bool isProcessElevated() {
+#ifdef _WIN32
+    HANDLE token = nullptr;
+    if (!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &token)) {
+        return false;
+    }
+    TOKEN_ELEVATION elevation{};
+    DWORD size = 0;
+    bool elevated = GetTokenInformation(token, TokenElevation, &elevation, sizeof(elevation), &size)
+                    && elevation.TokenIsElevated;
+    CloseHandle(token);
+    return elevated;
+#else
+    return true;
+#endif
+}
+
+// Windows (1903+) blocks raw FIDO HID access for non-elevated processes: the handle opens,
+// but reads never complete. Such processes must use webauthn.dll via "windows://hello".
+const char* selectDevicePath(const fido_dev_info_t* devlist, size_t ndevs, AuthenticatorKind kind) {
+    const char* winHello = nullptr;
+    const char* hid = nullptr;
+    for (size_t i = 0; i < ndevs; ++i) {
+        const char* p = fido_dev_info_path(fido_dev_info_ptr(devlist, i));
+        if (isWinHelloPath(p)) {
+            if (!winHello) winHello = p;
+        } else if (p && !hid) {
+            hid = p;
+        }
+    }
+
+    if (kind == AuthenticatorKind::Platform) {
+        return winHello;
+    }
+    if (winHello && !isProcessElevated()) {
+        return winHello;
+    }
+    return hid ? hid : winHello;
+}
+
+} // namespace
 
 FidoClient& FidoClient::instance() {
     static FidoClient inst;
@@ -28,7 +86,12 @@ FidoClient& FidoClient::instance() {
 }
 
 FidoClient::FidoClient() {
-    fido_init(0);
+    fido_init(FIDO_DEBUG);
+    fido_set_log_handler([](const char* msg) {
+        if (msg) {
+            spdlog::debug("[libfido2] {}", msg);
+        }
+    });
 }
 
 QString FidoClient::friendlyErrorMessage(int code) {
@@ -71,7 +134,7 @@ bool FidoClient::hasDeviceAttached() {
     return (r == FIDO_OK && ndevs > 0);
 }
 
-FidoDeviceInfo FidoClient::getDeviceInfo() {
+FidoDeviceInfo FidoClient::getDeviceInfo(AuthenticatorKind kind) {
     FidoDeviceInfo info;
     size_t ndevs = 0;
     fido_dev_info_t* devlist = fido_dev_info_new(64);
@@ -82,10 +145,26 @@ FidoDeviceInfo FidoClient::getDeviceInfo() {
         return info;
     }
 
+    const char* path = selectDevicePath(devlist, ndevs, kind);
+    if (!path) {
+        fido_dev_info_free(&devlist, 64);
+        return info;
+    }
     info.hasDevice = true;
-    const char* path = fido_dev_info_path(fido_dev_info_ptr(devlist, 0));
+
+    if (isWinHelloPath(path)) {
+        // webauthn.dll handles PIN / biometrics itself; there is nothing to query.
+        info.isWinHello = true;
+        fido_dev_info_free(&devlist, 64);
+        return info;
+    }
+
     fido_dev_t* dev = fido_dev_new();
+    if (dev) {
+        fido_dev_set_timeout(dev, kDeviceInfoTimeoutMs);
+    }
     if (dev && fido_dev_open(dev, path) == FIDO_OK) {
+
         fido_cbor_info_t* ci = fido_cbor_info_new();
         if (ci) {
             if (fido_dev_get_cbor_info(dev, ci) == FIDO_OK) {
@@ -104,15 +183,15 @@ FidoDeviceInfo FidoClient::getDeviceInfo() {
         }
 
         // Check PIN retries to detect PIN Blocked state
-        int retries = 0;
+        int retries = -1;
         int r_pin = fido_dev_get_retry_count(dev, &retries);
-        if (r_pin == FIDO_ERR_PIN_BLOCKED || retries == 0) {
+        if (r_pin == FIDO_ERR_PIN_BLOCKED || (r_pin == FIDO_OK && retries == 0)) {
             info.pinBlocked = true;
         }
 
-        int uv_retries = 0;
+        int uv_retries = -1;
         int r_uv = fido_dev_get_uv_retry_count(dev, &uv_retries);
-        if (r_uv == FIDO_ERR_UV_BLOCKED || uv_retries == 0) {
+        if (r_uv == FIDO_ERR_UV_BLOCKED || (r_uv == FIDO_OK && uv_retries == 0)) {
             info.uvBlocked = true;
         }
 
@@ -169,8 +248,13 @@ std::optional<FidoRegisterResult> FidoClient::registerCredential(
     const QString& challengeBase64,
     const QString& username,
     const QString& displayName,
-    const std::optional<QString>& pin
+    const std::optional<QString>& pin,
+    AuthenticatorKind kind,
+    const QString& origin
 ) {
+    lastErrorCode_ = 0;
+    lastErrorMessage_.clear();
+
     size_t ndevs = 0;
     fido_dev_info_t* devlist = fido_dev_info_new(64);
     if (!devlist) {
@@ -184,10 +268,20 @@ std::optional<FidoRegisterResult> FidoClient::registerCredential(
         return std::nullopt;
     }
 
-    const char* path = fido_dev_info_path(fido_dev_info_ptr(devlist, 0));
+    const char* path = selectDevicePath(devlist, ndevs, kind);
+    if (!path) {
+        lastErrorMessage_ = "The requested authenticator (Windows Hello / platform) is not available on this system.";
+        fido_dev_info_free(&devlist, 64);
+        return std::nullopt;
+    }
+
     fido_dev_t* dev = fido_dev_new();
+    if (dev) {
+        fido_dev_set_timeout(dev, kCeremonyTimeoutMs);
+    }
     if (!dev || fido_dev_open(dev, path) != FIDO_OK) {
-        spdlog::error("FidoClient: Failed to open FIDO2 device at {}", path ? path : "null");
+        spdlog::error("FidoClient: Failed to open FIDO2 device at {}", path);
+        lastErrorMessage_ = "Could not open the FIDO2 authenticator.";
         if (dev) fido_dev_free(&dev);
         fido_dev_info_free(&devlist, 64);
         return std::nullopt;
@@ -199,14 +293,17 @@ std::optional<FidoRegisterResult> FidoClient::registerCredential(
         rawChallenge = QByteArray::fromBase64(challengeBase64.toUtf8());
     }
 
+    // The backend validates this against its configured WebAuthn origin, which it returns
+    // in the ceremony start response; the scheduler host URL is only a fallback.
+    QString host = origin.isEmpty() ? mitm::config::ConfigManager::GetInstance().GetHostUrl() : origin;
+
     QJsonObject clientDataObj;
     clientDataObj["type"] = "webauthn.create";
     clientDataObj["challenge"] = QString::fromUtf8(rawChallenge.toBase64(QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals));
-    clientDataObj["origin"] = "http://localhost:8080";
+    clientDataObj["origin"] = host.isEmpty() ? "http://localhost:8080" : host;
     clientDataObj["crossOrigin"] = false;
 
     QByteArray clientDataJson = QJsonDocument(clientDataObj).toJson(QJsonDocument::Compact);
-    QByteArray clientDataHash = QCryptographicHash::hash(clientDataJson, QCryptographicHash::Sha256);
 
     fido_cred_t* cred = fido_cred_new();
     if (!cred) {
@@ -217,7 +314,7 @@ std::optional<FidoRegisterResult> FidoClient::registerCredential(
     }
 
     fido_cred_set_type(cred, COSE_ES256);
-    fido_cred_set_clientdata_hash(cred, reinterpret_cast<const unsigned char*>(clientDataHash.constData()), clientDataHash.size());
+    fido_cred_set_clientdata(cred, reinterpret_cast<const unsigned char*>(clientDataJson.constData()), clientDataJson.size());
     fido_cred_set_rp(cred, rpId.toStdString().c_str(), rpName.toStdString().c_str());
 
     QByteArray userId = QCryptographicHash::hash(username.toUtf8(), QCryptographicHash::Sha256);
@@ -227,13 +324,18 @@ std::optional<FidoRegisterResult> FidoClient::registerCredential(
         displayName.toStdString().c_str(),
         nullptr
     );
-    fido_cred_set_rk(cred, FIDO_OPT_FALSE);
+    fido_cred_set_rk(cred, FIDO_OPT_OMIT);
 
-    lastErrorCode_ = 0;
-    lastErrorMessage_.clear();
-
-    const char* pinStr = pin && !pin->isEmpty() ? pin->toStdString().c_str() : nullptr;
-    int r = fido_dev_make_cred(dev, cred, pinStr);
+    std::string pinUtf8;
+    if (fido_dev_is_winhello(dev)) {
+        // The backend registers passkeys, which require user verification. Without this,
+        // libfido2 asks webauthn.dll to *discourage* UV and the backend rejects the credential.
+        fido_cred_set_uv(cred, FIDO_OPT_TRUE);
+    } else if (pin && !pin->isEmpty()) {
+        pinUtf8 = pin->toStdString();
+    }
+    int r = fido_dev_make_cred(dev, cred, pinUtf8.empty() ? nullptr : pinUtf8.c_str());
+    OPENSSL_cleanse(pinUtf8.data(), pinUtf8.size());
     if (r != FIDO_OK) {
         lastErrorCode_ = r;
         lastErrorMessage_ = friendlyErrorMessage(r);
@@ -246,6 +348,10 @@ std::optional<FidoRegisterResult> FidoClient::registerCredential(
     }
 
     FidoRegisterResult result;
+    // webauthn.dll also serves USB security keys, so the device path does not tell us the attachment.
+    if (kind == AuthenticatorKind::Platform) {
+        result.attachmentType = "platform";
+    }
     result.credentialIdBase64 = QByteArray(reinterpret_cast<const char*>(fido_cred_id_ptr(cred)), static_cast<int>(fido_cred_id_len(cred))).toBase64(QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals);
     result.clientDataJsonBase64 = clientDataJson.toBase64(QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals);
     
@@ -324,8 +430,13 @@ std::optional<FidoAssertResult> FidoClient::assertCredential(
     const QString& rpId,
     const QString& challengeBase64,
     const std::vector<QString>& allowedCredentialIdsBase64,
-    const std::optional<QString>& pin
+    const std::optional<QString>& pin,
+    AuthenticatorKind kind,
+    const QString& origin
 ) {
+    lastErrorCode_ = 0;
+    lastErrorMessage_.clear();
+
     size_t ndevs = 0;
     fido_dev_info_t* devlist = fido_dev_info_new(64);
     if (!devlist) {
@@ -337,9 +448,20 @@ std::optional<FidoAssertResult> FidoClient::assertCredential(
         return std::nullopt;
     }
 
-    const char* path = fido_dev_info_path(fido_dev_info_ptr(devlist, 0));
+    const char* path = selectDevicePath(devlist, ndevs, kind);
+    if (!path) {
+        lastErrorMessage_ = "The requested authenticator (Windows Hello / platform) is not available on this system.";
+        fido_dev_info_free(&devlist, 64);
+        return std::nullopt;
+    }
+
     fido_dev_t* dev = fido_dev_new();
+    if (dev) {
+        fido_dev_set_timeout(dev, kCeremonyTimeoutMs);
+    }
     if (!dev || fido_dev_open(dev, path) != FIDO_OK) {
+        spdlog::error("FidoClient: Failed to open FIDO2 device at {}", path);
+        lastErrorMessage_ = "Could not open the FIDO2 authenticator.";
         if (dev) fido_dev_free(&dev);
         fido_dev_info_free(&devlist, 64);
         return std::nullopt;
@@ -350,14 +472,17 @@ std::optional<FidoAssertResult> FidoClient::assertCredential(
         rawChallenge = QByteArray::fromBase64(challengeBase64.toUtf8());
     }
 
+    // The backend validates this against its configured WebAuthn origin, which it returns
+    // in the ceremony start response; the scheduler host URL is only a fallback.
+    QString host = origin.isEmpty() ? mitm::config::ConfigManager::GetInstance().GetHostUrl() : origin;
+
     QJsonObject clientDataObj;
     clientDataObj["type"] = "webauthn.get";
     clientDataObj["challenge"] = QString::fromUtf8(rawChallenge.toBase64(QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals));
-    clientDataObj["origin"] = "http://localhost:8080";
+    clientDataObj["origin"] = host.isEmpty() ? "http://localhost:8080" : host;
     clientDataObj["crossOrigin"] = false;
 
     QByteArray clientDataJson = QJsonDocument(clientDataObj).toJson(QJsonDocument::Compact);
-    QByteArray clientDataHash = QCryptographicHash::hash(clientDataJson, QCryptographicHash::Sha256);
 
     fido_assert_t* assert = fido_assert_new();
     if (!assert) {
@@ -368,7 +493,7 @@ std::optional<FidoAssertResult> FidoClient::assertCredential(
     }
 
     fido_assert_set_rp(assert, rpId.toStdString().c_str());
-    fido_assert_set_clientdata_hash(assert, reinterpret_cast<const unsigned char*>(clientDataHash.constData()), clientDataHash.size());
+    fido_assert_set_clientdata(assert, reinterpret_cast<const unsigned char*>(clientDataJson.constData()), clientDataJson.size());
 
     for (const auto& credIdB64 : allowedCredentialIdsBase64) {
         QByteArray credId = QByteArray::fromBase64(credIdB64.toUtf8(), QByteArray::Base64UrlEncoding);
@@ -380,11 +505,15 @@ std::optional<FidoAssertResult> FidoClient::assertCredential(
         }
     }
 
-    lastErrorCode_ = 0;
-    lastErrorMessage_.clear();
-
-    const char* pinStr = pin && !pin->isEmpty() ? pin->toStdString().c_str() : nullptr;
-    int r = fido_dev_get_assert(dev, assert, pinStr);
+    std::string pinUtf8;
+    if (fido_dev_is_winhello(dev)) {
+        // Passkey login requires user verification (see registerCredential).
+        fido_assert_set_uv(assert, FIDO_OPT_TRUE);
+    } else if (pin && !pin->isEmpty()) {
+        pinUtf8 = pin->toStdString();
+    }
+    int r = fido_dev_get_assert(dev, assert, pinUtf8.empty() ? nullptr : pinUtf8.c_str());
+    OPENSSL_cleanse(pinUtf8.data(), pinUtf8.size());
     if (r != FIDO_OK) {
         lastErrorCode_ = r;
         lastErrorMessage_ = friendlyErrorMessage(r);
