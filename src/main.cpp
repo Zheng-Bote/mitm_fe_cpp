@@ -41,6 +41,7 @@
 #include <QJsonArray>
 #include "AuthManager.h"
 #include "LoginDialog.h"
+#include "rz_config.hpp"
 
 int main(int argc, char *argv[]) {
     // Setup spdlog (default before config loads)
@@ -52,7 +53,7 @@ int main(int argc, char *argv[]) {
     app.setOrganizationName("ZHENG Robert");
     app.setOrganizationDomain("net.hase-zheng");
     app.setApplicationName("MitM Admin");
-    app.setApplicationVersion("0.1.0");
+    app.setApplicationVersion(QString::fromStdString(std::string(rz::config::VERSION)));
     app.setWindowIcon(QIcon("img/logo.ico"));
 
     // Parse command line for config path

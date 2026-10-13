@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.4.1] - 2026-10-13
+
+### Fixed
+- **Registration Hang on Windows**: Registration no longer freezes at "Starting registration ceremony...". Windows (1903+) blocks raw FIDO HID access for non-elevated processes and libfido2 waited forever; non-elevated processes now use the native WebAuthn API (`windows://hello`, which also serves USB security keys), and direct HID transactions are bounded by timeouts (5 s device query, 60 s ceremony).
+- **Authenticator Selection Ignored**: The "Security Key" / "Platform (Windows Hello)" choice in the registration tab is now honored and reported to the backend as `attachment_type`.
+- **Windows Hello Passkey Rejection**: Registration and login through Windows Hello now require user verification, which the backend's passkey policy enforces.
+- **`InvalidRPOrigin` on Register/Login Finish**: `clientDataJSON.origin` now uses the `rp_origin` returned by the backend's `register/start` and `login/start` (requires core-layer with `rp_origin` support; falls back to the scheduler host URL).
+- **Login Screen Hang after Passkey Sign-In**: A successful passkey login no longer triggers a second Windows Hello prompt and a replacement OS-user session; it now only loads the user roles (`AuthManager::completePasskeyLogin`).
+- **Windows Hello Deadlock**: `AuthManager::runWindowsHello` no longer blocks the GUI thread while the consent dialog is shown, fixing hangs of "Sign In via Browser" and session re-authentication.
+- **Unresponsive Login Dialog**: FIDO2 ceremonies run on a worker thread; the dialog stays responsive, shows status and progress, and is locked against double clicks and closing while a ceremony is running.
+- **WebAuthn Request Timeouts**: Bootstrap status, register and login requests now time out after 15 s and report the network error.
+- **FIDO2 PIN Handling**: Fixed a dangling pointer to the PIN passed to libfido2 and wipe the PIN copy after use; the redundant PIN prompt is skipped for Windows Hello.
+- **Windows Hello Client Data**: `fido_cred_set_clientdata` / `fido_assert_set_clientdata` are used instead of the client data hash, as required by webauthn.dll.
+- **FIDO2 Device Checks**: Fixed a false "PIN blocked" detection and the device selection in `FidoClient`.
+- **Application Version**: `--version` now reports the project version from `rz_config.hpp` instead of the hard-coded `0.1.0`.
+- **libfido2 on Windows**: The libfido2 dependency is resolved from the official Yubico Windows binaries; the required DLLs are copied next to the executable.
+
 ## [v1.4.0] - 2026-10-12
 
 ### Added
