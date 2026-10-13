@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.4.0] - 2026-10-12
+
+### Added
+- **WebAuthn FIDO2 Authentication (Issue #21)**: Integrated cross-platform hardware token authentication (FIDO2/WebAuthn) using `libfido2` (via Conan 2 / CMake) and `libcbor`.
+- **Interactive Login Dialog**: Replaced the previous Windows Hello auto-login with an interactive two-tabbed dialog (`LoginDialog`) for Sign In and Register Passkey.
+- **Master Password Prompt**: Enforced two-stage authentication flow; prompting for the Master Password to decrypt `config.enc` first before launching the Login/Registration portal.
+- **YubiKey Serial & Metadata Capture**: Automatic extraction of YubiKey serial numbers via OID `1.3.6.1.4.1.41482.3.9` and hardware transport flags.
+- **Pending Activation UI Handling**: Added explicit notification when newly registered accounts are pending administrator approval (`is_active = false`).
+- **RBAC Department Field (Issue #23)**: Added Department column to RBAC Users table and integrated Department support into Add User and Edit User dialogs.
+- **Register YubiKey in Settings Menu (Issue #25)**: Added "Register YubiKey / Security Key..." action in the Settings menu to allow logged-in users to register secondary/new hardware tokens via `LoginDialog` in dedicated registration mode.
+- **User Profile Prefill (Issue #27)**: Automatically fetches and populates First Name, Last Name, and Department in the Register Security Key dialog for the active user.
+- **Actionable FIDO Error Feedback (Issue #29)**: Enhanced `FidoClient` to map libfido2 status codes into user-friendly messages for PIN required, invalid PIN, temporarily blocked PIN (re-plug needed), and device timeouts.
+- **Interactive PIN Prompt & Guidance (Issue #31)**: Added hardware pre-checks for PIN set and PIN blocked states, dynamic modal PIN prompt on demand with retry support, and explicit touch prompts for the security key.
+- **WebAuthn CBOR Attestation Fix (Issue #33)**: Corrected `FidoClient::registerCredential` to package a valid CBOR map containing `fmt`, `authData`, and `attStmt` into `attestationObject` instead of raw `authData`, resolving HTTP 400 Bad Request during registration finish.
+
+## [v1.3.0] - 2026-10-10
+
+### Added
+- **RBAC Enhancements (Issue #19)**: Expanded the User Management table to display First Name and Last Name. Added a new "Edit User" dialog allowing modification of user details and their `is_active` status. Added "is_active", "First Name" and "Last Name" to the "Add User" dialog. Implemented a "Terminate Session" action for admins to kill active user sessions remotely.
+- **Authentication & Session Renewal (Issue #19)**: The frontend now sends the local `client_ip` during the authentication phase. Added an automatic background `QTimer` that silently renews the user session every 30 minutes to prevent unexpected idle timeouts. Explicitly handles inactive account rejections during login.
+- **JSON Pre-Validation**: Introduced a global `JsonValidator` and integrated it into all UI dialogs (Rules, Transformations, Validations, Jobs) to validate JSON input before saving. This prevents silent data loss of malformed JSON strings and provides direct visual error feedback to the user.
+- **UI Actions**: Added a "Delete Selected" button to the Source Credentials and Target Credentials widgets to easily remove configurations via the UI.
+
 ## [v1.2.1] - 2026-10-07
 
 ### Fixed

@@ -40,7 +40,10 @@
 - **Data Decryptor & Key Vault**: Safely decrypt Envelope-Encrypted JSON payloads securely in the browser. The "Settings & Key Vault" securely stores the `MASTER_KEY` (KEK) in memory (protected by `libsodium`) for Zero-Knowledge operations.
 - **Dynamic RBAC & Read-Only Mode**: Dynamically fetches the OS user's roles from the backend on startup. Modifies the UI to restrict or allow access (e.g. read-only "Viewer" mode disables all edits, full access for "Admin").
 - **Manual File Upload**: Allows authorized users (UPLOADER/ADMIN) to securely upload and process `.csv` and `.xlsx` raw data files on the fly.
-- **Windows Hello Authentication**: Implements seamless biometric authentication via WinRT for accessing sensitive areas like the Settings & Key Vault and authenticating the user.
+- **WebAuthn FIDO2 Hardware Authentication**: Modern cross-platform passkey and security key (YubiKey) authentication powered by `libfido2` and `libcbor`. Features interactive PIN entry, hardware presence/lock detection, and physical touch guidance.
+- **Dedicated Security Key Management**: Logged-in users can enroll new or secondary security keys directly from `Settings -> Register YubiKey / Security Key...`.
+- **RBAC Department Management**: Department field integration across user management tables and Add/Edit user dialogs.
+- **Windows Hello Authentication**: Supports fallback biometric authentication via WinRT for accessing sensitive areas on Windows.
 - **Network Proxy Settings**: Configurable per-user network proxy settings that override defaults and support authenticated HTTP/HTTPS proxies.
 - **Advanced Logging & Dashboard**: Interactive dashboard with real-time stats and comprehensive data grids for Admin, System, Job, and Transformation logs.
 - **Auto-Refresh**: Background periodic auto-refresh (5s interval) for Dashboard, Scheduler, and Log grids, configurable per user without UI flickering.
@@ -67,15 +70,15 @@ See [AI_Workflow_DE.md](https://github.com/Zheng-Bote/mitm-2/blob/main/docs/AI_W
 
 ## Requirements
 
-- **Compiler**: C++23 compatible (GCC 13+, Clang 16+, MSVC 19.38+)
-- **Build System**: CMake 3.21+
+- **Compiler**: C++23/C++26 compatible (GCC 13+, Clang 16+, MSVC 19.38+)
+- **Build System**: CMake 3.25+
 - **Package Manager**: Conan 2.x
-- **Framework**: Qt6 (installed system-wide or via Qt Online Installer)
-- **System Dependencies**: OpenSSL (required by cpp-httplib)
+- **Framework**: Qt6 (Core, Gui, Widgets, Network)
+- **System Dependencies**: OpenSSL, libfido2 (`libfido2-dev` on Linux)
 
 ## Building the Project
 
-We use Conan to fetch most C++ libraries (`flatbuffers`, `spdlog`, `nlohmann_json`, `libsodium`, `cpp-httplib`, `openssl`) and CMake to build the Qt6 application. `gh-update-checker` is pulled automatically via CMake's `FetchContent`.
+We use Conan to fetch third-party C++ libraries (`flatbuffers`, `spdlog`, `nlohmann_json`, `libsodium`, `cpp-httplib`, `openssl`, `libcbor`) and CMake to build the Qt6 application. `libfido2` headers and `QXlsx` are fetched via CMake's `FetchContent`.
 
 ### 1. Install Conan Dependencies & Generate Presets
 

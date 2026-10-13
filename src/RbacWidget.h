@@ -20,7 +20,9 @@ private slots:
     void saveRoleAssignments();
     void onUserSelected();
     void onAddUserClicked();
+    void onEditUserClicked();
     void onRemoveUserClicked();
+    void onTerminateSessionClicked();
 
 private:
     void setupUi();
@@ -30,7 +32,9 @@ private:
     QPushButton* saveBtn;
     QPushButton* refreshBtn;
     QPushButton* addUserBtn;
+    QPushButton* editUserBtn;
     QPushButton* removeUserBtn;
+    QPushButton* terminateSessionBtn;
 
     // Map to store current user's roles
     int currentUserId = -1;

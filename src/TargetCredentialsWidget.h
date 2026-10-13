@@ -32,6 +32,7 @@ private slots:
     void onRefresh();
     void onAddTarget();
     void onEditTarget();
+    void onDeleteTarget();
 
 private:
     void setupUi();
@@ -41,4 +42,5 @@ private:
     QPushButton* m_refreshBtn;
     QPushButton* m_addBtn;
     QPushButton* m_editBtn;
+    QPushButton* m_deleteBtn;
 };

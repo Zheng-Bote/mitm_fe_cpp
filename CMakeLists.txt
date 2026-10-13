@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.25)
 project(mitm_fe_cpp
-VERSION 1.2.1
+VERSION 1.4.0
 DESCRIPTION "Admin frontend for the MitM project"
 HOMEPAGE_URL "https://github.com/Zheng-Bote/mitm_fe_cpp"
 LANGUAGES CXX)
@@ -44,6 +44,26 @@ find_package(libsodium CONFIG REQUIRED)
 find_package(httplib CONFIG REQUIRED)
 find_package(OpenSSL CONFIG REQUIRED)
 find_package(flatbuffers CONFIG REQUIRED)
+find_package(libcbor CONFIG REQUIRED)
+
+# libfido2 headers & library
+if(POLICY CMP0169)
+  cmake_policy(SET CMP0169 OLD)
+endif()
+FetchContent_Declare(
+  libfido2_headers
+  GIT_REPOSITORY https://github.com/Yubico/libfido2.git
+  GIT_TAG        1.15.0
+)
+FetchContent_GetProperties(libfido2_headers)
+if(NOT libfido2_headers_POPULATED)
+  FetchContent_Populate(libfido2_headers)
+endif()
+
+find_library(FIDO2_LIB NAMES fido2 libfido2)
+if(NOT FIDO2_LIB)
+  find_file(FIDO2_LIB NAMES libfido2.so.1 libfido2.so.1.16.0 PATHS /usr/lib/x86_64-linux-gnu /usr/lib /usr/lib64 REQUIRED)
+endif()
 
 # --- Configure (für rz_config.hpp) ---
 set(EXECUTABLE_NAME "${PROJECT_NAME}")
@@ -110,6 +130,12 @@ set(SOURCES
     src/UploadWidget.cpp
     src/BackupRestoreWidget.h
     src/BackupRestoreWidget.cpp
+    src/JsonValidator.h
+    src/JsonValidator.cpp
+    src/FidoClient.h
+    src/FidoClient.cpp
+    src/LoginDialog.h
+    src/LoginDialog.cpp
 )
 
 # Create executable
@@ -128,10 +154,13 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     openssl::openssl
     flatbuffers::flatbuffers
     QXlsx::QXlsx
+    libcbor::libcbor
+    ${FIDO2_LIB}
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${PROJECT_SOURCE_DIR}/include
+    ${libfido2_headers_SOURCE_DIR}/src
 )
 
 # Set runtime output directory (helps with finding DLLs/SOs if not using layout)

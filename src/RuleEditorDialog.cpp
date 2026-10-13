@@ -16,6 +16,7 @@
 #include <QDateTime>
 #include <QRegularExpression>
 
+#include "JsonValidator.h"
 using json = nlohmann::json;
 
 RuleEditorDialog::RuleEditorDialog(QTableWidget* sourcesTable, QTableWidget* targetsTable,
@@ -239,4 +240,17 @@ nlohmann::json RuleEditorDialog::getRuleJson() const {
     catch(...) { j["validation_chain"] = json::array(); }
 
     return j;
+}
+
+void RuleEditorDialog::accept() {
+    QString errMsg;
+    if (!JsonValidator::validate(m_transformEdit->toPlainText(), errMsg)) {
+        QMessageBox::critical(this, "Validation Error", "Transform Chain contains invalid JSON:\n\n" + errMsg);
+        return;
+    }
+    if (!JsonValidator::validate(m_validationEdit->toPlainText(), errMsg)) {
+        QMessageBox::critical(this, "Validation Error", "Validation Chain contains invalid JSON:\n\n" + errMsg);
+        return;
+    }
+    QDialog::accept();
 }

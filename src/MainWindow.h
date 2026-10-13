@@ -34,6 +34,7 @@ private slots:
     void showProxyDialog();
     void showConfigDialog();
     void showUserGuideDialog();
+    void showRegisterYubikeyDialog();
 
 private:
     void setupUi();

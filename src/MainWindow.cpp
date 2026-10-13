@@ -57,6 +57,7 @@
 #include <QMessageBox>
 #include "ExportReportDialog.h"
 #include "AuthManager.h"
+#include "LoginDialog.h"
 
 #include <sstream>
 #include <vector>
@@ -162,6 +163,9 @@ void MainWindow::setupUi() {
   connect(exitAction, &QAction::triggered, this, &QWidget::close);
 
   auto settingsMenu = menuBar()->addMenu("&Settings");
+  auto yubikeyAction = settingsMenu->addAction("🔑 Register YubiKey / Security Key...");
+  connect(yubikeyAction, &QAction::triggered, this, &MainWindow::showRegisterYubikeyDialog);
+
   auto proxyAction = settingsMenu->addAction("Network-Proxy");
   connect(proxyAction, &QAction::triggered, this, &MainWindow::showProxyDialog);
   
@@ -495,3 +499,11 @@ void MainWindow::showUserGuideDialog() {
 
     dialog->show();
 }
+
+void MainWindow::showRegisterYubikeyDialog() {
+    auto env = QProcessEnvironment::systemEnvironment();
+    QString currentUser = env.value("USER", env.value("USERNAME", ""));
+    mitm::ui::LoginDialog dialog(this, true, currentUser);
+    dialog.exec();
+}
+
