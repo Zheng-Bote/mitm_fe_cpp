@@ -19,6 +19,7 @@
 #include <QJsonObject>
 #include <QCryptographicHash>
 #include <memory>
+#include "Config.h"
 
 namespace mitm::auth {
 
@@ -83,7 +84,18 @@ FidoDeviceInfo FidoClient::getDeviceInfo() {
     }
 
     info.hasDevice = true;
-    const char* path = fido_dev_info_path(fido_dev_info_ptr(devlist, 0));
+    const char* path = nullptr;
+    for (size_t i = 0; i < ndevs; ++i) {
+        const char* p = fido_dev_info_path(fido_dev_info_ptr(devlist, i));
+        if (p && strncmp(p, "windows://hello", 15) != 0) {
+            path = p;
+            break;
+        }
+    }
+    if (!path) {
+        path = fido_dev_info_path(fido_dev_info_ptr(devlist, 0));
+    }
+
     fido_dev_t* dev = fido_dev_new();
     if (dev && fido_dev_open(dev, path) == FIDO_OK) {
         fido_cbor_info_t* ci = fido_cbor_info_new();
@@ -104,15 +116,15 @@ FidoDeviceInfo FidoClient::getDeviceInfo() {
         }
 
         // Check PIN retries to detect PIN Blocked state
-        int retries = 0;
+        int retries = -1;
         int r_pin = fido_dev_get_retry_count(dev, &retries);
-        if (r_pin == FIDO_ERR_PIN_BLOCKED || retries == 0) {
+        if (r_pin == FIDO_ERR_PIN_BLOCKED || (r_pin == FIDO_OK && retries == 0)) {
             info.pinBlocked = true;
         }
 
-        int uv_retries = 0;
+        int uv_retries = -1;
         int r_uv = fido_dev_get_uv_retry_count(dev, &uv_retries);
-        if (r_uv == FIDO_ERR_UV_BLOCKED || uv_retries == 0) {
+        if (r_uv == FIDO_ERR_UV_BLOCKED || (r_uv == FIDO_OK && uv_retries == 0)) {
             info.uvBlocked = true;
         }
 
@@ -184,7 +196,18 @@ std::optional<FidoRegisterResult> FidoClient::registerCredential(
         return std::nullopt;
     }
 
-    const char* path = fido_dev_info_path(fido_dev_info_ptr(devlist, 0));
+    const char* path = nullptr;
+    for (size_t i = 0; i < ndevs; ++i) {
+        const char* p = fido_dev_info_path(fido_dev_info_ptr(devlist, i));
+        if (p && strncmp(p, "windows://hello", 15) != 0) {
+            path = p;
+            break;
+        }
+    }
+    if (!path) {
+        path = fido_dev_info_path(fido_dev_info_ptr(devlist, 0));
+    }
+
     fido_dev_t* dev = fido_dev_new();
     if (!dev || fido_dev_open(dev, path) != FIDO_OK) {
         spdlog::error("FidoClient: Failed to open FIDO2 device at {}", path ? path : "null");
@@ -199,10 +222,12 @@ std::optional<FidoRegisterResult> FidoClient::registerCredential(
         rawChallenge = QByteArray::fromBase64(challengeBase64.toUtf8());
     }
 
+    QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
+
     QJsonObject clientDataObj;
     clientDataObj["type"] = "webauthn.create";
     clientDataObj["challenge"] = QString::fromUtf8(rawChallenge.toBase64(QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals));
-    clientDataObj["origin"] = "http://localhost:8080";
+    clientDataObj["origin"] = host.isEmpty() ? "http://localhost:8080" : host;
     clientDataObj["crossOrigin"] = false;
 
     QByteArray clientDataJson = QJsonDocument(clientDataObj).toJson(QJsonDocument::Compact);
@@ -227,7 +252,7 @@ std::optional<FidoRegisterResult> FidoClient::registerCredential(
         displayName.toStdString().c_str(),
         nullptr
     );
-    fido_cred_set_rk(cred, FIDO_OPT_FALSE);
+    fido_cred_set_rk(cred, FIDO_OPT_OMIT);
 
     lastErrorCode_ = 0;
     lastErrorMessage_.clear();
@@ -246,6 +271,9 @@ std::optional<FidoRegisterResult> FidoClient::registerCredential(
     }
 
     FidoRegisterResult result;
+    if (path && strncmp(path, "windows://hello", 15) == 0) {
+        result.attachmentType = "platform";
+    }
     result.credentialIdBase64 = QByteArray(reinterpret_cast<const char*>(fido_cred_id_ptr(cred)), static_cast<int>(fido_cred_id_len(cred))).toBase64(QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals);
     result.clientDataJsonBase64 = clientDataJson.toBase64(QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals);
     
@@ -337,7 +365,18 @@ std::optional<FidoAssertResult> FidoClient::assertCredential(
         return std::nullopt;
     }
 
-    const char* path = fido_dev_info_path(fido_dev_info_ptr(devlist, 0));
+    const char* path = nullptr;
+    for (size_t i = 0; i < ndevs; ++i) {
+        const char* p = fido_dev_info_path(fido_dev_info_ptr(devlist, i));
+        if (p && strncmp(p, "windows://hello", 15) != 0) {
+            path = p;
+            break;
+        }
+    }
+    if (!path) {
+        path = fido_dev_info_path(fido_dev_info_ptr(devlist, 0));
+    }
+
     fido_dev_t* dev = fido_dev_new();
     if (!dev || fido_dev_open(dev, path) != FIDO_OK) {
         if (dev) fido_dev_free(&dev);
@@ -350,10 +389,12 @@ std::optional<FidoAssertResult> FidoClient::assertCredential(
         rawChallenge = QByteArray::fromBase64(challengeBase64.toUtf8());
     }
 
+    QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
+
     QJsonObject clientDataObj;
     clientDataObj["type"] = "webauthn.get";
     clientDataObj["challenge"] = QString::fromUtf8(rawChallenge.toBase64(QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals));
-    clientDataObj["origin"] = "http://localhost:8080";
+    clientDataObj["origin"] = host.isEmpty() ? "http://localhost:8080" : host;
     clientDataObj["crossOrigin"] = false;
 
     QByteArray clientDataJson = QJsonDocument(clientDataObj).toJson(QJsonDocument::Compact);
