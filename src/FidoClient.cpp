@@ -29,7 +29,12 @@ FidoClient& FidoClient::instance() {
 }
 
 FidoClient::FidoClient() {
-    fido_init(0);
+    fido_init(FIDO_DEBUG);
+    fido_set_log_handler([](const char* msg) {
+        if (msg) {
+            spdlog::debug("[libfido2] {}", msg);
+        }
+    });
 }
 
 QString FidoClient::friendlyErrorMessage(int code) {
@@ -98,6 +103,10 @@ FidoDeviceInfo FidoClient::getDeviceInfo() {
 
     fido_dev_t* dev = fido_dev_new();
     if (dev && fido_dev_open(dev, path) == FIDO_OK) {
+        if (fido_dev_is_winhello(dev)) {
+            info.isWinHello = true;
+        }
+
         fido_cbor_info_t* ci = fido_cbor_info_new();
         if (ci) {
             if (fido_dev_get_cbor_info(dev, ci) == FIDO_OK) {
@@ -231,7 +240,6 @@ std::optional<FidoRegisterResult> FidoClient::registerCredential(
     clientDataObj["crossOrigin"] = false;
 
     QByteArray clientDataJson = QJsonDocument(clientDataObj).toJson(QJsonDocument::Compact);
-    QByteArray clientDataHash = QCryptographicHash::hash(clientDataJson, QCryptographicHash::Sha256);
 
     fido_cred_t* cred = fido_cred_new();
     if (!cred) {
@@ -242,7 +250,7 @@ std::optional<FidoRegisterResult> FidoClient::registerCredential(
     }
 
     fido_cred_set_type(cred, COSE_ES256);
-    fido_cred_set_clientdata_hash(cred, reinterpret_cast<const unsigned char*>(clientDataHash.constData()), clientDataHash.size());
+    fido_cred_set_clientdata(cred, reinterpret_cast<const unsigned char*>(clientDataJson.constData()), clientDataJson.size());
     fido_cred_set_rp(cred, rpId.toStdString().c_str(), rpName.toStdString().c_str());
 
     QByteArray userId = QCryptographicHash::hash(username.toUtf8(), QCryptographicHash::Sha256);
@@ -257,7 +265,10 @@ std::optional<FidoRegisterResult> FidoClient::registerCredential(
     lastErrorCode_ = 0;
     lastErrorMessage_.clear();
 
-    const char* pinStr = pin && !pin->isEmpty() ? pin->toStdString().c_str() : nullptr;
+    const char* pinStr = nullptr;
+    if (!fido_dev_is_winhello(dev)) {
+        pinStr = pin && !pin->isEmpty() ? pin->toStdString().c_str() : nullptr;
+    }
     int r = fido_dev_make_cred(dev, cred, pinStr);
     if (r != FIDO_OK) {
         lastErrorCode_ = r;
@@ -398,7 +409,6 @@ std::optional<FidoAssertResult> FidoClient::assertCredential(
     clientDataObj["crossOrigin"] = false;
 
     QByteArray clientDataJson = QJsonDocument(clientDataObj).toJson(QJsonDocument::Compact);
-    QByteArray clientDataHash = QCryptographicHash::hash(clientDataJson, QCryptographicHash::Sha256);
 
     fido_assert_t* assert = fido_assert_new();
     if (!assert) {
@@ -409,7 +419,7 @@ std::optional<FidoAssertResult> FidoClient::assertCredential(
     }
 
     fido_assert_set_rp(assert, rpId.toStdString().c_str());
-    fido_assert_set_clientdata_hash(assert, reinterpret_cast<const unsigned char*>(clientDataHash.constData()), clientDataHash.size());
+    fido_assert_set_clientdata(assert, reinterpret_cast<const unsigned char*>(clientDataJson.constData()), clientDataJson.size());
 
     for (const auto& credIdB64 : allowedCredentialIdsBase64) {
         QByteArray credId = QByteArray::fromBase64(credIdB64.toUtf8(), QByteArray::Base64UrlEncoding);
@@ -424,7 +434,10 @@ std::optional<FidoAssertResult> FidoClient::assertCredential(
     lastErrorCode_ = 0;
     lastErrorMessage_.clear();
 
-    const char* pinStr = pin && !pin->isEmpty() ? pin->toStdString().c_str() : nullptr;
+    const char* pinStr = nullptr;
+    if (!fido_dev_is_winhello(dev)) {
+        pinStr = pin && !pin->isEmpty() ? pin->toStdString().c_str() : nullptr;
+    }
     int r = fido_dev_get_assert(dev, assert, pinStr);
     if (r != FIDO_OK) {
         lastErrorCode_ = r;

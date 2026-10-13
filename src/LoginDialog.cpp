@@ -17,6 +17,7 @@
 #include <QHBoxLayout>
 #include <QFormLayout>
 #include <QGroupBox>
+#include <QApplication>
 #include <QMessageBox>
 #include <QInputDialog>
 #include <QProcessEnvironment>
@@ -222,6 +223,7 @@ void LoginDialog::setStatus(const QString& msg, bool isError) {
         ? "background: #551A1A; color: #FF9999; padding: 8px; border-radius: 4px; font-weight: bold;" 
         : "background: #1A441A; color: #99FF99; padding: 8px; border-radius: 4px;");
     statusLabel_->setVisible(true);
+    qApp->processEvents();
 }
 
 void LoginDialog::checkBootstrapStatus() {
@@ -382,7 +384,7 @@ void LoginDialog::onSignInWithPasskey() {
     }
 
     std::optional<QString> pin = pinInput_->text().isEmpty() ? std::nullopt : std::optional<QString>(pinInput_->text());
-    if (devInfo.pinSet && !pin) {
+    if (!devInfo.isWinHello && devInfo.pinSet && !pin) {
         pin = promptForPinIfNeeded(this, "");
         if (!pin) {
             progressBar_->setVisible(false);
@@ -553,7 +555,7 @@ void LoginDialog::onRegisterPasskey() {
     }
 
     std::optional<QString> pin = regPinInput_->text().isEmpty() ? std::nullopt : std::optional<QString>(regPinInput_->text());
-    if (devInfo.pinSet && !pin) {
+    if (!devInfo.isWinHello && devInfo.pinSet && !pin) {
         pin = promptForPinIfNeeded(this, "");
         if (!pin) {
             progressBar_->setVisible(false);

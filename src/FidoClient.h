@@ -38,6 +38,7 @@ struct FidoAssertResult {
 
 struct FidoDeviceInfo {
     bool hasDevice{false};
+    bool isWinHello{false};
     bool pinSet{false};
     bool pinBlocked{false};
     bool uvSet{false};
