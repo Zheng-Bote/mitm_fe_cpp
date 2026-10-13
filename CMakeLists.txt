@@ -178,6 +178,8 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 
 if(WIN32)
   target_compile_definitions(${PROJECT_NAME} PRIVATE CBOR_STATIC_DEFINE)
+  # Windows WebAuthn API (webauthn.dll), used directly to request a specific authenticator attachment
+  target_link_libraries(${PROJECT_NAME} PRIVATE webauthn)
   add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
       "${libfido2_win_SOURCE_DIR}/Win64/Release/v143/dynamic/fido2.dll"

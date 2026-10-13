@@ -24,6 +24,7 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#include <webauthn.h>
 #endif
 
 namespace mitm::auth {
@@ -77,6 +78,80 @@ const char* selectDevicePath(const fido_dev_info_t* devlist, size_t ndevs, Authe
     }
     return hid ? hid : winHello;
 }
+
+#ifdef _WIN32
+// libfido2's winhello backend never sets dwAuthenticatorAttachment, so Windows picks the
+// platform authenticator (Windows Hello) even when the user chose a security key. Call
+// webauthn.dll directly with the requested attachment and hand the attestation object back
+// to libfido2, so the caller reads the result exactly as after fido_dev_make_cred().
+int winHelloMakeCredential(fido_cred_t* cred, const QString& rpId, const QString& rpName,
+                           const QByteArray& userId, const QString& username,
+                           const QString& displayName, const QByteArray& clientDataJson,
+                           AuthenticatorKind kind, QString& errorMessage) {
+    const std::wstring wRpId = rpId.toStdWString();
+    const std::wstring wRpName = rpName.toStdWString();
+    const std::wstring wUserName = username.toStdWString();
+    const std::wstring wDisplayName = displayName.toStdWString();
+
+    WEBAUTHN_RP_ENTITY_INFORMATION rp{};
+    rp.dwVersion = WEBAUTHN_RP_ENTITY_INFORMATION_CURRENT_VERSION;
+    rp.pwszId = wRpId.c_str();
+    rp.pwszName = wRpName.c_str();
+
+    WEBAUTHN_USER_ENTITY_INFORMATION user{};
+    user.dwVersion = WEBAUTHN_USER_ENTITY_INFORMATION_CURRENT_VERSION;
+    user.cbId = static_cast<DWORD>(userId.size());
+    user.pbId = reinterpret_cast<PBYTE>(const_cast<char*>(userId.constData()));
+    user.pwszName = wUserName.c_str();
+    user.pwszDisplayName = wDisplayName.c_str();
+
+    WEBAUTHN_COSE_CREDENTIAL_PARAMETER coseParam{};
+    coseParam.dwVersion = WEBAUTHN_COSE_CREDENTIAL_PARAMETER_CURRENT_VERSION;
+    coseParam.pwszCredentialType = WEBAUTHN_CREDENTIAL_TYPE_PUBLIC_KEY;
+    coseParam.lAlg = WEBAUTHN_COSE_ALGORITHM_ECDSA_P256_WITH_SHA256;
+    WEBAUTHN_COSE_CREDENTIAL_PARAMETERS coseParams{1, &coseParam};
+
+    WEBAUTHN_CLIENT_DATA clientData{};
+    clientData.dwVersion = WEBAUTHN_CLIENT_DATA_CURRENT_VERSION;
+    clientData.cbClientDataJSON = static_cast<DWORD>(clientDataJson.size());
+    clientData.pbClientDataJSON = reinterpret_cast<PBYTE>(const_cast<char*>(clientDataJson.constData()));
+    clientData.pwszHashAlgId = WEBAUTHN_HASH_ALGORITHM_SHA_256;
+
+    // Version 1 carries every field we need and is supported by all webauthn.dll releases.
+    WEBAUTHN_AUTHENTICATOR_MAKE_CREDENTIAL_OPTIONS options{};
+    options.dwVersion = WEBAUTHN_AUTHENTICATOR_MAKE_CREDENTIAL_OPTIONS_VERSION_1;
+    options.dwTimeoutMilliseconds = kCeremonyTimeoutMs;
+    options.dwAuthenticatorAttachment =
+        kind == AuthenticatorKind::Platform    ? WEBAUTHN_AUTHENTICATOR_ATTACHMENT_PLATFORM
+        : kind == AuthenticatorKind::SecurityKey ? WEBAUTHN_AUTHENTICATOR_ATTACHMENT_CROSS_PLATFORM
+                                                 : WEBAUTHN_AUTHENTICATOR_ATTACHMENT_ANY;
+    // The backend registers passkeys, which require user verification.
+    options.dwUserVerificationRequirement = WEBAUTHN_USER_VERIFICATION_REQUIREMENT_REQUIRED;
+    // Direct attestation carries the YubiKey certificate (serial number extraction).
+    options.dwAttestationConveyancePreference = WEBAUTHN_ATTESTATION_CONVEYANCE_PREFERENCE_DIRECT;
+
+    HWND hwnd = GetForegroundWindow();
+    if (!hwnd) hwnd = GetTopWindow(nullptr);
+
+    PWEBAUTHN_CREDENTIAL_ATTESTATION attestation = nullptr;
+    HRESULT hr = WebAuthNAuthenticatorMakeCredential(hwnd, &rp, &user, &coseParams, &clientData,
+                                                     &options, &attestation);
+    if (FAILED(hr)) {
+        errorMessage = hr == NTE_USER_CANCELLED
+            ? QString("The operation was cancelled or timed out.")
+            : QString("Windows WebAuthn error: %1").arg(QString::fromWCharArray(WebAuthNGetErrorName(hr)));
+        spdlog::error("FidoClient: WebAuthNAuthenticatorMakeCredential failed: 0x{:08x}", static_cast<unsigned long>(hr));
+        return FIDO_ERR_INTERNAL;
+    }
+
+    int r = fido_cred_set_attobj(cred, attestation->pbAttestationObject, attestation->cbAttestationObject);
+    WebAuthNFreeCredentialAttestation(attestation);
+    if (r != FIDO_OK) {
+        errorMessage = "Could not decode the attestation returned by Windows.";
+    }
+    return r;
+}
+#endif
 
 } // namespace
 
@@ -326,19 +401,24 @@ std::optional<FidoRegisterResult> FidoClient::registerCredential(
     );
     fido_cred_set_rk(cred, FIDO_OPT_OMIT);
 
-    std::string pinUtf8;
+    int r = FIDO_ERR_INTERNAL;
+    QString winHelloError;
     if (fido_dev_is_winhello(dev)) {
-        // The backend registers passkeys, which require user verification. Without this,
-        // libfido2 asks webauthn.dll to *discourage* UV and the backend rejects the credential.
-        fido_cred_set_uv(cred, FIDO_OPT_TRUE);
-    } else if (pin && !pin->isEmpty()) {
-        pinUtf8 = pin->toStdString();
+#ifdef _WIN32
+        r = winHelloMakeCredential(cred, rpId, rpName, userId, username, displayName,
+                                   clientDataJson, kind, winHelloError);
+#endif
+    } else {
+        std::string pinUtf8;
+        if (pin && !pin->isEmpty()) {
+            pinUtf8 = pin->toStdString();
+        }
+        r = fido_dev_make_cred(dev, cred, pinUtf8.empty() ? nullptr : pinUtf8.c_str());
+        OPENSSL_cleanse(pinUtf8.data(), pinUtf8.size());
     }
-    int r = fido_dev_make_cred(dev, cred, pinUtf8.empty() ? nullptr : pinUtf8.c_str());
-    OPENSSL_cleanse(pinUtf8.data(), pinUtf8.size());
     if (r != FIDO_OK) {
         lastErrorCode_ = r;
-        lastErrorMessage_ = friendlyErrorMessage(r);
+        lastErrorMessage_ = winHelloError.isEmpty() ? friendlyErrorMessage(r) : winHelloError;
         spdlog::error("FidoClient: fido_dev_make_cred failed: {} ({}) - {}", fido_strerr(r), r, lastErrorMessage_.toStdString());
         fido_cred_free(&cred);
         fido_dev_close(dev);
