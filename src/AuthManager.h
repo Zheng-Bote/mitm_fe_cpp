@@ -21,15 +21,12 @@ public:
         return inst;
     }
 
-    // Performs the authentication flow:
-    // 1. Windows Hello (if available)
-    // 2. POST /api/user/v1/session to get the token
-    // 3. GET /api/user/v1/roles to populate ConfigManager
-    // Returns true if successful.
-    bool performLogin(bool isInitialStartup = false);
+    // (Re-)authenticates via the WebAuthn passkey ceremony in LoginDialog.
+    // Returns true if the user signed in successfully.
+    bool performLogin();
 
     // Finishes a login whose session token was already issued by the WebAuthn ceremony:
-    // fetches roles and starts session renewal. No Windows Hello, no new session.
+    // fetches roles and starts session renewal.
     bool completePasskeyLogin();
 
 signals:
@@ -45,8 +42,6 @@ private:
     explicit AuthManager(QObject* parent = nullptr) : QObject(parent) {}
     ~AuthManager() override = default;
 
-    bool runWindowsHello();
-    bool establishSession(const QString& osUser);
     bool fetchUserRoles();
     QTimer* renewalTimer{nullptr};
 };

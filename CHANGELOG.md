@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-10-14
+
+**BREAKING CHANGE**
+
+### Security
+- **Passkey-only Authentication**: Login and re-authentication (session expiry, failed session renewal) now always use the WebAuthn passkey ceremony of the login dialog. The OS-user session request (`POST /api/v1/auth/session`, removed in core-layer) and the client-side-only Windows Hello check were removed, and `client_ip` is no longer sent by the client.
+
+### Removed
+- **"Sign In via Browser (OAuth2 PKCE)" Button**: It did not perform OAuth and only requested the unverified OS-user session.
+
 ## [v1.4.1] - 2026-10-13
 
 ### Fixed

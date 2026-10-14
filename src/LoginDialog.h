@@ -33,7 +33,6 @@ public slots:
 private slots:
     void onSignInWithPasskey();
     void onRegisterPasskey();
-    void onBrowserOAuthSignIn();
     void checkBootstrapStatus();
 
 private:
@@ -53,7 +52,6 @@ private:
     QLineEdit* loginIdInput_{nullptr};
     QLineEdit* pinInput_{nullptr};
     QPushButton* signInBtn_{nullptr};
-    QPushButton* browserAuthBtn_{nullptr};
 
     // Register Controls
     QLineEdit* regLoginIdInput_{nullptr};
