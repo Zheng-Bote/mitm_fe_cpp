@@ -216,7 +216,7 @@ void MainWindow::setupUi() {
           QMessageBox::warning(this, "Session Expired", 
               "Your session has expired (e.g. idle timeout). Please log in again to continue.");
           
-          if (mitm::auth::AuthManager::instance().performLogin(false)) {
+          if (mitm::auth::AuthManager::instance().performLogin()) {
               m_unauthorizedShown = false;
               spdlog::info("Re-authentication successful.");
           } else {

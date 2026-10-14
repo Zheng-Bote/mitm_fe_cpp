@@ -8,6 +8,7 @@
 #include "AuthManager.h"
 #include "Config.h"
 #include "ApiClient.h"
+#include "LoginDialog.h"
 #include <spdlog/spdlog.h>
 #include <QNetworkAccessManager>
 #include <QNetworkRequest>
@@ -16,50 +17,16 @@
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QJsonObject>
-#include <QProcessEnvironment>
-#include <QNetworkInterface>
-#include <QAbstractSocket>
-#include <QMessageBox>
 #include <QTimer>
-#include <QThread>
 
-#ifdef _WIN32
-#include <windows.h>
-#include <winrt/Windows.Security.Credentials.UI.h>
-#include <winrt/Windows.Foundation.h>
-#include <UserConsentVerifierInterop.h>
-#pragma comment(lib, "windowsapp.lib")
-#endif
 
 namespace mitm::auth {
 
-bool AuthManager::performLogin(bool isInitialStartup) {
-    if (!runWindowsHello()) {
-        if (!isInitialStartup) {
-            QMessageBox::critical(nullptr, "Re-Authentication Failed", "Windows Hello authentication failed or was cancelled.");
-        }
-        return false;
-    }
-
-    QString osUser = QProcessEnvironment::systemEnvironment().value("USER", QProcessEnvironment::systemEnvironment().value("USERNAME", "unknown"));
-    
-    if (!establishSession(osUser)) {
-        if (!isInitialStartup) {
-            QMessageBox::critical(nullptr, "Session Error", "Could not establish a session with the backend.");
-        }
-        return false;
-    }
-
-    if (!fetchUserRoles()) {
-        if (!isInitialStartup) {
-            QMessageBox::warning(nullptr, "Role Retrieval", "Session established, but failed to retrieve user roles.");
-        }
-        return false;
-    }
-
-    startSessionRenewal();
-    emit authSuccess();
-    return true;
+bool AuthManager::performLogin() {
+    // Sessions are only issued by the WebAuthn passkey ceremony in LoginDialog, which
+    // completes the login via completePasskeyLogin() before accepting.
+    mitm::ui::LoginDialog dialog;
+    return dialog.exec() == QDialog::Accepted;
 }
 
 bool AuthManager::completePasskeyLogin() {
@@ -70,142 +37,6 @@ bool AuthManager::completePasskeyLogin() {
     startSessionRenewal();
     emit authSuccess();
     return true;
-}
-
-bool AuthManager::runWindowsHello() {
-#ifdef _WIN32
-    spdlog::info("Requesting Windows Hello authentication via WinRT...");
-    bool authSuccess = false;
-    bool authError = false;
-    std::string errorMsg;
-
-    // Resolve the owner window on the GUI thread: GetActiveWindow() is per-thread and
-    // returns nullptr on the worker.
-    HWND ownerHwnd = GetActiveWindow();
-    if (!ownerHwnd) ownerHwnd = GetForegroundWindow();
-    if (!ownerHwnd) ownerHwnd = GetDesktopWindow();
-
-    // The consent dialog is owned by a GUI-thread window, so the GUI thread must keep
-    // pumping messages while the worker waits; blocking it (e.g. join()) deadlocks.
-    QEventLoop loop;
-    QThread* worker = QThread::create([&]() {
-        try {
-            winrt::init_apartment(winrt::apartment_type::multi_threaded);
-            
-            auto availability = winrt::Windows::Security::Credentials::UI::UserConsentVerifier::CheckAvailabilityAsync().get();
-            if (availability == winrt::Windows::Security::Credentials::UI::UserConsentVerifierAvailability::Available) {
-                
-                auto factory = winrt::get_activation_factory<winrt::Windows::Security::Credentials::UI::UserConsentVerifier>();
-                auto interop = factory.as<IUserConsentVerifierInterop>();
-                
-                winrt::Windows::Foundation::IAsyncOperation<winrt::Windows::Security::Credentials::UI::UserConsentVerificationResult> asyncOp{ nullptr };
-                winrt::hstring message = L"Please authenticate (Windows Hello) to access the MitM Admin Frontend.";
-                
-                winrt::check_hresult(interop->RequestVerificationForWindowAsync(
-                    ownerHwnd,
-                    (HSTRING)winrt::get_abi(message), 
-                    winrt::guid_of<winrt::Windows::Foundation::IAsyncOperation<winrt::Windows::Security::Credentials::UI::UserConsentVerificationResult>>(), 
-                    winrt::put_abi(asyncOp)
-                ));
-
-                auto result = asyncOp.get();
-
-                if (result == winrt::Windows::Security::Credentials::UI::UserConsentVerificationResult::Verified) {
-                    authSuccess = true;
-                }
-            } else {
-                authSuccess = true; 
-                spdlog::warn("Windows Hello is not available. Bypassing...");
-            }
-        } catch (const winrt::hresult_error& e) {
-            authError = true;
-            errorMsg = winrt::to_string(e.message());
-        } catch (const std::exception& e) {
-            authError = true;
-            errorMsg = e.what();
-        }
-    });
-    QObject::connect(worker, &QThread::finished, &loop, &QEventLoop::quit);
-    worker->start();
-    loop.exec();
-    worker->wait();
-    delete worker;
-
-    if (authError) {
-        spdlog::error("Windows Hello Error: {}", errorMsg);
-        return false;
-    }
-
-    return authSuccess;
-#else
-    return true; // Non-Windows platforms bypass this for now
-#endif
-}
-
-bool AuthManager::establishSession(const QString& osUser) {
-    QNetworkAccessManager manager;
-    QString host = mitm::config::ConfigManager::GetInstance().GetHostUrl();
-    
-    QNetworkRequest req(QUrl(host + "/api/v1/auth/session"));
-    req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-    req.setRawHeader("Accept", "application/json");
-    req.setTransferTimeout(10000);
-
-    QJsonObject payload;
-    payload["os_user"] = osUser;
-    
-    // Resolve local IP address (best effort)
-    QString localIp = "127.0.0.1";
-    for (const auto& address : QNetworkInterface::allAddresses()) {
-        if (!address.isLoopback() && (address.protocol() == QAbstractSocket::IPv4Protocol || address.protocol() == QAbstractSocket::IPv6Protocol)) {
-            localIp = address.toString();
-            break; // take first non-loopback
-        }
-    }
-    payload["client_ip"] = localIp;
-
-    QNetworkReply* reply = manager.post(req, QJsonDocument(payload).toJson());
-    QEventLoop loop;
-    QObject::connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
-    loop.exec();
-
-    bool success = false;
-    if (reply->error() == QNetworkReply::NoError) {
-        auto doc = QJsonDocument::fromJson(reply->readAll());
-        if (doc.isObject()) {
-            QString sessionToken = doc.object().value("session_token").toString();
-            if (!sessionToken.isEmpty()) {
-                std::string rawStr = sessionToken.toStdString();
-                mitm::crypto::SecureString secureToken(rawStr.begin(), rawStr.end());
-                mitm::config::ConfigManager::GetInstance().SetSessionToken(secureToken);
-                success = true;
-            }
-        }
-    } else {
-        int statusCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
-        QString errorMsg = reply->errorString();
-        
-        QByteArray responseBody = reply->readAll();
-        auto doc = QJsonDocument::fromJson(responseBody);
-        if (doc.isObject() && doc.object().contains("errors")) {
-            auto errors = doc.object().value("errors").toArray();
-            if (!errors.isEmpty()) {
-                QString detail = errors[0].toObject().value("detail").toString();
-                if (!detail.isEmpty()) {
-                    errorMsg = detail;
-                }
-            }
-        }
-
-        spdlog::error("Failed to establish session: {} - {}", statusCode, errorMsg.toStdString());
-        emit authFailed("Login rejected: " + errorMsg);
-        
-        if (errorMsg.contains("inactive", Qt::CaseInsensitive)) {
-            QMessageBox::critical(nullptr, "Login Rejected", "User account is inactive.");
-        }
-    }
-    reply->deleteLater();
-    return success;
 }
 
 bool AuthManager::fetchUserRoles() {
@@ -271,7 +102,7 @@ void AuthManager::onRenewSession() {
     // A simple GET to /me extends the idle timeout if it succeeds
     if (!fetchUserRoles()) {
         spdlog::warn("Session renewal ping failed. Attempting full re-authentication.");
-        if (performLogin(false)) {
+        if (performLogin()) {
             spdlog::info("Session re-authentication successful.");
         } else {
             spdlog::error("Session re-authentication failed. Session is lost.");

@@ -155,11 +155,6 @@ QWidget* LoginDialog::createSignInTab() {
     connect(signInBtn_, &QPushButton::clicked, this, &LoginDialog::onSignInWithPasskey);
     layout->addWidget(signInBtn_);
 
-    browserAuthBtn_ = new QPushButton("🌐 Sign In via Browser (OAuth2 PKCE)", widget);
-    browserAuthBtn_->setStyleSheet("padding: 10px; background: #333333; color: #DDDDDD; font-size: 13px; border-radius: 5px; border: 1px solid #444;");
-    connect(browserAuthBtn_, &QPushButton::clicked, this, &LoginDialog::onBrowserOAuthSignIn);
-    layout->addWidget(browserAuthBtn_);
-
     layout->addStretch();
     return widget;
 }
@@ -511,8 +506,7 @@ void LoginDialog::onSignInWithPasskey() {
         mitm::config::ConfigManager::GetInstance().SetSessionToken(secureToken);
 
         // The passkey ceremony already authenticated the user and issued the session;
-        // only roles are missing. performLogin() would prompt Windows Hello again and
-        // replace this session with an OS-user session.
+        // only roles are missing.
         if (!mitm::auth::AuthManager::instance().completePasskeyLogin()) {
             setStatus("Login succeeded, but your roles could not be retrieved. Please try again.", true);
             finishReply->deleteLater();
@@ -755,17 +749,6 @@ void LoginDialog::onRegisterPasskey() {
         setStatus(QString("Registration Failed: %1").arg(detail), true);
     }
     finishReply->deleteLater();
-}
-
-void LoginDialog::onBrowserOAuthSignIn() {
-    setStatus("Initiating Browser OAuth2 PKCE login loop...", false);
-    // Best-effort session establishment with OS username fallback
-    QString defaultUser = loginIdInput_->text().trimmed();
-    if (mitm::auth::AuthManager::instance().performLogin(true)) {
-        accept();
-    } else {
-        setStatus("Authentication rejected or cancelled.", true);
-    }
 }
 
 } // namespace mitm::ui
