@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.0.1] - 2026-10-19
+
+### Fixed
+- **Transformation Entity Deletion (`HTTP 405 Method Not Allowed`)**: Updated `TransformationWidget::deleteEntity` to pass the entity ID as a path segment (`/<id>`) instead of a query parameter (`?id=<id>`), matching the REST API v1 `DELETE /api/v1/config/transformations/.../:id` routes for sources, targets, rules, transformations, and validations.
+
 ## [2.0.0] - 2026-10-14
 
 **BREAKING CHANGE**

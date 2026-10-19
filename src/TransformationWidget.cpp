@@ -88,7 +88,7 @@ void TransformationWidget::deleteEntity(const QString& endpoint, const QString& 
         QMessageBox::warning(this, "Permission Denied", "Only users with the 'ADMIN' role can modify transformations.");
         return;
     }
-    mitm::api::ApiClient::instance().deleteResource(endpoint + "?id=" + id,
+    mitm::api::ApiClient::instance().deleteResource(endpoint + "/" + id,
         [onSuccess](const QByteArray&, QNetworkReply*) {
             onSuccess();
         },
