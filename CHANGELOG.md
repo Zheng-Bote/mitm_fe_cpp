@@ -5,7 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [v2.0.2] - 2026-11-02
+## [v2.1.0] - 2026-11-02
+
+### Added
+- **User e-mail (mitm-2#31)**: System Settings → RBAC shows an `eMail` column; the Add User and Edit User dialogs have an `eMail` field.
 
 ### Changed
 - **User role selection (mitm-2#31)**: `RbacWidget` reads the assigned role IDs from `role_ids` of the user object returned by `GET /api/v1/iam/users/:id`. Requires core-layer `mitm_http-server` ≥ 3.0.0.
