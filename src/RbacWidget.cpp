@@ -148,7 +148,7 @@ void RbacWidget::onUserSelected() {
     mitm::api::ApiClient::instance().get("/api/v1/iam/users/" + QString::number(currentUserId),
         [this](const QByteArray& data, QNetworkReply* reply) {
             auto doc = QJsonDocument::fromJson(data);
-            auto roleIdsArray = doc.array();
+            auto roleIdsArray = doc.object().value("role_ids").toArray();
             QList<int> userRoles;
             for (const auto& v : roleIdsArray) {
                 userRoles.append(v.toInt());
