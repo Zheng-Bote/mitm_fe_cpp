@@ -8,6 +8,7 @@
 #include "AuthManager.h"
 #include "Config.h"
 #include "ApiClient.h"
+#include "ApiEnvelope.h"
 #include "LoginDialog.h"
 #include <spdlog/spdlog.h>
 #include <QNetworkAccessManager>
@@ -61,7 +62,7 @@ bool AuthManager::fetchUserRoles() {
 
     bool success = false;
     if (reply->error() == QNetworkReply::NoError) {
-        auto doc = QJsonDocument::fromJson(reply->readAll());
+        auto doc = QJsonDocument::fromJson(mitm::api::envelope::unwrap(reply->readAll()));
         std::vector<std::string> userRoles;
         if (doc.isArray()) {
             for (const auto& v : doc.array()) {

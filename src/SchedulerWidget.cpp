@@ -206,9 +206,8 @@ void SchedulerWidget::onAddJob() {
     JobEditorDialog dlg(this);
     if (dlg.exec() == QDialog::Accepted) {
         json newJob = dlg.getJob();
-        json payload = json::array({newJob});
         
-        mitm::api::ApiClient::instance().post("/api/v1/jobs", QByteArray::fromStdString(payload.dump()),
+        mitm::api::ApiClient::instance().post("/api/v1/jobs", QByteArray::fromStdString(newJob.dump()),
             [this](const QByteArray& data, QNetworkReply* reply) { onRefreshClicked(); },
             [this](int statusCode, const QString& errorString) { QMessageBox::critical(this, "Error", "Failed to add job:\n" + errorString); }
         );
@@ -238,9 +237,8 @@ void SchedulerWidget::onEditJob() {
     dlg.setJob(targetJob);
     if (dlg.exec() == QDialog::Accepted) {
         json updatedJob = dlg.getJob();
-        json payload = json::array({updatedJob});
         
-        mitm::api::ApiClient::instance().post("/api/v1/jobs", QByteArray::fromStdString(payload.dump()),
+        mitm::api::ApiClient::instance().put("/api/v1/jobs/" + QString::fromUtf8(QUrl::toPercentEncoding(jobName)), QByteArray::fromStdString(updatedJob.dump()),
             [this](const QByteArray& data, QNetworkReply* reply) { onRefreshClicked(); },
             [this](int statusCode, const QString& errorString) { QMessageBox::critical(this, "Error", "Failed to update job:\n" + errorString); }
         );

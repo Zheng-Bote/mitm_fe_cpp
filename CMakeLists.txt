@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.25)
 project(mitm_fe_cpp
-VERSION 2.1.0
+VERSION 2.2.0
 DESCRIPTION "Admin frontend for the MitM project"
 HOMEPAGE_URL "https://github.com/Zheng-Bote/mitm_fe_cpp"
 LANGUAGES CXX)
@@ -207,4 +207,9 @@ if(BUILD_TESTING)
     target_link_libraries(crypto_test PRIVATE Qt6::Core Qt6::Test libsodium::libsodium)
     target_include_directories(crypto_test PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_SOURCE_DIR}/include)
     add_test(NAME CryptoTest COMMAND crypto_test)
+
+    add_executable(api_envelope_test tests/ApiEnvelopeTest.cpp)
+    target_link_libraries(api_envelope_test PRIVATE Qt6::Core Qt6::Test)
+    target_include_directories(api_envelope_test PRIVATE ${PROJECT_SOURCE_DIR}/src)
+    add_test(NAME ApiEnvelopeTest COMMAND api_envelope_test)
 endif()

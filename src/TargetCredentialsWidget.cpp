@@ -265,7 +265,7 @@ void TargetCredentialsWidget::onEditTarget() {
         j["config_payload"] = configEdit->toPlainText().toStdString();
         j["is_active"] = activeCheck->isChecked();
 
-        mitm::api::ApiClient::instance().post("/api/v1/config/targets", QString::fromStdString(j.dump()).toUtf8(),
+        mitm::api::ApiClient::instance().put("/api/v1/config/targets/" + id, QString::fromStdString(j.dump()).toUtf8(),
             [this](const QByteArray&, QNetworkReply*) {
                 QMessageBox::information(this, "Success", "Source updated.");
                 onRefresh();

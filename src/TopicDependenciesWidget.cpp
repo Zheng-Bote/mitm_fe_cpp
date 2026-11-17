@@ -114,10 +114,9 @@ void TopicDependenciesWidget::onAdd() {
     }
 
     QJsonObject payload;
-    payload["topic"] = topic;
     payload["required_sources"] = sourcesArray;
 
-    mitm::api::ApiClient::instance().post("/api/v1/config/transformations/topic-dependencies", QJsonDocument(payload).toJson(),
+    mitm::api::ApiClient::instance().put("/api/v1/config/transformations/topic-dependencies/" + QString::fromUtf8(QUrl::toPercentEncoding(topic)), QJsonDocument(payload).toJson(),
         [this](const QByteArray&, QNetworkReply*) {
             onRefresh();
         },
@@ -138,7 +137,7 @@ void TopicDependenciesWidget::onDelete() {
         return;
     }
 
-    mitm::api::ApiClient::instance().deleteResource("/api/v1/config/transformations/topic-dependencies?topic=" + topic,
+    mitm::api::ApiClient::instance().deleteResource("/api/v1/config/transformations/topic-dependencies/" + QString::fromUtf8(QUrl::toPercentEncoding(topic)),
         [this](const QByteArray&, QNetworkReply*) {
             onRefresh();
         },
