@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.2.0] - 2026-11-17
+
+Adaptation to the core-layer API standardization ([core-layer #93](https://github.com/Zheng-Bote/mitm_core-layer/issues/93)). **Requires core-layer `mitm_http-server` ≥ 3.5.0.**
+
+### Changed
+- **Response Envelope**: `ApiClient` passes the `data` payload of the response envelope `{id, status, code, title, detail, meta, data}` to the success callbacks (FlatBuffers bodies unchanged) and the envelope `detail` to the error callbacks; the request id is logged. The login dialog and the session check (`/auth/me`) parse the envelope as well. Helper: `src/ApiEnvelope.h`.
+- **RMM Level 2 routes**: role assignment uses `PUT /api/v1/iam/users/:id/roles`; topic dependencies `PUT`/`DELETE /api/v1/config/transformations/topic-dependencies/:topic`; the scheduler creates a single job via `POST /api/v1/jobs` and updates via `PUT /api/v1/jobs/:name`; source credentials and delivery targets are updated via `PUT /:id`.
+- **Session handling**: the session ends on `401` and on `USER_INACTIVE`; a missing permission (`403 RBAC_FORBIDDEN`) no longer logs the user out. The login dialog detects inactive accounts by the `USER_INACTIVE` code.
+- **Backup**: the saved backup file contains the backup payload (`data`), so it can be restored with `POST /api/v1/system/restore`.
+
+### Added
+- Unit test `ApiEnvelopeTest`.
+
 ## [v2.1.0] - 2026-11-02
 
 ### Added

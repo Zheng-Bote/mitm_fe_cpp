@@ -8,6 +8,7 @@
 
 #include "ApiClient.h"
 #include "Config.h"
+#include "ApiEnvelope.h"
 #include <QUrl>
 #include <QDebug>
 #include <QTimer>
@@ -49,8 +50,10 @@ void ApiClient::handleReply(QNetworkReply* reply, const SuccessCallback& onSucce
         delete timer;
         reply->deleteLater();
         int statusCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        const QByteArray body = reply->readAll();
 
-        if (statusCode == 401 || statusCode == 403) {
+        // Invalid session or deactivated account; a missing permission (RBAC_FORBIDDEN) keeps the session.
+        if (statusCode == 401 || envelope::code(body) == "USER_INACTIVE") {
             emit unauthorized();
         }
 
@@ -69,14 +72,17 @@ void ApiClient::handleReply(QNetworkReply* reply, const SuccessCallback& onSucce
         if (reply->error() == QNetworkReply::NoError) {
             spdlog::info("[Telemetry] API SUCCESS: {} {} - Latency: {}ms - Status: {}", method.toStdString(), urlPath.toStdString(), elapsed, statusCode);
             if (onSuccess) {
-                onSuccess(reply->readAll(), reply);
+                // Callers receive the `data` payload; FlatBuffers bodies pass unchanged.
+                onSuccess(envelope::unwrap(body), reply);
             }
         } else {
-            spdlog::warn("[Telemetry] API ERROR: {} {} - Latency: {}ms - Status: {} - Error: {}", method.toStdString(), urlPath.toStdString(), elapsed, statusCode, reply->errorString().toStdString());
+            const QString message = envelope::errorMessage(body, reply->errorString());
+            const QString requestId = envelope::parse(body).value("id").toString();
+            spdlog::warn("[Telemetry] API ERROR: {} {} - Latency: {}ms - Status: {} - Error: {} - Request-ID: {}", method.toStdString(), urlPath.toStdString(), elapsed, statusCode, message.toStdString(), requestId.toStdString());
             if (onError) {
-                onError(statusCode, reply->errorString());
+                onError(statusCode, message);
             } else {
-                qWarning() << "API Error:" << statusCode << reply->errorString();
+                qWarning() << "API Error:" << statusCode << message;
             }
         }
     });

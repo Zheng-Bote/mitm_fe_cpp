@@ -13,6 +13,7 @@
 #include "Config.h"
 #include "AuthManager.h"
 #include "ApiClient.h"
+#include "ApiEnvelope.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QFormLayout>
@@ -277,7 +278,7 @@ void LoginDialog::checkBootstrapStatus() {
     loop.exec();
 
     if (reply->error() == QNetworkReply::NoError) {
-        auto doc = QJsonDocument::fromJson(reply->readAll());
+        auto doc = QJsonDocument::fromJson(mitm::api::envelope::unwrap(reply->readAll()));
         if (doc.isObject() && doc.object().value("bootstrap_required").toBool()) {
             isBootstrapMode_ = true;
             bootstrapContainer_->setVisible(true);
@@ -374,17 +375,9 @@ void LoginDialog::onSignInWithPasskey() {
 
     if (startReply->error() != QNetworkReply::NoError) {
         progressBar_->setVisible(false);
-        int code = startReply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
         QByteArray resp = startReply->readAll();
-        auto doc = QJsonDocument::fromJson(resp);
-        QString detail = "Authentication failed: " + startReply->errorString();
-        if (doc.isObject() && doc.object().contains("errors")) {
-            auto errs = doc.object().value("errors").toArray();
-            if (!errs.isEmpty()) {
-                detail = errs[0].toObject().value("detail").toString();
-            }
-        }
-        if (code == 403 || detail.contains("inactive", Qt::CaseInsensitive)) {
+        QString detail = mitm::api::envelope::errorMessage(resp, "Authentication failed: " + startReply->errorString());
+        if (mitm::api::envelope::code(resp) == "USER_INACTIVE" || detail.contains("inactive", Qt::CaseInsensitive)) {
             setStatus("⛔ Account is inactive pending administrator approval.", true);
         } else {
             setStatus("Start Login Failed: " + detail, true);
@@ -393,7 +386,7 @@ void LoginDialog::onSignInWithPasskey() {
         return;
     }
 
-    auto startDoc = QJsonDocument::fromJson(startReply->readAll());
+    auto startDoc = QJsonDocument::fromJson(mitm::api::envelope::unwrap(startReply->readAll()));
     startReply->deleteLater();
 
     QJsonObject startObj = startDoc.object();
@@ -498,7 +491,7 @@ void LoginDialog::onSignInWithPasskey() {
     progressBar_->setVisible(false);
 
     if (finishReply->error() == QNetworkReply::NoError) {
-        auto finishDoc = QJsonDocument::fromJson(finishReply->readAll());
+        auto finishDoc = QJsonDocument::fromJson(mitm::api::envelope::unwrap(finishReply->readAll()));
         QString sessionToken = finishDoc.object().value("session_token").toString();
         
         std::string rawStr = sessionToken.toStdString();
@@ -516,19 +509,11 @@ void LoginDialog::onSignInWithPasskey() {
         setStatus("Login Successful! Welcome.", false);
         accept();
     } else {
-        int code = finishReply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
-        if (code == 403) {
+        QByteArray resp = finishReply->readAll();
+        if (mitm::api::envelope::code(resp) == "USER_INACTIVE") {
             setStatus("⛔ Account is inactive pending administrator approval.", true);
         } else {
-            QByteArray resp = finishReply->readAll();
-            auto doc = QJsonDocument::fromJson(resp);
-            QString detail = "Passkey verification failed.";
-            if (doc.isObject() && doc.object().contains("errors")) {
-                auto errs = doc.object().value("errors").toArray();
-                if (!errs.isEmpty()) {
-                    detail = errs[0].toObject().value("detail").toString();
-                }
-            }
+            QString detail = mitm::api::envelope::errorMessage(resp, "Passkey verification failed.");
             setStatus(QString("Authentication Failed: %1").arg(detail), true);
         }
     }
@@ -576,20 +561,13 @@ void LoginDialog::onRegisterPasskey() {
     if (startReply->error() != QNetworkReply::NoError) {
         progressBar_->setVisible(false);
         QByteArray resp = startReply->readAll();
-        auto doc = QJsonDocument::fromJson(resp);
-        QString detail = "Registration initiation failed: " + startReply->errorString();
-        if (doc.isObject() && doc.object().contains("errors")) {
-            auto errs = doc.object().value("errors").toArray();
-            if (!errs.isEmpty()) {
-                detail = errs[0].toObject().value("detail").toString();
-            }
-        }
+        QString detail = mitm::api::envelope::errorMessage(resp, "Registration initiation failed: " + startReply->errorString());
         setStatus(detail, true);
         startReply->deleteLater();
         return;
     }
 
-    auto startDoc = QJsonDocument::fromJson(startReply->readAll());
+    auto startDoc = QJsonDocument::fromJson(mitm::api::envelope::unwrap(startReply->readAll()));
     startReply->deleteLater();
 
     QJsonObject startObj = startDoc.object();
@@ -695,7 +673,7 @@ void LoginDialog::onRegisterPasskey() {
     progressBar_->setVisible(false);
 
     if (finishReply->error() == QNetworkReply::NoError) {
-        auto finishDoc = QJsonDocument::fromJson(finishReply->readAll());
+        auto finishDoc = QJsonDocument::fromJson(mitm::api::envelope::unwrap(finishReply->readAll()));
         QString status = finishDoc.object().value("status").toString();
         QString message = finishDoc.object().value("message").toString();
 
@@ -738,14 +716,7 @@ void LoginDialog::onRegisterPasskey() {
         }
     } else {
         QByteArray resp = finishReply->readAll();
-        auto doc = QJsonDocument::fromJson(resp);
-        QString detail = "Registration Verification Failed.";
-        if (doc.isObject() && doc.object().contains("errors")) {
-            auto errs = doc.object().value("errors").toArray();
-            if (!errs.isEmpty()) {
-                detail = errs[0].toObject().value("detail").toString();
-            }
-        }
+        QString detail = mitm::api::envelope::errorMessage(resp, "Registration Verification Failed.");
         setStatus(QString("Registration Failed: %1").arg(detail), true);
     }
     finishReply->deleteLater();

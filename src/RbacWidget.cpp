@@ -186,10 +186,9 @@ void RbacWidget::saveRoleAssignments() {
     }
 
     QJsonObject payload;
-    payload["user_id"] = currentUserId;
     payload["role_ids"] = roleIds;
 
-    mitm::api::ApiClient::instance().post("/api/v1/iam/assign-role", QJsonDocument(payload).toJson(),
+    mitm::api::ApiClient::instance().put("/api/v1/iam/users/" + QString::number(currentUserId) + "/roles", QJsonDocument(payload).toJson(),
         [this](const QByteArray& data, QNetworkReply* reply) {
             QMessageBox::information(this, "Success", "Roles assigned successfully.");
         },
