@@ -85,7 +85,12 @@ Manage system users and their roles directly from the frontend (requires `ADMIN`
 
 ### 💾 Backup & Restore
 
-Allows users with `BACKUP-RESTORE` or `ADMIN` roles to seamlessly export and import the complete system configuration (jobs, sources, targets, rules) as JSON. Backups are automatically saved to your local `<Binary-Folder>/data/backup/` directory.
+Allows users with `BACKUP-RESTORE` or `ADMIN` roles to export and import the complete system configuration: jobs, source credentials, delivery targets, mappings, storage keys, users (incl. roles and security keys), RBAC rules and the scheduler configuration. Requires `mitm_http-server` 3.6.0 or newer.
+
+- **Backup**: enter a passphrase (at least 12 characters) twice. The server encrypts the backup with AES-256-GCM (key derived with Argon2id); it is saved as `<Binary-Folder>/data/backup/<timestamp>_backup-<config>_<user>.mitmbak`, readable only by you. **Without the passphrase the backup cannot be restored** – keep it safe.
+- **Restore**: select a `.mitmbak` file, confirm and enter its passphrase. Jobs that are not contained in the backup are **deactivated** (not deleted); the job history is kept. A wrong passphrase or a modified file is rejected without any change. A restore that would remove your own restore permission is rejected.
+- Restoring into another environment needs the passphrase **and the same `MASTER_KEY`**; security keys (WebAuthn) only work if the environment has the same RP ID.
+- Unencrypted `.json` backups of older versions can no longer be restored – create a new backup after the update.
 
 ### ⚙️ Settings & Key Vault
 
