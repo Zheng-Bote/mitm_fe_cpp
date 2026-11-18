@@ -4,7 +4,7 @@
 <p>Admin Frontend for the MitM Data Aggregator project. It connects securely to the Go-based Scheduler via REST APIs and high-performance FlatBuffers binary endpoints to manage jobs, mapping rules, and view system and audit logs.</p>
 
 ![License](https://img.shields.io/badge/license-Apache_2.0-green)
-![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows-lightgrey.svg)
+![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows%20%7C%20macOS-lightgrey.svg)
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/Zheng-Bote/mitm_fe_cpp?logo=GitHub)](https://github.com/Zheng-Bote/mitm_fe_cpp/releases)
 <br/>
 [Report Issue](https://github.com/Zheng-Bote/mitm_fe_cpp/issues) · [Request Feature](https://github.com/Zheng-Bote/mitm_fe_cpp/pulls)
@@ -27,6 +27,7 @@
   - [3. Build](#3-build)
   - [4. Configuration Setup](#4-configuration-setup)
   - [5. Run](#5-run)
+  - [6. Package as macOS DMG](#6-package-as-macos-dmg)
 
 </details>
 
@@ -74,7 +75,7 @@ See [AI_Workflow_DE.md](https://github.com/Zheng-Bote/mitm-2/blob/main/docs/AI_W
 - **Build System**: CMake 3.25+
 - **Package Manager**: Conan 2.x
 - **Framework**: Qt6 (Core, Gui, Widgets, Network)
-- **System Dependencies**: OpenSSL, libfido2 (`libfido2-dev` on Linux)
+- **System Dependencies**: OpenSSL, libfido2 (`libfido2-dev` on Linux, `brew install libfido2` on macOS)
 
 ## Building the Project
 
@@ -98,6 +99,16 @@ Run this from the `admin-frontend/mitm_fe_cpp` directory:
 conan install . --build=missing -pr:b default
 ```
 
+**macOS (Apple Silicon, Homebrew)**
+
+Prerequisites: Xcode Command Line Tools and Homebrew. CMake 3.30+ is required, because older versions do not know the C++26 flag for AppleClang.
+
+```bash
+brew install qt cmake ninja conan libfido2
+conan profile detect   # only once
+conan install . --build=missing -s build_type=Release -c tools.cmake.cmaketoolchain:generator=Ninja
+```
+
 ### 2. Configure with CMake
 
 Conan generates modern CMake presets. Use them directly from the project root:
@@ -112,6 +123,12 @@ cmake --preset conan-default -DCMAKE_VS_GLOBALS=VcpkgEnabled=false
 
 ```bash
 cmake --preset conan-release
+```
+
+**macOS**
+
+```bash
+cmake --preset conan-release -DCMAKE_PREFIX_PATH=/opt/homebrew
 ```
 
 _Note: If Qt6 is not in your system path, you may need to add `-DCMAKE_PREFIX_PATH=/path/to/Qt/6.x/gcc_64` to the configure command._
@@ -132,8 +149,34 @@ Before running the application for the first time, you need a valid encrypted `c
 ./build/Release/bin/mitm_fe_cpp [path/to/config.enc]
 ```
 
+**macOS** (an app bundle is built)
+
+```bash
+./build/Release/bin/mitm_fe_cpp.app/Contents/MacOS/mitm_fe_cpp [path/to/config.enc]
+```
+
 **Windows**
 
 ```bash
 <your_Qt_path>\windeployqt6.exe --release -force-openssl mitm_fe_cpp.exe
 ```
+
+### 6. Package as macOS DMG
+
+`build_macos_dmg.sh` builds the Release configuration and packages it as a self-contained disk image (Apple Silicon, Homebrew prerequisites as in step 1):
+
+```bash
+./build_macos_dmg.sh            # build (Conan + CMake) and create the DMG
+./build_macos_dmg.sh --no-build # only package an existing build/Release
+```
+
+Output: `build/dmg/mitm_fe_cpp-<version>-macos-arm64.dmg`
+
+The script
+
+- creates the app icon (`.icns`) from `img/logo_256x256.png` and sets version, bundle ID and icon in `Info.plist`,
+- bundles the Qt frameworks and Homebrew libraries (e.g. libfido2) via `macdeployqt`,
+- removes the SVG icon-engine and PDF image-format plugins: Homebrew keeps their frameworks in separate kegs that `macdeployqt` cannot resolve (the resulting `Cannot resolve rpath … QtPdf/QtSvg` messages can be ignored), and the app needs neither,
+- signs the bundle ad hoc and creates the DMG with an `Applications` shortcut.
+
+_Note: The DMG is not notarized. On other Macs, Gatekeeper blocks the first launch; open the app via right-click → **Open**. Distribution to other users requires a Developer ID signature and notarization._

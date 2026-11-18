@@ -157,19 +157,22 @@ set(SOURCES
 add_executable(${PROJECT_NAME} WIN32 MACOSX_BUNDLE ${SOURCES})
 
 # Link libraries
+# Conan packages are listed before Qt so that their include directories take
+# precedence over the generic prefix of a system-wide Qt (e.g. Homebrew's
+# /opt/homebrew/include on macOS, which may contain other OpenSSL/libcbor headers).
 target_link_libraries(${PROJECT_NAME} PRIVATE
-    Qt6::Core
-    Qt6::Gui
-    Qt6::Widgets
-    Qt6::Network
     nlohmann_json::nlohmann_json
     spdlog::spdlog
     libsodium::libsodium
     httplib::httplib
     openssl::openssl
     flatbuffers::flatbuffers
-    QXlsx::QXlsx
     libcbor::libcbor
+    Qt6::Core
+    Qt6::Gui
+    Qt6::Widgets
+    Qt6::Network
+    QXlsx::QXlsx
     ${FIDO2_LIB}
 )
 
@@ -206,7 +209,7 @@ enable_testing()
 if(BUILD_TESTING)
     find_package(Qt6 REQUIRED COMPONENTS Test)
     add_executable(crypto_test tests/CryptoTest.cpp src/Crypto.cpp)
-    target_link_libraries(crypto_test PRIVATE Qt6::Core Qt6::Test libsodium::libsodium)
+    target_link_libraries(crypto_test PRIVATE libsodium::libsodium Qt6::Core Qt6::Test)
     target_include_directories(crypto_test PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_SOURCE_DIR}/include)
     add_test(NAME CryptoTest COMMAND crypto_test)
 
