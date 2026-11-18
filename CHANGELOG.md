@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.3.0] - 2026-11-18
+
+Encrypted configuration backup ([#49](https://github.com/Zheng-Bote/mitm_fe_cpp/issues/49), server part [core-layer#99](https://github.com/Zheng-Bote/mitm_core-layer/issues/99)). **Requires `mitm_http-server` ≥ 3.6.0.**
+
+### Changed
+- **Backup**: asks for a passphrase (min. 12 characters, entered twice) and calls `POST /api/v1/system/backup`; the encrypted backup (AES-256-GCM, Argon2id) is saved unchanged as `.mitmbak` with owner-only permissions.
+- **Restore**: accepts `.mitmbak` files, asks for the passphrase after the confirmation and sends `{passphrase, backup}`; shows restored tables/rows, deactivated jobs and the server's error details (wrong passphrase / modified file, lock-out, unsupported format). Unencrypted `.json` backups of older versions are rejected with a clear message.
+- The confirmation explains that users, roles, RBAC rules and security keys are restored and that jobs missing in the backup are deactivated, not deleted.
+- The passphrase is kept in memory only and overwritten after the request (best effort).
+
+### Added
+- `src/BackupFile.h` helpers, unit test `BackupFileTest`.
+
 ## [v2.2.2] - 2026-11-18
 
 ### Changed

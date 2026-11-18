@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.25)
 project(mitm_fe_cpp
-VERSION 2.2.2
+VERSION 2.3.0
 DESCRIPTION "Admin frontend for the MitM project"
 HOMEPAGE_URL "https://github.com/Zheng-Bote/mitm_fe_cpp"
 LANGUAGES CXX)
@@ -106,6 +106,7 @@ set(SOURCES
     src/Config.cpp
     src/MainWindow.h
     src/UpdateCheck.h
+    src/BackupFile.h
     src/MainWindow.cpp
     src/DashboardWidget.h
     src/DashboardWidget.cpp
@@ -218,4 +219,9 @@ if(BUILD_TESTING)
     target_link_libraries(update_check_test PRIVATE Qt6::Core Qt6::Network Qt6::Test)
     target_include_directories(update_check_test PRIVATE ${PROJECT_SOURCE_DIR}/src)
     add_test(NAME UpdateCheckTest COMMAND update_check_test)
+
+    add_executable(backup_file_test tests/BackupFileTest.cpp)
+    target_link_libraries(backup_file_test PRIVATE Qt6::Core Qt6::Test)
+    target_include_directories(backup_file_test PRIVATE ${PROJECT_SOURCE_DIR}/src)
+    add_test(NAME BackupFileTest COMMAND backup_file_test)
 endif()
