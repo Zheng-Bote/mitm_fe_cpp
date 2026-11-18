@@ -55,7 +55,11 @@
 - **Scheduler Next Run**: Dynamically calculates and displays upcoming job execution times in the user's local timezone directly in the jobs grid.
 - **Scheduler Active State & Control**: Displays real-time process execution status (Running PID / Idle) and allows users with the `ADMIN` role to terminate active jobs directly from the UI (`⏹ Stop Selected`).
 - **Rule Sandbox**: Real-time "Test Preview" sandbox to safely simulate complex data transformations (e.g., Dates and Regex) before saving them to the backend.
-- **Backup & Restore**: Easily export and import the complete system configuration (Jobs, Sources, Targets, Transformation Rules) directly from the UI. Backups are saved locally and safely restored to any environment via the backend API. Controlled by the `BACKUP-RESTORE` role.
+- **Encrypted Backup & Restore**: Exports and imports the complete system configuration via the backend API (`POST /api/v1/system/backup` / `restore`, requires `mitm_http-server` ≥ 3.6.0): jobs, scheduler settings, sources, targets, transformation rules, storage keys, users with roles and WebAuthn keys, and the Casbin RBAC rules.
+  - The backup is encrypted by the server with AES-256-GCM; the key is derived via Argon2id from a passphrase (at least 12 characters, entered twice) that is never stored. Without the passphrase a backup cannot be restored.
+  - Saved as `data/backup/<timestamp>_backup-<config>_<user>.mitmbak`, readable only by the current OS user. Old unencrypted `.json` backups are rejected.
+  - Restore shows the restored tables/rows; jobs that are not in the backup are deactivated, not deleted. The server refuses a restore that would lock out the restoring user.
+  - Available to `ADMIN`. The *Backup/Restore* tab is also shown to the `BACKUP-RESTORE` role, which additionally needs Casbin policies for both endpoints (see [backup_restore.md](https://github.com/Zheng-Bote/mitm_core-layer/blob/main/mitm_http-server/docs/backup_restore.md)).
 - **Self-contained Packages**: Linux AppImage (`build_linux_appimage.sh`) and macOS DMG (`build_macos_dmg.sh`), each with app icon and all Qt libraries bundled.
 - **Modern C++26 Stack**: Built with Qt6, FlatBuffers, nlohmann_json, spdlog, libsodium, and cpp-httplib.
 
