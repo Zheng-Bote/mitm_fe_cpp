@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.2.2] - 2026-11-18
+
+### Changed
+- **Jobs-Logs date filter ([#47](https://github.com/Zheng-Bote/mitm_fe_cpp/issues/47))**: *Logs → Jobs-Logs* starts with "Filter by Date" checked and the range set to today … today (previously unchecked, today−7 … today), so a refresh loads only today's job audit entries by default.
+
 ## [v2.2.1] - 2026-11-18
 
 ### Fixed
