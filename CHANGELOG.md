@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.2.1] - 2026-11-18
+
+### Fixed
+- **Version check behind a proxy ([#45](https://github.com/Zheng-Bote/mitm_fe_cpp/issues/45))**: *Info → About* reported "Update check failed … configure a proxy" although the proxy worked for the User Guide. The check called the GitHub REST API (`api.github.com`), which allows only 60 unauthenticated requests per hour per public IP — shared by all users behind a corporate proxy/NAT and consumed on every application start. The latest version is now read from the redirect of `HEAD github.com/<repo>/releases/latest` (no API, no rate limit).
+- **Error messages**: the About dialog shows the real error (HTTP status or network error); the hint to check *Settings → Network-Proxy* appears only for proxy errors.
+
+### Changed
+- The User Guide uses `ConfigManager::GetProxy()` instead of its own copy of the proxy setup. Helpers in `src/UpdateCheck.h`, unit test `UpdateCheckTest`.
+
 ## [v2.2.0] - 2026-11-17
 
 Adaptation to the core-layer API standardization ([core-layer #93](https://github.com/Zheng-Bote/mitm_core-layer/issues/93)). **Requires core-layer `mitm_http-server` ≥ 3.5.0.**

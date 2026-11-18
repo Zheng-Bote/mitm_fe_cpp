@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.25)
 project(mitm_fe_cpp
-VERSION 2.2.0
+VERSION 2.2.1
 DESCRIPTION "Admin frontend for the MitM project"
 HOMEPAGE_URL "https://github.com/Zheng-Bote/mitm_fe_cpp"
 LANGUAGES CXX)
@@ -105,6 +105,7 @@ set(SOURCES
     src/Config.h
     src/Config.cpp
     src/MainWindow.h
+    src/UpdateCheck.h
     src/MainWindow.cpp
     src/DashboardWidget.h
     src/DashboardWidget.cpp
@@ -212,4 +213,9 @@ if(BUILD_TESTING)
     target_link_libraries(api_envelope_test PRIVATE Qt6::Core Qt6::Test)
     target_include_directories(api_envelope_test PRIVATE ${PROJECT_SOURCE_DIR}/src)
     add_test(NAME ApiEnvelopeTest COMMAND api_envelope_test)
+
+    add_executable(update_check_test tests/UpdateCheckTest.cpp)
+    target_link_libraries(update_check_test PRIVATE Qt6::Core Qt6::Network Qt6::Test)
+    target_include_directories(update_check_test PRIVATE ${PROJECT_SOURCE_DIR}/src)
+    add_test(NAME UpdateCheckTest COMMAND update_check_test)
 endif()
