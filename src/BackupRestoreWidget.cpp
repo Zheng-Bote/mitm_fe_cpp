@@ -1,4 +1,5 @@
 #include "BackupRestoreWidget.h"
+#include "AppPaths.h"
 #include "ApiClient.h"
 #include "Config.h"
 #include "BackupFile.h"
@@ -104,7 +105,7 @@ void BackupRestoreWidget::onBackupClicked() {
             QMessageBox::warning(this, "Backup Failed", "The server did not return an encrypted backup.\nmitm_http-server 3.6.0 or newer is required.");
             return;
         }
-        QString backupDir = QCoreApplication::applicationDirPath() + "/data/backup";
+        QString backupDir = mitm::paths::baseDir() + "/data/backup";
         QDir dir(backupDir);
         if (!dir.exists()) dir.mkpath(".");
 
@@ -133,7 +134,7 @@ void BackupRestoreWidget::onBackupClicked() {
 }
 
 void BackupRestoreWidget::onRestoreClicked() {
-    QString backupDir = QCoreApplication::applicationDirPath() + "/data/backup";
+    QString backupDir = mitm::paths::baseDir() + "/data/backup";
     QString filename = QFileDialog::getOpenFileName(this, "Select Backup File", backupDir,
         QString("MitM Backup (*.%1);;All Files (*)").arg(mitm::backup::kFileExtension));
     if (filename.isEmpty()) return;

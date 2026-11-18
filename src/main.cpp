@@ -31,6 +31,7 @@
 #include <QMessageBox>
 #include <QDir>
 #include "MainWindow.h"
+#include "AppPaths.h"
 #include "Config.h"
 #include <QSettings>
 #include <QNetworkAccessManager>
@@ -54,7 +55,7 @@ int main(int argc, char *argv[]) {
     app.setOrganizationDomain("net.hase-zheng");
     app.setApplicationName("MitM Admin");
     app.setApplicationVersion(QString::fromStdString(std::string(rz::config::VERSION)));
-    app.setWindowIcon(QIcon("img/logo.ico"));
+    app.setWindowIcon(QIcon(":/img/logo.ico"));
 
     // Parse command line for config path
     QCommandLineParser parser;
@@ -73,7 +74,7 @@ int main(int argc, char *argv[]) {
     if (configPath.isEmpty()) {
         configPath = settings.value("LastConfigPath", "").toString();
         if (configPath.isEmpty()) {
-            configPath = QCoreApplication::applicationDirPath() + QDir::separator() + "config.enc";
+            configPath = mitm::paths::baseDir() + QDir::separator() + "config.enc";
         }
     } else {
         settings.setValue("LastConfigPath", configPath);

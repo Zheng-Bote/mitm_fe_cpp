@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.4.0] - 2026-11-18
+
+### Added
+
+- `build_linux_appimage.sh`: builds the Release configuration and packages a self-contained AppImage with desktop entry and icon via linuxdeploy + linuxdeploy-plugin-qt ([#52](https://github.com/Zheng-Bote/mitm_fe_cpp/issues/52)).
+- `src/AppPaths.h`, unit test `AppPathsTest`.
+
+### Changed
+
+- Running as AppImage, `config.enc`, `configs/` and `data/` are located next to the `.AppImage` file (the program folder is a read-only mount) and a restart after "Select Configuration" starts the AppImage again.
+- The window icon and the About logo are embedded as Qt resources (`resources.qrc`) instead of being loaded relative to the working directory.
+
 ## [v2.3.0] - 2026-11-18
 
 ### Changed
