@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **macOS build**: build instructions for macOS (Apple Silicon, Homebrew Qt) in the README.
+- `build_macos_dmg.sh`: builds the Release configuration and packages a self-contained, ad-hoc signed DMG with app icon (`img/logo_256x256.png`).
+
+### Fixed
+- **Header mix-up with a system-wide Qt**: Conan packages are now linked before Qt, so their include directories take precedence over Homebrew's `/opt/homebrew/include` (which contains OpenSSL 4 / libcbor headers differing from the Conan versions and broke `FidoClient.cpp` on macOS).
+
 ## [v2.3.0] - 2026-11-18
 
 Encrypted configuration backup ([#49](https://github.com/Zheng-Bote/mitm_fe_cpp/issues/49), server part [core-layer#99](https://github.com/Zheng-Bote/mitm_core-layer/issues/99)). **Requires `mitm_http-server` ≥ 3.6.0.**
