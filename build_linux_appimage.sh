@@ -108,10 +108,15 @@ cp "$LOGO" "$ICON"
 # --- Bundle the binary, its libraries and the Qt plugins; create the AppImage ---
 # Qt libraries (incl. ICU) are resolved from the Qt installation first.
 export LD_LIBRARY_PATH="$QT_LIBS${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-# Wayland support in addition to xcb, if the Qt installation ships the plugin.
-if [[ -d "$("$QMAKE" -query QT_INSTALL_PLUGINS)/wayland-shell-integration" ]]; then
-    export EXTRA_PLATFORM_PLUGINS="libqwayland-generic.so"
-fi
+# Wayland support in addition to xcb, if the Qt installation ships the plugin
+# (libqwayland.so since Qt 6.8, libqwayland-generic.so before).
+QT_PLATFORMS="$("$QMAKE" -query QT_INSTALL_PLUGINS)/platforms"
+for wayland in libqwayland.so libqwayland-generic.so; do
+    if [[ -f "$QT_PLATFORMS/$wayland" ]]; then
+        export EXTRA_PLATFORM_PLUGINS="$wayland"
+        break
+    fi
+done
 APPIMAGE_FILE="$APP_NAME-$VERSION-$ARCH.AppImage"
 export LDAI_OUTPUT="$APPIMAGE_FILE"   # name used by the appimage output plugin
 rm -f "$OUT_DIR/$APPIMAGE_FILE"
