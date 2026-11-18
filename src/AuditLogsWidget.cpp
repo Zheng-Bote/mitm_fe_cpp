@@ -36,14 +36,14 @@ AuditLogsWidget::AuditLogsWidget(QWidget *parent)
     m_exportButton = new QPushButton("Export CSV", this);
     m_exportReportButton = new QPushButton("Export Report", this);
     
+    // Default: date filter active for today (#47)
     m_useDateRangeCheckbox = new QCheckBox("Filter by Date", this);
-    m_startDateEdit = new QDateEdit(QDate::currentDate().addDays(-7), this);
+    m_useDateRangeCheckbox->setChecked(true);
+    m_startDateEdit = new QDateEdit(QDate::currentDate(), this);
     m_startDateEdit->setCalendarPopup(true);
-    m_startDateEdit->setEnabled(false);
     
     m_endDateEdit = new QDateEdit(QDate::currentDate(), this);
     m_endDateEdit->setCalendarPopup(true);
-    m_endDateEdit->setEnabled(false);
     
     m_autoRefreshCheckbox = new QCheckBox("Auto-Refresh (5s)", this);
     QSettings settings;
