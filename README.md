@@ -44,7 +44,7 @@
 - **Dedicated Security Key Management**: Logged-in users can enroll new or secondary security keys directly from `Settings -> Register YubiKey / Security Key...`.
 - **RBAC Department Management**: Department field integration across user management tables and Add/Edit user dialogs.
 - **Windows Hello Authentication**: Supports fallback biometric authentication via WinRT for accessing sensitive areas on Windows.
-- **Network Proxy Settings**: Configurable per-user network proxy settings that override defaults and support authenticated HTTP/HTTPS proxies.
+- **Network Proxy Settings**: Configurable per-user network proxy settings that override defaults and support authenticated HTTP/HTTPS proxies. Used for the User Guide (`raw.githubusercontent.com`) and the version check (`github.com/<repo>/releases/latest`, no GitHub API rate limit).
 - **Advanced Logging & Dashboard**: Interactive dashboard with real-time stats and comprehensive data grids for Admin, System, Job, and Transformation logs.
 - **Auto-Refresh**: Background periodic auto-refresh (5s interval) for Dashboard, Scheduler, and Log grids, configurable per user without UI flickering.
 - **Dynamic API & Auth**: Derives the Scheduler host and authentication header directly from the decrypted config.
