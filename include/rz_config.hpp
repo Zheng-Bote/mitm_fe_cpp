@@ -43,9 +43,9 @@ constexpr std::string_view LICENSE = "Apache-2.0";
 constexpr std::string_view ORGANIZATION = "ZHENG Robert";
 constexpr std::string_view PROJECT_DOMAIN = "net.hase-zheng";
 
-constexpr std::string_view CMAKE_CXX_STANDARD = "c++23";
+constexpr std::string_view CMAKE_CXX_STANDARD = "c++26";
 constexpr std::string_view CMAKE_CXX_COMPILER =
-    "MSVC 19.44.35229.0";
-constexpr std::string_view QT_VERSION_BUILD = "6.10.1";
+    "AppleClang 21.0.0.21000401";
+constexpr std::string_view QT_VERSION_BUILD = "6.10.2";
 } // namespace config
 } // namespace rz

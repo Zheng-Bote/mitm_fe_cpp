@@ -5,40 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-
-### Added
-- **macOS build**: build instructions for macOS (Apple Silicon, Homebrew Qt) in the README.
-- `build_macos_dmg.sh`: builds the Release configuration and packages a self-contained, ad-hoc signed DMG with app icon (`img/logo_256x256.png`).
-
-### Fixed
-- **Header mix-up with a system-wide Qt**: Conan packages are now linked before Qt, so their include directories take precedence over Homebrew's `/opt/homebrew/include` (which contains OpenSSL 4 / libcbor headers differing from the Conan versions and broke `FidoClient.cpp` on macOS).
-
 ## [v2.3.0] - 2026-11-18
 
-Encrypted configuration backup ([#49](https://github.com/Zheng-Bote/mitm_fe_cpp/issues/49), server part [core-layer#99](https://github.com/Zheng-Bote/mitm_core-layer/issues/99)). **Requires `mitm_http-server` ≥ 3.6.0.**
-
 ### Changed
+
 - **Backup**: asks for a passphrase (min. 12 characters, entered twice) and calls `POST /api/v1/system/backup`; the encrypted backup (AES-256-GCM, Argon2id) is saved unchanged as `.mitmbak` with owner-only permissions.
 - **Restore**: accepts `.mitmbak` files, asks for the passphrase after the confirmation and sends `{passphrase, backup}`; shows restored tables/rows, deactivated jobs and the server's error details (wrong passphrase / modified file, lock-out, unsupported format). Unencrypted `.json` backups of older versions are rejected with a clear message.
 - The confirmation explains that users, roles, RBAC rules and security keys are restored and that jobs missing in the backup are deactivated, not deleted.
 - The passphrase is kept in memory only and overwritten after the request (best effort).
 
+### Fixed
+
+- **Header mix-up with a system-wide Qt**: Conan packages are now linked before Qt, so their include directories take precedence over Homebrew's `/opt/homebrew/include` (which contains OpenSSL 4 / libcbor headers differing from the Conan versions and broke `FidoClient.cpp` on macOS).
+
 ### Added
+
 - `src/BackupFile.h` helpers, unit test `BackupFileTest`.
+- - **macOS build**: build instructions for macOS (Apple Silicon, Homebrew Qt) in the README.
+- `build_macos_dmg.sh`: builds the Release configuration and packages a self-contained, ad-hoc signed DMG with app icon (`img/logo_256x256.png`).
+- Encrypted configuration backup ([#49](https://github.com/Zheng-Bote/mitm_fe_cpp/issues/49), server part [core-layer#99](https://github.com/Zheng-Bote/mitm_core-layer/issues/99)). **Requires `mitm_http-server` ≥ 3.6.0.**
 
 ## [v2.2.2] - 2026-11-18
 
 ### Changed
-- **Jobs-Logs date filter ([#47](https://github.com/Zheng-Bote/mitm_fe_cpp/issues/47))**: *Logs → Jobs-Logs* starts with "Filter by Date" checked and the range set to today … today (previously unchecked, today−7 … today), so a refresh loads only today's job audit entries by default.
+
+- **Jobs-Logs date filter ([#47](https://github.com/Zheng-Bote/mitm_fe_cpp/issues/47))**: _Logs → Jobs-Logs_ starts with "Filter by Date" checked and the range set to today … today (previously unchecked, today−7 … today), so a refresh loads only today's job audit entries by default.
 
 ## [v2.2.1] - 2026-11-18
 
 ### Fixed
-- **Version check behind a proxy ([#45](https://github.com/Zheng-Bote/mitm_fe_cpp/issues/45))**: *Info → About* reported "Update check failed … configure a proxy" although the proxy worked for the User Guide. The check called the GitHub REST API (`api.github.com`), which allows only 60 unauthenticated requests per hour per public IP — shared by all users behind a corporate proxy/NAT and consumed on every application start. The latest version is now read from the redirect of `HEAD github.com/<repo>/releases/latest` (no API, no rate limit).
-- **Error messages**: the About dialog shows the real error (HTTP status or network error); the hint to check *Settings → Network-Proxy* appears only for proxy errors.
+
+- **Version check behind a proxy ([#45](https://github.com/Zheng-Bote/mitm_fe_cpp/issues/45))**: _Info → About_ reported "Update check failed … configure a proxy" although the proxy worked for the User Guide. The check called the GitHub REST API (`api.github.com`), which allows only 60 unauthenticated requests per hour per public IP — shared by all users behind a corporate proxy/NAT and consumed on every application start. The latest version is now read from the redirect of `HEAD github.com/<repo>/releases/latest` (no API, no rate limit).
+- **Error messages**: the About dialog shows the real error (HTTP status or network error); the hint to check _Settings → Network-Proxy_ appears only for proxy errors.
 
 ### Changed
+
 - The User Guide uses `ConfigManager::GetProxy()` instead of its own copy of the proxy setup. Helpers in `src/UpdateCheck.h`, unit test `UpdateCheckTest`.
 
 ## [v2.2.0] - 2026-11-17
@@ -46,25 +47,30 @@ Encrypted configuration backup ([#49](https://github.com/Zheng-Bote/mitm_fe_cpp/
 Adaptation to the core-layer API standardization ([core-layer #93](https://github.com/Zheng-Bote/mitm_core-layer/issues/93)). **Requires core-layer `mitm_http-server` ≥ 3.5.0.**
 
 ### Changed
+
 - **Response Envelope**: `ApiClient` passes the `data` payload of the response envelope `{id, status, code, title, detail, meta, data}` to the success callbacks (FlatBuffers bodies unchanged) and the envelope `detail` to the error callbacks; the request id is logged. The login dialog and the session check (`/auth/me`) parse the envelope as well. Helper: `src/ApiEnvelope.h`.
 - **RMM Level 2 routes**: role assignment uses `PUT /api/v1/iam/users/:id/roles`; topic dependencies `PUT`/`DELETE /api/v1/config/transformations/topic-dependencies/:topic`; the scheduler creates a single job via `POST /api/v1/jobs` and updates via `PUT /api/v1/jobs/:name`; source credentials and delivery targets are updated via `PUT /:id`.
 - **Session handling**: the session ends on `401` and on `USER_INACTIVE`; a missing permission (`403 RBAC_FORBIDDEN`) no longer logs the user out. The login dialog detects inactive accounts by the `USER_INACTIVE` code.
 - **Backup**: the saved backup file contains the backup payload (`data`), so it can be restored with `POST /api/v1/system/restore`.
 
 ### Added
+
 - Unit test `ApiEnvelopeTest`.
 
 ## [v2.1.0] - 2026-11-02
 
 ### Added
+
 - **User e-mail (mitm-2#31)**: System Settings → RBAC shows an `eMail` column; the Add User and Edit User dialogs have an `eMail` field.
 
 ### Changed
+
 - **User role selection (mitm-2#31)**: `RbacWidget` reads the assigned role IDs from `role_ids` of the user object returned by `GET /api/v1/iam/users/:id`. Requires core-layer `mitm_http-server` ≥ 3.0.0.
 
 ## [v2.0.1] - 2026-10-19
 
 ### Fixed
+
 - **Transformation Entity Deletion (`HTTP 405 Method Not Allowed`)**: Updated `TransformationWidget::deleteEntity` to pass the entity ID as a path segment (`/<id>`) instead of a query parameter (`?id=<id>`), matching the REST API v1 `DELETE /api/v1/config/transformations/.../:id` routes for sources, targets, rules, transformations, and validations.
 
 ## [2.0.0] - 2026-10-14
@@ -72,14 +78,17 @@ Adaptation to the core-layer API standardization ([core-layer #93](https://githu
 **BREAKING CHANGE**
 
 ### Security
+
 - **Passkey-only Authentication**: Login and re-authentication (session expiry, failed session renewal) now always use the WebAuthn passkey ceremony of the login dialog. The OS-user session request (`POST /api/v1/auth/session`, removed in core-layer) and the client-side-only Windows Hello check were removed, and `client_ip` is no longer sent by the client.
 
 ### Removed
+
 - **"Sign In via Browser (OAuth2 PKCE)" Button**: It did not perform OAuth and only requested the unverified OS-user session.
 
 ## [v1.4.1] - 2026-10-13
 
 ### Fixed
+
 - **Registration Hang on Windows**: Registration no longer freezes at "Starting registration ceremony...". Windows (1903+) blocks raw FIDO HID access for non-elevated processes and libfido2 waited forever; non-elevated processes now use the native WebAuthn API (`windows://hello`, which also serves USB security keys), and direct HID transactions are bounded by timeouts (5 s device query, 60 s ceremony).
 - **Authenticator Selection Ignored**: The "Security Key" / "Platform (Windows Hello)" choice in the registration tab is now honored and reported to the backend as `attachment_type`.
 - **Security Key Registered as Windows Hello Passkey**: libfido2 never passes an authenticator attachment to webauthn.dll, so Windows created the passkey in Windows Hello even when "Security Key" was selected, and login then worked without the YubiKey. Registration now calls the Windows WebAuthn API directly with `CROSS_PLATFORM` (security key) or `PLATFORM` (Windows Hello) attachment.
@@ -98,6 +107,7 @@ Adaptation to the core-layer API standardization ([core-layer #93](https://githu
 ## [v1.4.0] - 2026-10-12
 
 ### Added
+
 - **WebAuthn FIDO2 Authentication (Issue #21)**: Integrated cross-platform hardware token authentication (FIDO2/WebAuthn) using `libfido2` (via Conan 2 / CMake) and `libcbor`.
 - **Interactive Login Dialog**: Replaced the previous Windows Hello auto-login with an interactive two-tabbed dialog (`LoginDialog`) for Sign In and Register Passkey.
 - **Master Password Prompt**: Enforced two-stage authentication flow; prompting for the Master Password to decrypt `config.enc` first before launching the Login/Registration portal.
@@ -113,6 +123,7 @@ Adaptation to the core-layer API standardization ([core-layer #93](https://githu
 ## [v1.3.0] - 2026-10-10
 
 ### Added
+
 - **RBAC Enhancements (Issue #19)**: Expanded the User Management table to display First Name and Last Name. Added a new "Edit User" dialog allowing modification of user details and their `is_active` status. Added "is_active", "First Name" and "Last Name" to the "Add User" dialog. Implemented a "Terminate Session" action for admins to kill active user sessions remotely.
 - **Authentication & Session Renewal (Issue #19)**: The frontend now sends the local `client_ip` during the authentication phase. Added an automatic background `QTimer` that silently renews the user session every 30 minutes to prevent unexpected idle timeouts. Explicitly handles inactive account rejections during login.
 - **JSON Pre-Validation**: Introduced a global `JsonValidator` and integrated it into all UI dialogs (Rules, Transformations, Validations, Jobs) to validate JSON input before saving. This prevents silent data loss of malformed JSON strings and provides direct visual error feedback to the user.
@@ -332,4 +343,3 @@ Adaptation to the core-layer API standardization ([core-layer #93](https://githu
 ### Changed
 
 - **User Config Location**: User-specific proxy configurations (`<username>_config.enc`) are now saved cleanly inside a dedicated `<Programm-Ordner>/configs/` directory instead of the binary root folder.
-
