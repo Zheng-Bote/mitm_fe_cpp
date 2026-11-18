@@ -1,5 +1,6 @@
 #include <QPointer>
 #include "ApiClient.h"
+#include "AppPaths.h"
 /**
  * SPDX-FileComment: MainWindow
  * SPDX-FileType: SOURCE
@@ -284,7 +285,7 @@ void MainWindow::showAboutDialog() {
   layout->addLayout(hLayout);
 
   auto *logoLabel = new QLabel(&dialog);
-  QPixmap logoPixmap("img/logo_256x256.png");
+  QPixmap logoPixmap(":/img/logo_256x256.png");
   if (!logoPixmap.isNull()) {
     // Scale it down a bit so it fits nicely
     logoLabel->setPixmap(logoPixmap.scaled(128, 128, Qt::KeepAspectRatio,
@@ -379,7 +380,7 @@ void MainWindow::showProxyDialog() {
 }
 
 void MainWindow::showConfigDialog() {
-    QString dataDir = QCoreApplication::applicationDirPath() + "/data";
+    QString dataDir = mitm::paths::baseDir() + "/data";
     QString fileName = QFileDialog::getOpenFileName(this, "Select Configuration", dataDir, "Encrypted Configs (*.enc)");
     if (!fileName.isEmpty()) {
         QSettings settings;
@@ -388,7 +389,7 @@ void MainWindow::showConfigDialog() {
         QMessageBox::information(this, "Restart Required", "The application will now restart to apply the new configuration.");
         
         qApp->quit();
-        QProcess::startDetached(qApp->arguments()[0], QStringList());
+        QProcess::startDetached(mitm::paths::restartProgram(), QStringList());
     }
 }
 

@@ -17,6 +17,7 @@
  */
 
 #include "Config.h"
+#include "AppPaths.h"
 #include "Crypto.h"
 #include <nlohmann/json.hpp>
 #include <fstream>
@@ -91,7 +92,7 @@ void ConfigManager::LoadUserConfig() {
     if (osUser.isEmpty()) osUser = "unknown";
     
     // Path should be in <Programm-Ordner>/configs/
-    QString dir = QCoreApplication::applicationDirPath() + "/configs/";
+    QString dir = mitm::paths::baseDir() + "/configs/";
     QString userConfigPath = dir + osUser + "_config.enc";
 
     std::ifstream file(userConfigPath.toStdString(), std::ios::binary);
@@ -131,7 +132,7 @@ void ConfigManager::SaveUserConfig(const ProxyConfig& proxyCfg) {
     osUser.remove(QRegularExpression("[^a-zA-Z0-9_-]"));
     if (osUser.isEmpty()) osUser = "unknown";
     
-    QString dir = QCoreApplication::applicationDirPath() + "/configs/";
+    QString dir = mitm::paths::baseDir() + "/configs/";
     QDir().mkpath(dir); // Ensure the configs directory exists
     QString userConfigPath = dir + osUser + "_config.enc";
 

@@ -28,6 +28,7 @@
   - [4. Configuration Setup](#4-configuration-setup)
   - [5. Run](#5-run)
   - [6. Package as macOS DMG](#6-package-as-macos-dmg)
+  - [7. Package as Linux AppImage](#7-package-as-linux-appimage)
 
 </details>
 
@@ -180,3 +181,25 @@ The script
 - signs the bundle ad hoc and creates the DMG with an `Applications` shortcut.
 
 _Note: The DMG is not notarized. On other Macs, Gatekeeper blocks the first launch; open the app via right-click → **Open**. Distribution to other users requires a Developer ID signature and notarization._
+
+### 7. Package as Linux AppImage
+
+`build_linux_appimage.sh` builds the Release configuration and packages it as a self-contained AppImage (prerequisites as in step 1, plus `curl` and `file`):
+
+```bash
+./build_linux_appimage.sh            # build (Conan + CMake) and create the AppImage
+./build_linux_appimage.sh --no-build # only package an existing build/Release
+QT_PREFIX=~/Qt/6.12.0/gcc_64 ./build_linux_appimage.sh   # Qt from the Qt installer
+```
+
+Output: `build/appimage/mitm_fe_cpp-<version>-x86_64.AppImage`
+
+The script
+
+- finds Qt via `QMAKE`, `QT_PREFIX`, `Qt6_DIR` in `build/Release/CMakeCache.txt` or `qmake6`/`qmake` in `PATH`,
+- downloads [linuxdeploy](https://github.com/linuxdeploy/linuxdeploy) and [linuxdeploy-plugin-qt](https://github.com/linuxdeploy/linuxdeploy-plugin-qt) once to `build/appimage/tools` (no FUSE needed),
+- bundles the Qt libraries and plugins (xcb, and Wayland if available) and libfido2, adds a desktop entry and the icon `img/logo_256x256.png`.
+
+The AppImage keeps its files next to the `.AppImage` file, just like the program folder of a normal installation: `config.enc`, `configs/<user>_config.enc`, `data/` (configurations, `data/backup`).
+
+_Note: The AppImage runs on distributions with the same or a newer glibc than the build host; build on the oldest distribution to support. OpenSSL is used from the target system (Qt loads it at runtime)._
